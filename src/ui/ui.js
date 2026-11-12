@@ -49,6 +49,7 @@ export class UI {
         <div class="goal"><div class="main"><i></i><span></span></div><div class="quest"><b></b><span></span><em></em></div></div>
         <div class="boss"><div class="name"></div><div class="meter"><i class="ghost"></i><i class="fill"></i><div class="notches"></div></div></div>
         <div class="reticle"></div>
+        <div class="bark"></div>
         <div class="foes">${'<div class="foe"><i></i></div>'.repeat(6)}</div>
         <div class="marker main"><i></i><span></span></div>
         <div class="marker side"><i></i><span></span></div>
@@ -78,6 +79,7 @@ export class UI {
           <p class="sub">The valley has fallen silent. Wake its spires and let it sing again.</p>
           <div class="menu">
             <button class="primary" data-act="play"></button>
+            <div class="stand" hidden></div>
             <button data-act="new" hidden>New journey</button>
             <button data-act="settings">Settings</button>
             <button data-act="credits">Credits</button>
@@ -117,7 +119,7 @@ export class UI {
       marker: $('#hud .marker.main'), markerText: $('#hud .marker.main span'), marker2: $('#hud .marker.side'), marker2Text: $('#hud .marker.side span'),
       reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), toastBig: $('#hud .toast .big'), toastSmall: $('#hud .toast .small'), card: $('#hud .card'), cardTitle: $('#hud .card b'), cardText: $('#hud .card span'),
       hints: $('#hud .hints'), fps: $('#hud .fps'), grab: $('#hud .grab'), tally: $('#hud .tally'), beat: $('#hud .beat'), beatCue: $('#hud .beat .cue'), beatRing: $('#hud .beat .cue i'), beatPips: $('#hud .beat .pips'),
-      foes: $$('#hud .foe'), refrain: $('#hud .refrain'), cadence: $('#hud .cadence'),
+      foes: $$('#hud .foe'), bark: $('#hud .bark'), refrain: $('#hud .refrain'), cadence: $('#hud .cadence'),
       compass: $('#hud .compass'), ticks: $('#hud .compass .ticks'), card4: $$('#hud .compass b'), pinGoal: $('#hud .compass .pin.goal'), pinSide: $('#hud .compass .pin.side'),
       talk: $('#talk'), talkName: $('#talk .who b'), talkRole: $('#talk .who span'), talkText: $('#talk p'), talkNext: $('#talk .next'),
       tabBody: $('#settings .tabbody'), play: $('[data-act="play"]'), newGame: $('[data-act="new"]'),
@@ -175,7 +177,7 @@ export class UI {
   show(name) {
     for (const k of ['home', 'pause', 'settings', 'credits', 'journey']) this.el[k].classList.toggle('on', k === name);
     this.el.hud.classList.toggle('on', name === 'hud' || name === 'pause');
-    if (name === 'home') { this.el.play.textContent = this.game.hasSave ? 'Continue' : 'Begin'; this.el.newGame.hidden = !this.game.hasSave; this.el.ending.classList.remove('on'); }
+    if (name === 'home') { this.el.play.textContent = this.game.hasSave ? 'Continue' : 'Begin'; { const g = this.game, n = g.spires.filter((s) => s.tuned).length, st = this.root.querySelector('#home .stand'); st.textContent = g.hasSave ? `${n === g.spires.length ? 'Every spire sings' : `${n} of ${g.spires.length} spires sing`}  ·  ${this._time(g.playTime ?? 0)} in the Vale` : ''; st.hidden = !g.hasSave; } this.el.newGame.hidden = !this.game.hasSave; this.el.ending.classList.remove('on'); }
   }
 
   _fadeThen(fn) { this.el.fade.classList.add('on'); setTimeout(() => { fn(); this.el.fade.classList.remove('on'); }, 650); }
@@ -260,6 +262,7 @@ export class UI {
     if (type === 'people' && d.type === 'wake') { clearTimeout(this._wakeT); const n = (this._wakeN = (this._wakeN ?? 0) + 1); this._wakeT = setTimeout(() => { this._wakeN = 0; this.card(n > 1 ? 'The court wakes' : `${d.name} wakes`, n > 1 ? `${n} people here can speak again.` : 'Someone at this court can speak again.'); }, 9500); }
     if (type === 'hit' && d.enemy) (this._hit ??= new Map()).set(d.enemy, performance.now());
     if (type === 'hint') this.card(d.title, d.text);
+    if (type === 'bark') { if (d.off) { el.bark.classList.remove('on'); this._bark = null; } else { el.bark.textContent = d.text; el.bark.classList.add('on'); this._bark = d.n; } }
     if (type === 'opening' && !this._ripHint) { this._ripHint = true; this.card('Riposte', 'A blow slipped at the last instant leaves an opening. Strike at once and the cut lands far harder.'); }
     if (type === 'photo') { const f = this.el.fade; f.classList.add('flash'); setTimeout(() => f.classList.remove('flash'), 90); this.onSound?.('ui_click'); }
     if (type === 'cadence') {
@@ -324,6 +327,12 @@ export class UI {
       el.reticle.style.left = `${(v.x * 0.5 + 0.5) * 100}%`; el.reticle.style.top = `${(-v.y * 0.5 + 0.5) * 100}%`;
     } else el.reticle.classList.remove('on');
 
+    // A word in passing floats over whoever said it.
+    if (this._bark) {
+      const n = this._bark, v = this._v.set(n.x, n.y + 1.95 * n.def.h, n.z).project(g.pipe.camera);
+      if (v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) el.bark.style.opacity = '0';
+      else { el.bark.style.opacity = ''; el.bark.style.transform = `translate(${((v.x * 0.5 + 0.5) * innerWidth).toFixed(1)}px, ${((-v.y * 0.5 + 0.5) * innerHeight).toFixed(1)}px) translate(-50%, -100%)`; }
+    }
     // A hairline of health over whatever he has just struck, or has locked on to.
     {
       const now = performance.now(), cam = g.pipe.camera, hit = (this._hit ??= new Map());

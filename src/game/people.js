@@ -68,6 +68,12 @@ const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _from = { pos: new 
 const ease = (t) => t * t * (3 - 2 * t), clamp01 = (x) => Math.max(0, Math.min(1, x));
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
+// What people say to someone passing, when they have not been asked anything.
+const PASSING = ['Evening.', 'It sings. Listen.', 'Mind the edge.', 'There you are.', 'Still in one piece, I see.', 'You hum when you walk. Did you know?', 'Good light for it.', 'Go well.', 'Do not let me keep you.', 'Fine evening for mending a valley.'];
+const PASSING_LATE = ['I had forgotten how the air sounds.', 'They talk of you at every court.', 'Listen to that. Three, four voices now.', 'The strings are humming again. You can feel it in your teeth.'];
+const PASSING_SMALL = ['Hello!', 'Is that sword heavy?', 'I counted the lights again.', 'Watch this. No, wait. Watch.', 'Are you going to the Crown?'];
+const HURT = ['You are bleeding light. Sit a moment.', 'Hum the note. Go on.', 'That looks worse than it is, I hope.'];
+
 export class People {
   constructor(game, pipe) {
     this.game = game; this.pipe = pipe; this.list = []; this.talk = null;
@@ -242,6 +248,22 @@ export class People {
       n.armL.rotation.set(-0.12 * n.gesture, 0, 0);
       n.root.updateMatrixWorld(true);
     }
+    // One passing word at a time, from whoever is nearest and has not spoken lately.
+    if (playing && !this.talk && !g.tuning.active && !p.inCombat) {
+      this.barkT = (this.barkT ?? 6) - dt;
+      if (this.bark && (this.bark.t -= dt) <= 0) { g.emit('bark', { off: true }); this.bark = null; }
+      if (this.barkT <= 0 && !this.bark) {
+        this.barkT = 2;
+        let best = null, bd = 6.5;
+        for (const n of this.list) { if (!n.awake || n.k < 1 || (n.said ?? 0) > g.time) continue; const d = Math.hypot(p.pos.x - n.x, p.pos.z - n.z); if (d < bd && d > 1.6 && Math.abs(p.pos.y - n.y) < 2) { bd = d; best = n; } }
+        if (best) {
+          const sung = g.spires.filter((q) => q.tuned).length, pool = p.health < p.healthMax * 0.45 ? HURT : best.def.h < 0.8 ? PASSING_SMALL : sung >= 3 ? [...PASSING, ...PASSING_LATE] : PASSING;
+          const text = pool[Math.floor(Math.random() * pool.length)];
+          best.said = g.time + 55 + Math.random() * 40; this.barkT = 16 + Math.random() * 14;
+          this.bark = { n: best, t: 3.6 }; g.emit('bark', { n: best, text });
+        }
+      }
+    } else if (this.bark) { g.emit('bark', { off: true }); this.bark = null; }
     if (!playing) return;
     const T = this.talk;
     if (T) {

@@ -961,6 +961,16 @@ export class Game {
     { const p = this.player.pos; this.pipe.fog.hero.set(p.x, p.y + 1.0, p.z, this.state === 'home' ? 0 : 3.2); }
     // In the film the outer courts show their light only at the end, when the inner Vale sings.
     this.cineAll = !!this.cine && this.spires[0].tuned && this.spires[1].tuned && this.spires[2].tuned;
+    if (!this.cine && this.state !== 'home') {
+      const p = this.player.pos;
+      for (const s of this.spires) {
+        if (!s.tuned) continue;
+        const d = Math.hypot(s.x - p.x, s.z - p.z);
+        if (d > 75 || Math.random() > dt * 7) continue;
+        const a = Math.random() * 6.283, r = 3 + Math.random() * 15, x = s.x + Math.cos(a) * r, z = s.z + Math.sin(a) * r;
+        this.particles.spawn(x, (s.base ?? p.y) + 0.3 + Math.random() * 2.5, z, { vel: [(Math.random() - 0.5) * 0.3, 0.25 + Math.random() * 0.35, (Math.random() - 0.5) * 0.3], life: 3.5 + Math.random() * 2.5, size: 0.035 + Math.random() * 0.03, color: [3.4, 2.6, 1.2], alpha: 0.75, drag: 0.2 });
+      }
+    }
     this.flash *= Math.exp(-dt * 3.2);
     this.pipe.exposure = this.baseExposure * (1 + 0.16 * this.flash);
     for (const s of this.spires) {
