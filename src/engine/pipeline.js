@@ -64,18 +64,23 @@ uniform float uExposure;
 uniform float uVignette;
 uniform float uSharpen;
 uniform vec2 uTexel;
+// Reversible compression to 0..1, so sharpening treats sunlit and shaded detail alike and
+// bright edges do not ring.
+vec3 squash(vec3 x) { x *= uExposure; return x / (1.0 + max(x.r, max(x.g, x.b))); }
+vec3 unsquash(vec3 y) { return y / (max(1.0 - max(y.r, max(y.g, y.b)), 1e-3) * uExposure); }
 void main() {
   vec3 c = textureLod(uColor, vUv, 0.0).rgb;
   if (uSharpen > 0.0) {
-    // Contrast-adaptive sharpening, done in a compressed range so highlights do not ring.
-    vec3 n = textureLod(uColor, vUv + vec2(0.0, uTexel.y), 0.0).rgb, s = textureLod(uColor, vUv - vec2(0.0, uTexel.y), 0.0).rgb;
-    vec3 e = textureLod(uColor, vUv + vec2(uTexel.x, 0.0), 0.0).rgb, w = textureLod(uColor, vUv - vec2(uTexel.x, 0.0), 0.0).rgb;
-    float lc = luma(c), ln = luma(n), ls = luma(s), le = luma(e), lw = luma(w);
+    // Contrast-adaptive sharpening: strongest on soft detail, backing off at hard edges.
+    vec3 m = squash(c);
+    vec3 n = squash(textureLod(uColor, vUv + vec2(0.0, uTexel.y), 0.0).rgb), s = squash(textureLod(uColor, vUv - vec2(0.0, uTexel.y), 0.0).rgb);
+    vec3 e = squash(textureLod(uColor, vUv + vec2(uTexel.x, 0.0), 0.0).rgb), w = squash(textureLod(uColor, vUv - vec2(uTexel.x, 0.0), 0.0).rgb);
+    float lc = luma(m), ln = luma(n), ls = luma(s), le = luma(e), lw = luma(w);
     float mn = min(lc, min(min(ln, ls), min(le, lw))), mx = max(lc, max(max(ln, ls), max(le, lw)));
-    float amp = sqrt(saturate(min(mn, 1.0 - min(mx, 1.0)) / max(mx, 1e-4)));
+    float amp = sqrt(saturate(min(mn, 1.0 - mx) / max(mx, 1e-4)));
     float k = -amp * uSharpen * 0.2;
-    vec3 sharp = (c + (n + s + e + w) * k) / (1.0 + 4.0 * k);
-    c = max(mix(c, sharp, step(mx, 4.0)), 0.0);
+    vec3 sharp = clamp((m + (n + s + e + w) * k) / (1.0 + 4.0 * k), 0.0, 0.995);
+    c = unsquash(sharp);
   }
   c = mix(c, textureLod(uBloom, vUv, 0.0).rgb / 6.0, uBloomStrength);
   vec2 q = vUv - 0.5;
@@ -233,7 +238,11 @@ export class Pipeline {
     this.camera.updateProjectionMatrix();
   }
 
-  setRenderScale(s) { this.renderScale = s; this.setSize(this.displayW, this.displayH); }
+  setRenderScale(s) {
+    this.renderScale = s; this.setSize(this.displayW, this.displayH);
+    // An upscaled frame needs more sharpening than a native one.
+    this.tonemap.uniforms.uSharpen.value = 0.45 + 0.5 * Math.min(1, Math.max(0, (1 - s) / 0.45));
+  }
 
   // opts.toScreen = false stops after anti-aliasing and returns the HDR colour texture
   // (used by the film output, which grades and encodes frames itself).
