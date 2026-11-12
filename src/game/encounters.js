@@ -93,7 +93,7 @@ export class Encounters {
 
   tracker() { const e = this.echo; return e ? { title: `Echo of ${e.name}`, text: 'Stand against what the court remembers', count: `${e.wave + 1} / 3`, mark: null } : null; }
   _echoWave() {
-    const g = this.g, e = this.echo, s = e.s, mods = { scale: 1.1, hp: 1.35 + 0.12 * e.tier, dmg: 1.1 + 0.06 * e.tier, tint: 0.6 }, flat = [];
+    const g = this.g, e = this.echo, s = e.s, mods = { scale: 1.1, hp: 1.35 + 0.12 * e.tier, dmg: 1.1 + 0.06 * e.tier, tint: 0, ghost: true }, flat = [];
     for (const [kind, n] of echoWaves(e.tier)[e.wave]) for (let i = 0; i < n; i++) flat.push(kind);
     flat.forEach((kind, i) => {
       const a = e.wave * 1.1 + (i / flat.length) * 6.283, r = 8 + (i % 3) * 1.6, q = g.enemies.spawn(kind, s.x + Math.cos(a) * r, s.z + Math.sin(a) * r, e.group, mods, s.base);

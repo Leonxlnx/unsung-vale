@@ -270,6 +270,14 @@ if (want('foes')) {
   await sleep(300); await ev(() => window.__game._cadence(1)); await sleep(350); await shot('foes_cadence');
   await ev(() => { const g = window.__game; g._cadenceBreak(); }); await sleep(250); await shot('foes_cadence_broke');
 }
+if (want('echo')) {
+  // After the ending: an echo woken at the Petal Court's spire, pale as a memory.
+  await ev(() => { const g = window.__game, s = g.spires[0]; window.__dbg.ui(true); window.__tour.tune(g.spires.map((q) => q.id)); g.ended = true; g.outroSeen = true; g.enemies.list.length = 0; window.__tour.tp(s.x + 4.2, s.base + 0.2, s.z + 1, -1.3, -0.1, 7.5); });
+  await sleep(900); await shot('echo_prompt');
+  await page.keyboard.press('KeyE'); await sleep(1900); await shot('echo_wave');
+  await sleep(1500); await shot('echo_fight');
+  await ev(() => { const g = window.__game; g.encounters._endEcho(false); g.ended = false; });
+}
 if (want('outro')) {
   await ev(() => { const g = window.__game; window.__tour.tune(g.spires.map((s) => s.id)); g.ended = true; g.outroSeen = true; window.__dbg.ui(true); window.__story.outro(); });
   for (const [t, name] of [[4000, 'outro_1'], [8500, 'outro_2'], [9000, 'outro_3'], [10000, 'outro_4']]) { await sleep(t); await shot(name); }

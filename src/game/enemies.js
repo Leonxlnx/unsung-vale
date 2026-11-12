@@ -10,7 +10,7 @@ import { TERRAIN_SAMPLING } from '../world/terrain.js';
 import { mulberry32 } from '../util/noise.js';
 
 const SHARD_VERT = /* glsl */ `
-in vec3 iGlow;     // x: glow 0..1+, y: dissolve 0..1, z: tint (0 the Mute's violet, 1 an elite's ember red)
+in vec3 iGlow;     // x: glow 0..1+, y: dissolve 0..1, z: tint (0 the Mute's violet, 1 an elite's ember red), plus 2 for an echo
 out vec3 vWorld; out vec3 vGlow; out vec3 vLocal;
 void main() {
   vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
@@ -38,13 +38,15 @@ void main() {
   // Dark glass with a faint oil-film sheen that shifts from violet to teal across each facet.
   float ndv = saturate(dot(N, V));
   vec3 base = mix(vec3(0.16, 0.13, 0.26), vec3(0.1, 0.2, 0.24), smoothstep(0.2, 0.9, ndv));
-  base = mix(base, vec3(0.2, 0.1, 0.09), vGlow.z * 0.7);
+  float ghost = step(1.5, vGlow.z), ember = vGlow.z - 2.0 * ghost;
+  base = mix(base, vec3(0.2, 0.1, 0.09), ember * 0.7);
+  base = mix(base, vec3(0.2, 0.26, 0.34), ghost * 0.8);
   vec3 col = shadeSurface(base, 0.14, 0.92, N, V, vis, 1.0, 0.0);
   // Light bleeding through the edges and along inner fractures, so the figure keeps a
   // bright outline even where the silence has drained the colour around it.
   float fres = pow(1.0 - ndv, 3.0);
   float vein = smoothstep(0.7, 0.95, vnoise3(vLocal * vec3(9.0, 3.0, 9.0) + uTime * 0.2));
-  vec3 violet = mix(vec3(0.62, 0.24, 1.0), vec3(1.0, 0.34, 0.16), vGlow.z);
+  vec3 violet = mix(mix(vec3(0.62, 0.24, 1.0), vec3(1.0, 0.34, 0.16), ember), vec3(0.6, 0.85, 1.0), ghost * 0.9);
   col += violet * (fres * 1.7 + vein * 0.9) * (0.55 + vGlow.x * 1.5);
   col += vec3(0.8, 0.85, 1.0) * pow(fres, 3.0) * 0.6;
   col += vec3(0.9, 0.7, 1.0) * max(vGlow.x - 1.0, 0.0) * 0.9;
@@ -161,7 +163,7 @@ const _q = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0), _v = new TH
 class Enemy {
   constructor(kind, x, y, z, seed, group, mods = null) {
     this.kind = kind; this.def = mods ? derive(KINDS[kind], mods) : KINDS[kind]; this.group = group;
-    this.scale = mods?.scale ?? 1; this.tint = mods ? (mods.tint ?? 1) : 0; this.elite = !!mods?.elite; this.affix = mods?.affix ?? null; this.phase = 0;
+    this.scale = mods?.scale ?? 1; this.tint = mods ? (mods.tint ?? 1) : 0; this.elite = !!mods?.elite; this.affix = mods?.affix ?? null; this.ghost = mods?.ghost ? 1 : 0; this.phase = 0;
     this.pos = new THREE.Vector3(x, y, z); this.home = this.pos.clone();
     this.yaw = seed * 6.283; this.vel = new THREE.Vector3();
     this.hp = this.def.hp; this.poise = this.def.poise;
@@ -401,7 +403,7 @@ export class Enemies {
             // On Standard and above a thrall follows one cut with another before it rests; a
             // lancer of rank, or any lancer on Hard, looses a second bolt on the heels of the first.
             if (e.kind === 'thrall' && this.haste > 1.05 && !e.again && e.alive && dist < d.reach + 1.5) { e.again = true; e.state = 'windup'; e.t = d.windup * 0.45; this.events.push({ type: 'charge', enemy: e }); }
-            else if (e.kind === 'lancer' && (this.haste > 1.3 || e.tint > 0) && !e.again && e.alive) { e.again = true; e.state = 'windup'; e.t = d.windup * 0.62; }
+            else if (e.kind === 'lancer' && (this.haste > 1.3 || e.tint > 0 || e.ghost) && !e.again && e.alive) { e.again = true; e.state = 'windup'; e.t = d.windup * 0.62; }
             else { e.state = 'recover'; e.t = 0; e.slamFx = false; e.again = false; if (e.attackKind === 5) e.attackKind = 0; }
           }
         } else if (e.state === 'recover') {
@@ -551,7 +553,7 @@ export class Enemies {
         M.setMatrixAt(n, _m);
         G[n * 3] = e.state === 'dormant' ? 0 : e.glow + (e.state === 'rise' ? 0.6 : 0) + 0.25 * e.tint;
         G[n * 3 + 1] = e.state === 'dead' ? Math.max(0, (e.t - 1.6) / 1.5) : 0;
-        G[n * 3 + 2] = e.tint;
+        G[n * 3 + 2] = e.tint + 2 * (e.ghost ?? 0);
         n++;
       }
       e.snap = false;
