@@ -50,8 +50,10 @@ void main() {
   if (!gl_FrontFacing) N = -N;
   vec3 V = normalize(cameraPosition - vWorld);
   // Fine variation in rest space so it stays put as the body moves.
-  float n = vnoise3(vRest * 46.0), n2 = vnoise3(vRest * 9.0);
-  vec3 alb = uAlbedo * (0.86 + 0.24 * n2) * (0.94 + 0.12 * n);
+  float n = fbm3(vRest * 38.0, 3), n2 = vnoise3(vRest * 9.0);
+  // Cloth is evenly dyed; metal and leather carry more wear.
+  float grain = uSurf.z > 0.3 ? 0.05 : 0.12;
+  vec3 alb = uAlbedo * (0.86 + 0.24 * n2) * (1.0 - grain + 2.0 * grain * n);
   float rough = clamp(uSurf.x + (n - 0.5) * 0.16, 0.06, 1.0);
   float vis = sunVisibility(vWorld + N * 0.03 + uSunDir * 0.06);
   vec3 col = shadeSurface(alb, rough, uSurf.y, N, V, vis, 0.9, 0.0);
@@ -59,6 +61,8 @@ void main() {
   float fres = pow(1.0 - saturate(dot(N, V)), 3.0);
   // Cloth catches the sky along its edges.
   col += alb * shIrradiance(N) * fres * uSurf.z * 2.0;
+  // Thin cloth lets the low sun through: the cape glows when he stands against the light.
+  col += alb * uSunColor * (0.3183 * 0.6 * saturate(dot(-N, uSunDir)) * vis * step(0.3, uSurf.z));
   // The blade carries its own light.
   col += uAlbedo * uSurf.w * (0.5 + 1.6 * fres + 0.15 * sin(uTime * 3.0 + vRest.y * 14.0));
   col += vec3(1.0, 0.9, 0.8) * uFlash;
