@@ -184,7 +184,8 @@ async function runCapture() {
   apply();
   pipe.setSize(w, h);
   terrain.lodScale = 3;
-  pipe.sky.setCloudQuality(4096, 72); pipe.sky.tilesPerFrame = 24;
+  pipe.sky.setCloudQuality(4096, 72); pipe.sky.tilesPerFrame = 8;
+  pipe.shadows.rate = 1;
   const film = new FilmOutput(pipe);
   film.setSize(w, h);
   director.begin();

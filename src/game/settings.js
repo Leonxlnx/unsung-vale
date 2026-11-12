@@ -2,10 +2,10 @@
 const KEY = 'unsung-vale-settings-v1';
 
 export const PRESETS = {
-  low:    { renderScale: 0.55, shadows: false, volumetrics: false, cover: 0.55, clouds: 0, cloudRes: 1024 },
-  medium: { renderScale: 0.67, shadows: true, volumetrics: true, cover: 0.75, clouds: 1, cloudRes: 1024 },
-  high:   { renderScale: 0.8, shadows: true, volumetrics: true, cover: 1.0, clouds: 1, cloudRes: 2048 },
-  ultra:  { renderScale: 1.0, shadows: true, volumetrics: true, cover: 1.0, clouds: 2, cloudRes: 2048 },
+  low:    { renderScale: 0.55, shadows: false, volumetrics: false, cover: 0.55, clouds: 0, cloudRes: 1024, shadowRate: 2 },
+  medium: { renderScale: 0.63, shadows: true, volumetrics: true, cover: 0.75, clouds: 1, cloudRes: 1024, shadowRate: 2 },
+  high:   { renderScale: 0.8, shadows: true, volumetrics: true, cover: 1.0, clouds: 1, cloudRes: 2048, shadowRate: 1 },
+  ultra:  { renderScale: 1.0, shadows: true, volumetrics: true, cover: 1.0, clouds: 2, cloudRes: 2048, shadowRate: 1 },
 };
 
 const DEFAULTS = { preset: 'medium', ...PRESETS.medium, fov: 60, sensitivity: 1, invertY: false, master: 0.8, music: 0.55, sfx: 0.85, showFps: false };
@@ -40,6 +40,7 @@ export function applySettings(settings, { pipe, game, cover, audio }) {
   const v = settings.values;
   if (Math.abs(pipe.renderScale - v.renderScale) > 1e-3) pipe.setRenderScale(v.renderScale);
   pipe.shadows.enabled = v.shadows;
+  pipe.shadows.rate = v.shadowRate ?? 1;
   if (pipe.volumetrics) pipe.volumetrics.enabled = v.volumetrics;
   if (cover) { cover.fade.value = cover.radius * v.cover; cover.scale = v.cover; }
   pipe.sky.setCloudQuality(v.cloudRes ?? 1024, v.cloudRes > 1024 ? 56 : 44);

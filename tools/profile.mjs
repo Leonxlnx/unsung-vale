@@ -15,7 +15,7 @@ const out = await page.evaluate(async (preset) => {
   const D = window.__dbg, P = window.__pipe, G = window.__game, X = window.__parts;
   const gl = P.renderer.getContext(), px = new Uint8Array(4);
   D.ui(false);
-  D.play(60, 0, 0, { tp: [-600, 210.2, -180, 0.9] });
+  D.play(60, 0, 0, { tp: [-372, 178.4, -410, 0] });
   const sync = () => { P.renderer.setRenderTarget(null); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); };
   const measure = () => {
     for (let i = 0; i < 12; i++) D.step(1); sync();
@@ -36,6 +36,11 @@ const out = await page.evaluate(async (preset) => {
   toggle('no water + falls', () => { X.water.group.visible = false; X.falls.group.visible = false; }, () => { X.water.group.visible = true; X.falls.group.visible = true; });
   toggle('no dressing', ...vis(X.dressing.group ?? { visible: true }));
   toggle('no shadows', () => { P.shadows.enabled = false; }, () => { P.shadows.enabled = true; });
+  toggle('hard shadows', () => { P.shadows.soft = false; }, () => { P.shadows.soft = true; });
+  toggle('no rocks', ...vis(X.rocks.group));
+  toggle('no clouds bake', () => { P.sky._tiles = P.sky.tilesPerFrame; P.sky.tilesPerFrame = 0; }, () => { P.sky.tilesPerFrame = P.sky._tiles; });
+  toggle('no AO', () => { P._aoS = P.fog.uniforms?.uAoStrength?.value; if (P.fog.pass) P.fog.pass.uniforms.uAoStrength.value = 0; P.aoEnabled = false; }, () => { P.aoEnabled = true; });
+  toggle('no bloom', () => { P._bs = P.bloomStrength; P.bloomStrength = 0; P.bloomOff = true; }, () => { P.bloomStrength = P._bs; P.bloomOff = false; });
   toggle('no volumetrics', () => { P.volumetrics.enabled = false; }, () => { P.volumetrics.enabled = true; });
   const rs = P.renderScale;
   toggle('half resolution', () => P.setRenderScale(rs * 0.5), () => P.setRenderScale(rs));

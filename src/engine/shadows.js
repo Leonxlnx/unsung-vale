@@ -155,6 +155,7 @@ export class Shadows {
     this.csmRaw.depthTexture.minFilter = this.csmRaw.depthTexture.magFilter = THREE.NearestFilter;
     pipe.renderer.initRenderTarget(this.csmRaw);
     this.soft = true;             // soft penumbrae on surfaces that ask for them
+    this.rate = 1;                // 1: near cascade every frame; 2: cascades take turns
     this.softness = 0.012;        // penumbra radius per metre between blocker and receiver
     this.staticSize = [4096, 1024];
     this.static = depthTarget(...this.staticSize);
@@ -269,8 +270,10 @@ export class Shadows {
     for (let i = 0; i < 2; i++) {
       const far = this.splits[i];
       // The far cascade changes slowly, so it is redrawn only every third frame; its matrix
-      // stays paired with the map it was drawn with.
-      if (i === 1 && this._frame % 3 !== 0 && this._frame > 3) { near = far; continue; }
+      // stays paired with the map it was drawn with. At half rate (the Medium preset) the two
+      // cascades take turns instead: near on even frames, far on every fourth.
+      const skip = this.rate === 2 ? (i === 0 ? this._frame % 2 === 1 : this._frame % 4 !== 1) : (i === 1 && this._frame % 3 !== 0);
+      if (skip && this._frame > 4) { near = far; continue; }
       // Bounding sphere of the frustum slice: its size never changes, so the shadow edges
       // stay rock steady while the camera turns.
       const k = 1 + tanH * tanH + tanW * tanW;
