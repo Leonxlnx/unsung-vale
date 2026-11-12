@@ -14,6 +14,7 @@ const CELL = 16;
 const PLACE = /* glsl */ `
 uniform sampler2D uNCore;
 uniform sampler2D uNoise;
+uniform sampler2D uPathTex;
 uniform vec3 uWind;
 uniform float uTime;
 uniform float uFadeDist;
@@ -27,6 +28,7 @@ vec4 groundInfo(vec2 xz) {
   float soil = smoothstep(0.66, 0.8, n2.r);
   float grow = (1.0 - smoothstep(0.02, 0.2, cliff)) * smoothstep(1.3, 2.6, h) * (1.0 - soil * 0.85);
   grow *= step(max(abs(xz.x), abs(xz.y)), CORE_SIZE * 0.45);
+  grow *= 1.0 - smoothstep(0.25, 0.7, textureLod(uPathTex, xz / CORE_SIZE + 0.5, 0.0).r);
   return vec4(h, grow, n1.r, n1.a);
 }
 // One unfiltered shadow lookup is plenty for a blade of grass.
@@ -160,7 +162,7 @@ export class GroundCover {
     const D = pipe.depthDefines;
     this.fade = { value: this.radius };
     const uniforms = {
-      ...pipe.lit(), uNCore: terrain.surfaceUniforms.uNCore, uNoise: terrain.surfaceUniforms.uNoise,
+      ...pipe.lit(), uNCore: terrain.surfaceUniforms.uNCore, uNoise: terrain.surfaceUniforms.uNoise, uPathTex: terrain.surfaceUniforms.uPathTex,
       uWind: { value: wind }, uFadeDist: this.fade,
     };
 

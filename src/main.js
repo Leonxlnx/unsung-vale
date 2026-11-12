@@ -43,6 +43,15 @@ pipe.scene.add(terrain.mesh);
 const water = new Water(pipe, terrain);
 pipe.sceneT.add(water.group);
 
+// Walking routes between the sites, worn into the turf.
+terrain.bakePaths([
+  [[-538, -70], [-551, -100], [-562, -138], [-566, -159]],
+  [[-450, -288], [-427, -320], [-398, -358], [-380, -378]],
+  [[-358, -402], [-300, -424], [-232, -449], [-180, -459]],
+  [[-110, -459], [-60, -470], [8, -488], [46, -496]],
+  [[72, -478], [85, -420], [96, -362], [98, -344]],
+  [[-524, -48], [-536, -30]],
+]);
 await stage(0.3, 'Building the cities');
 const arch = new Architecture(pipe, terrain, buildMesas());
 window.__arch = arch;

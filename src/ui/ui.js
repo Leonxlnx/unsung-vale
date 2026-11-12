@@ -21,6 +21,7 @@ export class UI {
         <div class="objective"></div>
         <div class="boss"><div class="name"></div><div class="meter"><i></i></div></div>
         <div class="reticle"></div>
+        <div class="marker"><i></i><span></span></div>
         <div class="vitals"><div class="meter health"><i></i></div><div class="meter stamina"><i></i></div></div>
         <div class="pulse"></div>
         <div class="prompt"><div class="key"><span></span></div><div class="text"></div></div>
@@ -60,7 +61,7 @@ export class UI {
       settings: $('#settings'), credits: $('#credits'), ending: $('#ending'), fade: $('#fade'),
       health: $('.meter.health i'), stamina: $('.meter.stamina i'), objective: $('#hud .objective'), prompt: $('#hud .prompt'), promptKey: $('#hud .prompt .key'),
       promptKeyText: $('#hud .prompt .key span'), promptText: $('#hud .prompt .text'), boss: $('#hud .boss'), bossName: $('#hud .boss .name'), bossBar: $('#hud .boss .meter i'),
-      pulse: $('#hud .pulse'), reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), hints: $('#hud .hints'), fps: $('#hud .fps'),
+      pulse: $('#hud .pulse'), marker: $('#hud .marker'), markerText: $('#hud .marker span'), reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), hints: $('#hud .hints'), fps: $('#hud .fps'),
       tabBody: $('#settings .tabbody'), play: $('[data-act="play"]'), newGame: $('[data-act="new"]'),
     };
     this.el.hints.innerHTML = KEYS.slice(0, 8).map(([a, k]) => `<b>${k}</b><span>${a}</span>`).join('');
@@ -152,6 +153,21 @@ export class UI {
       el.reticle.classList.toggle('on', v.z < 1);
       el.reticle.style.left = `${(v.x * 0.5 + 0.5) * 100}%`; el.reticle.style.top = `${(-v.y * 0.5 + 0.5) * 100}%`;
     } else el.reticle.classList.remove('on');
+    // Marker for the next spire, held at the screen edge when it is out of view.
+    const next = g.spires.find((s) => !s.tuned);
+    if (next) {
+      const cam = g.pipe.camera, v = this._v.set(next.x, next.base + 9, next.z);
+      const dist = Math.hypot(next.x - p.pos.x, next.z - p.pos.z);
+      v.project(cam);
+      let x = v.x, y = v.y;
+      if (v.z > 1) { x = -x; y = -1; }
+      const m = 0.9;
+      const k = Math.max(Math.abs(x) / m, Math.abs(y) / m, 1);
+      x /= k; y /= k;
+      el.marker.style.transform = `translate(${((x * 0.5 + 0.5) * innerWidth).toFixed(1)}px, ${((-y * 0.5 + 0.5) * innerHeight).toFixed(1)}px) translate(-50%, -50%)`;
+      el.markerText.textContent = `${Math.round(dist)} m`;
+      el.marker.classList.toggle('on', dist > 14);
+    } else el.marker.classList.remove('on');
     if (this.settings.get('showFps')) {
       this._fpsAcc += dt; this._fpsN++;
       if (this._fpsAcc > 0.5) { el.fps.textContent = `${Math.round(this._fpsN / this._fpsAcc)} fps`; this._fpsAcc = 0; this._fpsN = 0; }

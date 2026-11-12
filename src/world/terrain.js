@@ -108,6 +108,27 @@ void main() {
   outColor = vec4(pfbm(vUv, vec2(4.0), 6, 1.0), pfbm(vUv, vec2(4.0), 6, 7.0), pfbm(vUv, vec2(6.0), 5, 13.0), pfbm(vUv, vec2(3.0), 6, 23.0));
 }`;
 
+// Rasterises the walking routes into a mask over the core so the ground can show a worn path.
+const PATH_BAKE = /* glsl */ `
+uniform vec4 uSeg[40];
+uniform int uCount;
+uniform float uSize;
+float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+float vn(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y); }
+void main() {
+  vec2 p = (vUv - 0.5) * uSize;
+  float d = 1e6;
+  for (int i = 0; i < 40; i++) {
+    if (i >= uCount) break;
+    vec2 a = uSeg[i].xy, b = uSeg[i].zw, ab = b - a;
+    float t = clamp(dot(p - a, ab) / dot(ab, ab), 0.0, 1.0);
+    d = min(d, length(p - a - ab * t));
+  }
+  // Ragged edges: the width wanders a little along the way.
+  float w = 1.5 + 1.3 * vn(p * 0.21) + 0.6 * vn(p * 0.9);
+  outColor = vec4(1.0 - smoothstep(w, w + 2.6, d));
+}`;
+
 export const TERRAIN_SAMPLING = /* glsl */ `
 uniform sampler2D uHCore;
 uniform sampler2D uHRegion;
@@ -176,6 +197,7 @@ uniform sampler2DArray uTA;
 uniform sampler2DArray uTB;
 ${LAYER_DEFINES}
 uniform sampler2D uNoise;
+uniform sampler2D uPathTex;
 in vec3 vWorld;
 
 void layerAt(float layer, vec2 p, vec2 dpx, vec2 dpy, float s, out vec4 A, out vec4 B) {
@@ -221,7 +243,12 @@ void main() {
   float rock = cliff * (1.0 - moss);
   float flat_ = (1.0 - cliff) * (1.0 - shore);
   float soil = flat_ * saturate(smoothstep(0.1, 0.26, 1.0 - N.y) + smoothstep(0.25, 0.7, curv) * 0.7 + smoothstep(0.66, 0.8, n2.r) * 0.5);
-  float grass = flat_ - soil;
+  // Worn routes between the sites: packed earth and gravel instead of turf.
+  float path = cw > 0.0 ? texture(uPathTex, xz / CORE_SIZE + 0.5).r * cw * (1.0 - cliff) : 0.0;
+  soil = max(soil, path * flat_ * 0.75);
+  float gravel = path * flat_ * 0.6 * smoothstep(0.35, 0.7, n2.g);
+  soil -= min(soil, gravel);
+  float grass = flat_ - soil - gravel;
   float lowland = 1.0 - smoothstep(26.0, 60.0, h);             // shaded forest floor in the lowlands
   float litter = grass * smoothstep(0.5, 0.7, n1.b) * lowland * 0.8;
   grass -= litter;
@@ -236,7 +263,7 @@ void main() {
   TOP(L_GRASS, grass * (1.0 - gFar), 2.6)
   TOP(L_MEADOWFAR, grass * gFar, 46.0)
   TOP(L_SOIL, soil, 3.2)
-  TOP(L_PEBBLE, shore, 2.2)
+  TOP(L_PEBBLE, shore + gravel, 2.2)
   TOP(L_MOSS, moss, 3.4)
   TOP(L_LITTER, litter, 2.8)
   TOP(L_SNOW, snow * (1.0 - cliff), 6.0)
@@ -343,11 +370,26 @@ export class Terrain {
       uNCore: { value: this.nCore.texture }, uNRegion: { value: this.nRegion.texture },
       uAOCore: { value: this.aoCore.texture }, uAORegion: { value: this.aoRegion.texture },
       uTA: { value: this.layers.a }, uTB: { value: this.layers.b }, uNoise: { value: this.noise.texture },
+      uPathTex: { value: null },
     };
+    this.pathMask = new THREE.WebGLRenderTarget(1024, 1024, { depthBuffer: false, type: THREE.UnsignedByteType, format: THREE.RedFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
+    this.surfaceUniforms.uPathTex.value = this.pathMask.texture;
 
     pipe.terrainUniforms = this.uniforms;
     this._buildPyramid();
     this._buildMesh();
+  }
+
+  // paths: arrays of [x, z] points. Bakes them into the path mask (cheap; safe to call again).
+  bakePaths(paths) {
+    const segs = [];
+    for (const p of paths) for (let i = 0; i < p.length - 1 && segs.length < 40; i++) segs.push(new THREE.Vector4(p[i][0], p[i][1], p[i + 1][0], p[i + 1][1]));
+    const count = segs.length;
+    while (segs.length < 40) segs.push(new THREE.Vector4());
+    const pass = new FullscreenPass({ fragment: PATH_BAKE, uniforms: { uSeg: { value: segs }, uCount: { value: count }, uSize: { value: this.coreSize } } });
+    pass.render(this.pipe.renderer, this.pathMask);
+    pass.dispose();
+    this.pipe.renderer.setRenderTarget(null);
   }
 
   // Queues the occlusion and sun-shadow bakes as small tiles; bakeStep() works through them.
