@@ -149,7 +149,7 @@ export class Director {
         setup: (d) => {
           const g = d.game;
           g.cineSetup({ tuned: [], player: [petal.x - 3, petal.base + 0.2, petal.z + 14, Math.PI] });
-          for (const x of g.enemies.list) if (x.group === 'petal') { x.state = 'chase'; x.assembled = 1; x.hp = 44; }
+          for (const x of g.enemies.list) if (x.group === 'petal') { x.state = 'chase'; x.assembled = 1; x.hp = 44; x.snap = true; }
           d.focus.set(petal.x, petal.base + 1.2, petal.z + 9);
         },
         update: (d, t, k, dt) => {

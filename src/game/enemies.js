@@ -319,7 +319,8 @@ export class Enemies {
           else {
             // While rising, each shard leaves the pile at its own moment.
             const a = e.state === 'rise' ? Math.max(0, Math.min(1, e.assembled * 1.8 - (sh.phase / 6.283) * 0.8)) : 1;
-            const k = 1 - Math.exp(-(arm ? 22 : 13) * dt * (0.15 + 0.85 * a));
+            // e.snap places every shard at once (a film cut onto a construct already standing).
+            const k = e.snap ? 1 : 1 - Math.exp(-(arm ? 22 : 13) * dt * (0.15 + 0.85 * a));
             sh.pos.x += (wx - sh.pos.x) * k; sh.pos.y += (wy - sh.pos.y) * k; sh.pos.z += (wz - sh.pos.z) * k;
             sh.quat.slerp(_q, k);
           }
@@ -331,6 +332,7 @@ export class Enemies {
         G[n * 2 + 1] = e.state === 'dead' ? Math.max(0, (e.t - 1.6) / 1.5) : 0;
         n++;
       }
+      e.snap = false;
       if (e.alive && e.state !== 'dormant') {
         const c = e.center;
         this.particles.spawn(c.x, c.y + d.hover, c.z, { life: 0.08, size: (d.boss ? 1.6 : 0.62) * (1 + e.glow * 0.25), color: [1.6 + e.glow, 0.7 + e.glow * 0.4, 3.2 + e.glow], alpha: 0.55 });
