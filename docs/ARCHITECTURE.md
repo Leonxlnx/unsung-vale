@@ -79,19 +79,29 @@ Conventions that matter:
 - `flora/treegen.js`: branching skeleton -> wood tubes + leaf cards per species.
   `flora/leafAtlas.js`: leaf/blossom cluster textures. `flora/forest.js`: placement, three
   levels of detail (near mesh, mid mesh, baked billboard) with dithered hand-over.
-  `flora/grass.js`: vertex-lit grass and flowers in camera-following cells.
+  `flora/grass.js`: vertex-lit grass and flowers in camera-following cells. `meadow.js` holds
+  the meadow's palette and patches (lush, olive, golden, low clover) as GLSL shared by the
+  blades and by the terrain under them, so gaps between blades read as more grass.
+  `forest.addShrubs()` scatters low bushes through the same pipeline with one level of
+  detail; `forest.addShrubAt()` plants one in an urn. `rocks.js`: instanced, plane-cut
+  boulders (talus under cliffs, shore stones, meadow outcrops) with depth-only twins for
+  contact shadows near the camera.
 - `arch/builder.js`: `MeshBuilder` (boxes, lathes, arches) with per-vertex material ids.
   `arch/kit.js`: lancet, tower, hall, pavilion, terrace, arcade, viaduct, citadel, the
   tuning spire and the stepped cliff quarters.
   `arch/archMaterial.js`: stone/gold/tile/glass layers and the triplanar shader.
   `arch/sites.js`: where things are built.
-- `landmarks.js`: the Lattice rings.
+- `landmarks.js`: the Lattice rings. `dressing.js`: banners, wisteria, drifting petals,
+  butterflies over the meadows, birds.
 
 ## Performance targets
 
 Developed on an AMD Radeon 780M (integrated). Budget is roughly 16 ms at 1080p with the
-render scale around 0.7 and TAA. Keep per-pixel texture fetches low, prefer vertex-side
-work for ground cover, and measure with `__dbg.gpuMs()` after the load-time bakes finish.
+render scale around 0.65 and TAA. Measured there with nothing else running: Low about 70
+fps, Medium about 58, High about 50, Ultra about 42. The scene itself is cheap; shadows
+were the largest single cost, so Low and Medium redraw the two cascades on alternate frames
+(`shadows.rate = 2`). Measure with `node tools/perf.mjs` and `node tools/profile.mjs` on an
+idle machine only: other GPU work makes the numbers meaningless.
 
 ## Game (`src/game`, `src/ui`)
 
@@ -135,7 +145,8 @@ work for ground cover, and measure with `__dbg.gpuMs()` after the load-time bake
 w, h)` (magnify canvas pixels), `strip({...})` (the hero filmed from the side as a strip of
 snapshots, for judging animation), `cine(t)` (jump the film to a time), `reel(times)` (a
 contact sheet of the film), `filmStill(t)` (one graded film frame with depth of field) and
-`gpuMs()`. Call `pipe.setRenderScale(1)` before judging detail: the Medium preset renders at
+`gpuMs()`. `bot(seconds)` plays the whole game without drawing (walk the route, fight, tune
+every spire); call it until it reports `done` and check `ended`. Call `pipe.setRenderScale(1)` before judging detail: the Medium preset renders at
 two thirds scale. `tools/profile.mjs` times a frame with parts of the scene switched off.
 `?perf=1` benchmarks the presets (`tools/perf.mjs`),
 `?capture=1...` is used by the film capture. Editing files under `src/` while a capture is
