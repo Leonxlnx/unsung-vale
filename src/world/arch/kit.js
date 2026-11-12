@@ -1,0 +1,241 @@
+// Building generators assembled from the MeshBuilder primitives. Everything is built in a
+// local frame (origin on the ground, +y up) and placed with b.at(), except viaduct(), which
+// works in world space because its piers follow the terrain.
+import { M, archWall, archPanel, archFrame, archRise, column, spire, dome, balustrade } from './builder.js';
+import { mulberry32 } from '../../util/noise.js';
+
+const TAU = Math.PI * 2;
+
+// Puts fn's local +z along the outward normal of face k of a regular prism.
+function onFace(b, k, sides, y, apothem, fn) {
+  const th = (k / sides) * TAU;
+  b.push().rotateY(Math.PI / 2 - th).translate(0, y, apothem);
+  fn(b);
+  b.pop();
+}
+
+// A lancet window: glowing glass with a raised stone surround, facing +z at z = 0.
+export function lancet(b, width, height, { detail = 1, sharp = 1.15, gold = false } = {}) {
+  const rise = archRise(width, sharp), spring = Math.max(0.2, height - rise);
+  b.mat_(M.GLASS); archPanel(b, 0, 0, 0.04, width, spring, sharp, detail ? 10 : 6);
+  if (detail) {
+    b.mat_(gold ? M.GOLD : M.MARBLE); archFrame(b, 0, 0, 0, width, spring, sharp, Math.max(0.14, width * 0.12), 0.16, 10);
+    b.mat_(M.MARBLE).box(-width / 2 - 0.3, -0.22, 0, width + 0.6, 0.22, 0.3);
+    if (width > 1.6) b.mat_(M.DARK).box(-0.05, 0, 0.05, 0.1, spring + rise * 0.55, 0.06);
+  }
+}
+
+// Tower of stacked stages. top: 'spire' | 'dome' | 'crown'. Returns the total height.
+export function tower(b, { r = 6, h = 40, sides = 8, stages = 3, top = 'spire', spireH, detail = 1, foot = 14, glassEvery = 1 } = {}) {
+  const hs = h / stages;
+  b.mat_(M.ASHLAR).prism(r * 1.14, r * 1.08, -foot, 0.01, sides);
+  b.mat_(M.MARBLE).prism(r * 1.1, r * 1.1, 0, 0.9, sides, { capTop: true });
+  let ri = r;
+  for (let s = 0; s < stages; s++) {
+    const y0 = s * hs, y1 = y0 + hs, rn = ri * 0.93;
+    b.mat_(M.ASHLAR).prism(ri, ri, y0, y1, sides);
+    // Cornice between stages; the top one is gilded.
+    b.mat_(s === stages - 1 ? M.GOLD : M.MARBLE).lathe([[ri, y1 - 0.9], [ri + 0.38, y1 - 0.55], [ri + 0.52, y1 - 0.1], [ri + 0.52, y1], [rn, y1 + 0.01]], sides, { smooth: false, phase: Math.PI / sides });
+    if (detail) b.mat_(M.FRIEZE).prism(ri + 0.06, ri + 0.06, y1 - 1.9, y1 - 0.9, sides);
+    const ap = ri * Math.cos(Math.PI / sides), faceW = 2 * ri * Math.sin(Math.PI / sides);
+    for (let k = 0; k < sides; k += glassEvery) {
+      const w = Math.min(faceW * 0.36, 2.6), wh = hs * (s === stages - 1 ? 0.62 : 0.5);
+      onFace(b, k, sides, y0 + hs * 0.2, ap, (q) => lancet(q, w, wh, { detail }));
+      if (detail) onFace(b, k, sides, y0, ap, (q) => { q.mat_(M.MARBLE).box(-faceW / 2, 0, -0.02, 0.5, hs - 0.9, 0.3); });
+    }
+    ri = rn;
+  }
+  let y = h;
+  // Parapet with corner pinnacles.
+  b.mat_(M.MARBLE).prism(ri * 1.12, ri * 1.12, y, y + 1.1, sides, { capTop: true });
+  if (detail && sides <= 8) {
+    for (let k = 0; k < sides; k++) {
+      const a = (k / sides) * TAU + Math.PI / sides;
+      b.at(Math.cos(a) * ri * 1.08, y + 1.1, Math.sin(a) * ri * 1.08, 0, (q) => spire(q, ri * 0.1, ri * 0.85, { sides: 4, mat: M.MARBLE }));
+    }
+  }
+  y += 1.1;
+  if (top === 'spire') {
+    const sh = spireH ?? h * 0.6;
+    b.at(0, y, 0, 0, (q) => spire(q, ri * 0.96, sh, { sides }));
+    y += sh * 1.1;
+  } else if (top === 'dome') {
+    b.mat_(M.ASHLAR).prism(ri * 0.9, ri * 0.9, y, y + ri * 0.5, 16);
+    b.at(0, y + ri * 0.5, 0, 0, (q) => { y += ri * 0.5 + dome(q, ri * 0.92, { sides: detail ? 20 : 12, ribs: 8 }) * 1.7; });
+  } else {
+    b.at(0, y, 0, 0, (q) => spire(q, ri * 0.5, ri * 2.4, { sides }));
+    y += ri * 2.6;
+  }
+  return y;
+}
+
+// Rectangular hall along x with buttressed bays, lancets and a pitched roof.
+export function hall(b, { w = 40, d = 18, h = 24, bays = 6, detail = 1, foot = 14, door = true } = {}) {
+  b.mat_(M.ASHLAR).box(-w / 2 - 0.8, -foot, -d / 2 - 0.8, w + 1.6, foot + 1.2, d + 1.6);
+  b.box(-w / 2, 1.2, -d / 2, w, h - 1.2, d, '-y');
+  b.mat_(M.MARBLE).box(-w / 2 - 0.5, h, -d / 2 - 0.5, w + 1.0, 0.9, d + 1.0);
+  if (detail) b.mat_(M.FRIEZE).box(-w / 2 - 0.08, h - 1.3, -d / 2 - 0.08, w + 0.16, 1.3, d + 0.16, '+y-y');
+  const bw = w / bays;
+  for (const side of [1, -1]) {
+    b.push(); if (side < 0) b.rotateY(Math.PI);
+    for (let i = 0; i < bays; i++) {
+      const cx = -w / 2 + (i + 0.5) * bw;
+      b.at(cx, h * 0.16, d / 2, 0, (q) => lancet(q, Math.min(bw * 0.42, 3.4), h * 0.66, { detail }));
+    }
+    for (let i = 0; i <= bays; i++) {
+      const x = -w / 2 + i * bw;
+      b.mat_(M.ASHLAR).box(x - 0.7, 0, d / 2, 1.4, h * 0.82, 1.6, '-z');
+      b.mat_(M.MARBLE).box(x - 0.8, h * 0.82, d / 2, 1.6, 0.4, 1.75, '-z');
+      if (detail) b.at(x, h * 0.82 + 0.4, d / 2 + 0.85, 0, (q) => spire(q, 0.5, h * 0.22, { sides: 4, mat: M.MARBLE }));
+    }
+    b.pop();
+  }
+  // Gable ends: a great window over a doorway at +x, a window group at -x.
+  for (const side of [1, -1]) {
+    b.push(); b.rotateY(side > 0 ? Math.PI / 2 : -Math.PI / 2);
+    b.at(0, h * 0.34, w / 2, 0, (q) => lancet(q, d * 0.3, h * 0.6, { detail, gold: true }));
+    if (door && side > 0) {
+      b.mat_(M.DARK); b.at(0, 0, w / 2, 0, (q) => archPanel(q, 0, 0, 0.05, d * 0.2, h * 0.16, 1.0, 8));
+      b.mat_(M.GOLD); b.at(0, 0, w / 2, 0, (q) => archFrame(q, 0, 0, 0, d * 0.2, h * 0.16, 1.0, 0.3, 0.3, 8));
+    }
+    b.pop();
+  }
+  // Roof: two pitched slopes, gable infill and a gilded ridge.
+  const rh = d * 0.5, y0 = h + 0.9, ex = w / 2 + 0.6, ez = d / 2 + 0.6;
+  b.mat_(M.ROOF);
+  b.quad([-ex, y0, ez], [ex, y0, ez], [ex, y0 + rh, 0], [-ex, y0 + rh, 0]);
+  b.quad([ex, y0, -ez], [-ex, y0, -ez], [-ex, y0 + rh, 0], [ex, y0 + rh, 0]);
+  b.mat_(M.ASHLAR);
+  b.triFlat([ex, y0, ez], [ex, y0, -ez], [ex, y0 + rh, 0]);
+  b.triFlat([-ex, y0, -ez], [-ex, y0, ez], [-ex, y0 + rh, 0]);
+  b.mat_(M.GOLD).box(-ex, y0 + rh - 0.1, -0.22, ex * 2, 0.4, 0.44);
+  if (detail) for (const sx of [-1, 1]) b.at(sx * ex, y0 + rh + 0.2, 0, 0, (q) => spire(q, 0.45, 5, { sides: 4, mat: M.GOLD }));
+  return y0 + rh;
+}
+
+// Open pavilion: a ring of columns under a dome, on a stepped base.
+export function pavilion(b, { r = 5, colH = 5.6, n = 8, detail = 1 } = {}) {
+  b.mat_(M.PAVING).lathe([[r + 1.5, -3], [r + 1.5, 0.2], [r + 1.1, 0.2], [r + 1.1, 0.4], [r + 0.7, 0.4], [r + 0.7, 0.6], [0, 0.6]], detail ? 28 : 14);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU;
+    b.at(Math.cos(a) * (r - 0.35), 0.6, Math.sin(a) * (r - 0.35), 0, (q) => column(q, 0.34, colH, { sides: detail ? 12 : 6 }));
+  }
+  const y = 0.6 + colH, s = detail ? 28 : 14;
+  b.mat_(M.MARBLE).lathe([[r - 1.0, y], [r + 0.12, y], [r + 0.12, y + 0.5]], s);
+  b.mat_(M.FRIEZE).lathe([[r + 0.06, y + 0.5], [r + 0.06, y + 1.2]], s);
+  b.mat_(M.GOLD).lathe([[r + 0.06, y + 1.2], [r + 0.4, y + 1.45], [r + 0.4, y + 1.6], [r - 0.3, y + 1.62]], s);
+  b.at(0, y + 1.6, 0, 0, (q) => dome(q, r - 0.3, { sides: s, ribs: n }));
+}
+
+// Paved platform over a retaining wall. The local frame sits at the centre of the top.
+// rail lists the edges that get a balustrade: any of 'n' (-z), 's' (+z), 'e' (+x), 'w' (-x).
+export function terrace(b, { w = 30, d = 20, depth = 20, rail = 'nsew', detail = 1 } = {}) {
+  b.mat_(M.ASHLAR).box(-w / 2, -depth, -d / 2, w, depth - 0.3, d, '+y-y');
+  b.mat_(M.MARBLE).box(-w / 2 - 0.35, -0.75, -d / 2 - 0.35, w + 0.7, 0.45, d + 0.7);
+  b.mat_(M.PAVING).box(-w / 2, -0.3, -d / 2, w, 0.3, d, '-y');
+  // Shallow buttress strips break up the tall wall.
+  const strip = (len, n, fn) => { for (let i = 0; i <= n; i++) fn(-len / 2 + (i * len) / n); };
+  b.mat_(M.ASHLAR);
+  strip(w, Math.max(2, Math.round(w / 9)), (x) => { b.box(x - 0.6, -depth, d / 2, 1.2, depth - 0.75, 0.55, '-z'); b.box(x - 0.6, -depth, -d / 2 - 0.55, 1.2, depth - 0.75, 0.55, '+z'); });
+  strip(d, Math.max(2, Math.round(d / 9)), (z) => { b.box(w / 2, -depth, z - 0.6, 0.55, depth - 0.75, 1.2, '-x'); b.box(-w / 2 - 0.55, -depth, z - 0.6, 0.55, depth - 0.75, 1.2, '+x'); });
+  if (rail.includes('s')) b.at(-w / 2, 0, d / 2 - 0.25, 0, (q) => balustrade(q, w, { detail }));
+  if (rail.includes('n')) b.at(-w / 2, 0, -d / 2 + 0.25, 0, (q) => balustrade(q, w, { detail }));
+  if (rail.includes('e')) b.at(w / 2 - 0.25, 0, d / 2, Math.PI / 2, (q) => balustrade(q, d, { detail }));
+  if (rail.includes('w')) b.at(-w / 2 + 0.25, 0, d / 2, Math.PI / 2, (q) => balustrade(q, d, { detail }));
+}
+
+// Row of columns carrying pointed arches, running along +x from the origin.
+export function arcade(b, length, { bay = 4.4, colH = 4.8, t = 0.9, top = 1.5, detail = 1 } = {}) {
+  const n = Math.max(1, Math.round(length / bay)), bw = length / n;
+  const rise = archRise(bw - 0.9, 0.85);
+  for (let i = 0; i <= n; i++) b.at(i * bw, 0, 0, 0, (q) => column(q, 0.33, colH, { sides: detail ? 12 : 6 }));
+  b.mat_(M.MARBLE);
+  for (let i = 0; i < n; i++) archWall(b, i * bw, (i + 1) * bw, colH, colH + rise + top, t, (i + 0.5) * bw, bw - 0.9, colH, 0.85, detail ? 12 : 6);
+  b.mat_(M.GOLD).box(0, colH + rise + top, -t / 2 - 0.12, length, 0.22, t + 0.24);
+  return colH + rise + top + 0.22;
+}
+
+// Arched bridge from (ax, az) to (bx, bz) with its deck at deckY. Piers run down to the
+// terrain; very tall piers get a second tier of arches part-way up.
+export function viaduct(b, heightAt, ax, az, bx, bz, deckY, { width = 7, span = 24, detail = 1, parapet = true } = {}) {
+  const L = Math.hypot(bx - ax, bz - az), yaw = Math.atan2(-(bz - az), bx - ax);
+  const n = Math.max(1, Math.round(L / span)), bw = L / n, pw = Math.min(3.4, bw * 0.2);
+  const open = bw - pw, sharp = 0.8, rise = archRise(open, sharp), spring = deckY - 1.5 - rise;
+  const ux = (bx - ax) / L, uz = (bz - az) / L;
+  b.push().translate(ax, 0, az).rotateY(yaw);
+  const lows = [];
+  for (let i = 0; i <= n; i++) {
+    const px = ax + ux * i * bw, pz = az + uz * i * bw;
+    let low = Infinity;
+    for (const o of [-3, 0, 3]) low = Math.min(low, heightAt(px - uz * o, pz + ux * o));
+    low = Math.min(low - 3, spring - 2);
+    lows.push(low);
+    const hgt = spring - low;
+    b.mat_(M.ASHLAR).box(i * bw - pw / 2, low, -width / 2 - 0.3, pw, hgt, width + 0.6, '-y');
+    if (hgt > 22) b.box(i * bw - pw / 2 - 0.5, low, -width / 2 - 0.8, pw + 1, hgt * 0.45, width + 1.6, '-y');
+    b.mat_(M.MARBLE);
+    for (let y = spring - 0.5; y > low + 6; y -= 17) b.box(i * bw - pw / 2 - 0.25, y, -width / 2 - 0.55, pw + 0.5, 0.5, width + 1.1);
+    if (detail) b.at(i * bw, deckY + (parapet ? 1.15 : 0), 0, 0, (q) => {
+      for (const sz of [-1, 1]) { q.mat_(M.MARBLE).box(-0.3, 0, sz * (width / 2 - 0.1) - 0.3, 0.6, 0.5, 0.6); q.at(0, 0.5, sz * (width / 2 - 0.1), 0, (g) => spire(g, 0.24, 2.6, { sides: 4, mat: M.GOLD })); }
+    });
+  }
+  b.mat_(M.ASHLAR);
+  for (let i = 0; i < n; i++) {
+    archWall(b, i * bw, (i + 1) * bw, spring, deckY - 0.5, width, (i + 0.5) * bw, open, spring, sharp, detail ? 14 : 8);
+    // Second tier for the tallest spans.
+    const low = Math.max(lows[i], lows[i + 1]);
+    if (spring - low > 70) {
+      const y2 = low + (spring - low) * 0.5;
+      archWall(b, i * bw + pw / 2, (i + 1) * bw - pw / 2, y2 - rise, y2 + 2.4, width * 0.7, (i + 0.5) * bw, open, y2 - rise, sharp, detail ? 12 : 8);
+    }
+  }
+  b.mat_(M.MARBLE).box(-1, deckY - 0.5, -width / 2 - 0.5, L + 2, 0.3, width + 1.0);
+  b.mat_(M.PAVING).box(-1, deckY - 0.2, -width / 2, L + 2, 0.2, width, '-y');
+  if (parapet) {
+    if (detail) { for (const sz of [-1, 1]) b.at(0, deckY, sz * (width / 2 - 0.25), 0, (q) => balustrade(q, L, { detail: 0 })); }
+    else for (const sz of [-1, 1]) b.mat_(M.MARBLE).box(0, deckY, sz * (width / 2 - 0.25) - 0.15, L, 1.0, 0.3);
+  }
+  b.pop();
+}
+
+// A whole hill-top city block: plinth, hall, a great tower, lesser towers and a rotunda.
+// Built in a local frame whose +z looks out over the valley.
+export function citadel(b, { seed = 1, scale = 1, detail = 1 } = {}) {
+  const rnd = mulberry32(seed * 977 + 5), S = scale;
+  const rr = (a, c) => a + (c - a) * rnd();
+  const W = rr(64, 86) * S, D = rr(44, 58) * S, deep = 46;
+  // Plinth with blind arches along the valley face.
+  b.at(0, 4 * S, 0, 0, (q) => terrace(q, { w: W, d: D, depth: deep, rail: 's', detail: detail ? 1 : 0 }));
+  const nA = Math.round(W / (9 * S));
+  for (let i = 0; i < nA; i++) {
+    const cx = -W / 2 + (i + 0.5) * (W / nA);
+    b.at(cx, 4 * S - 15 * S, D / 2 + 0.02, 0, (q) => { q.mat_(M.DARK); archPanel(q, 0, 0, 0.02, 4.6 * S, 6 * S, 1.0, 8); if (detail) { q.mat_(M.MARBLE); archFrame(q, 0, 0, 0, 4.6 * S, 6 * S, 1.0, 0.4 * S, 0.3, 8); } });
+  }
+  const y0 = 4 * S;
+  // Hall across the back, great tower rising behind its centre.
+  const hw = W * 0.62, hd = D * 0.36, hh = rr(22, 30) * S;
+  b.at(0, y0, -D * 0.2, 0, (q) => hall(q, { w: hw, d: hd, h: hh, bays: Math.round(hw / (7 * S)), detail, foot: 2 }));
+  const gh = rr(74, 112) * S;
+  b.at(rr(-6, 6) * S, y0, -D * 0.2 - hd * 0.2, 0, (q) => tower(q, { r: 7.4 * S, h: gh, sides: 8, stages: 4, top: 'spire', spireH: gh * rr(0.5, 0.7), detail, foot: 4 }));
+  // Lesser towers at the corners and flanks.
+  const spots = [[-W * 0.42, -D * 0.34], [W * 0.42, -D * 0.34], [-W * 0.44, D * 0.3], [W * 0.44, D * 0.3], [-W * 0.2, -D * 0.44], [W * 0.22, -D * 0.44]];
+  for (const [x, z] of spots) {
+    if (rnd() < 0.18) continue;
+    const th = rr(30, 68) * S, tr = rr(3.4, 5.2) * S;
+    b.at(x, y0, z, rnd() * 0.4, (q) => tower(q, { r: tr, h: th, sides: rnd() < 0.5 ? 6 : 8, stages: th > 46 * S ? 3 : 2, top: rnd() < 0.72 ? 'spire' : 'dome', spireH: th * rr(0.5, 0.85), detail, foot: 6 }));
+  }
+  // Rotunda facing the valley.
+  const rr0 = rr(8.5, 11.5) * S;
+  b.at(rr(-10, 10) * S, y0, D * 0.2, 0, (q) => {
+    q.mat_(M.ASHLAR).prism(rr0, rr0, 0, rr0 * 1.15, 16);
+    q.mat_(M.GOLD).lathe([[rr0, rr0 * 1.15], [rr0 + 0.5 * S, rr0 * 1.2], [rr0 + 0.5 * S, rr0 * 1.27], [rr0 * 0.95, rr0 * 1.28]], 16, { smooth: false, phase: Math.PI / 16 });
+    for (let k = 0; k < 16; k += 2) onFace(q, k, 16, rr0 * 0.2, rr0 * Math.cos(Math.PI / 16), (g) => lancet(g, rr0 * 0.2, rr0 * 0.8, { detail }));
+    q.at(0, rr0 * 1.28, 0, 0, (g) => dome(g, rr0 * 0.95, { sides: detail ? 24 : 14, ribs: 12 }));
+  });
+  // A scatter of free-standing needle spires for the skyline.
+  const needles = detail ? 5 : 3;
+  for (let i = 0; i < needles; i++) {
+    const x = rr(-W * 0.48, W * 0.48), z = rr(-D * 0.1, D * 0.44), nh = rr(16, 34) * S;
+    b.at(x, y0, z, 0, (q) => { q.mat_(M.MARBLE).prism(1.3 * S, 1.1 * S, 0, nh * 0.45, 6, { capTop: true }); q.at(0, nh * 0.45, 0, 0, (g) => spire(g, 1.05 * S, nh * 0.7, { sides: 6, mat: M.MARBLE })); });
+  }
+}

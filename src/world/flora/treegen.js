@@ -126,6 +126,13 @@ export function generateTree(speciesName, seed) {
     const droop = sp.droop;
     const b1 = grow(p, dir, length, r0, 1, sp.leaf === 3 ? 4 : 7, (t) => sp.tropism * (1 - t) * 0.5 - droop * t * t * 0.6, phase);
     if (sp.leaf === 3) { leafCards(b1, 3, 1, phase); }
+    else {
+      // Large cards deep inside the crown close the gaps so the canopy reads as a solid mass.
+      for (const ft of [0.55, 0.85]) {
+        const f = at(b1, ft);
+        cards.push({ c: f.p, n: norm(add(UP, mul(side, 0.4))), t: f.d, size: range(sp.cardSize) * 2.1, phase, fill: true });
+      }
+    }
     const n2 = irange(sp.n2);
     for (let j = 0; j < n2; j++) {
       const bt = lerp(0.28, 0.98, (j + rnd() * 0.6) / n2);
@@ -218,7 +225,7 @@ export function buildLeaves(tree, keep = 1, sizeMul = 1) {
     const out = norm(sub(c.c, cc));
     // Soft "ball" normals read as a full canopy instead of flat cards.
     const n = norm(add(mul(out, 0.72), mul(c.n, 0.28)));
-    const inner = 1 - Math.min(1, len(sub(c.c, cc)) / tree.crownRadius);
+    const inner = Math.max(c.fill ? 0.72 : 0, 1 - Math.min(1, len(sub(c.c, cc)) / tree.crownRadius));
     const r = rnd();
     const flip = rnd() < 0.5 ? -1 : 1;
     const base = pos.length / 3;

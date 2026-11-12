@@ -73,8 +73,8 @@ void main() {
     if (dot(q, q) > 1.6) continue;
     vec4 l;
     if (uKind == 0) l = maple(q, id);
-    else if (uKind == 1) l = id < 0.8 ? flower(q, id, srgb(0.99, 0.74, 0.82), srgb(0.86, 0.3, 0.5), 5.0) : ovate(q, id, srgb(0.32, 0.4, 0.14), srgb(0.5, 0.36, 0.2), 0.3);
-    else if (uKind == 2) l = id < 0.86 ? flower(q, id, srgb(0.84, 0.76, 0.97), srgb(0.6, 0.48, 0.88), 4.0) : ovate(q, id, srgb(0.36, 0.5, 0.22), srgb(0.5, 0.58, 0.3), 0.3);
+    else if (uKind == 1) l = id < 0.8 ? flower(q, id, srgb(0.9, 0.56, 0.66), srgb(0.72, 0.22, 0.4), 5.0) : ovate(q, id, srgb(0.32, 0.4, 0.14), srgb(0.5, 0.36, 0.2), 0.3);
+    else if (uKind == 2) l = id < 0.86 ? flower(q, id, srgb(0.7, 0.6, 0.86), srgb(0.48, 0.36, 0.74), 4.0) : ovate(q, id, srgb(0.36, 0.5, 0.22), srgb(0.5, 0.58, 0.3), 0.3);
     else if (uKind == 3) l = ovate(q, id, srgb(0.07, 0.17, 0.08), srgb(0.16, 0.3, 0.12), 0.11);
     else l = ovate(q, id, srgb(0.16, 0.33, 0.08), srgb(0.36, 0.5, 0.13), 0.34);
     // Leaves drawn later sit on top and cast a soft darkening on those beneath.

@@ -5,6 +5,7 @@ import { COMMON, SKYMAP } from './glsl.js';
 import { Sky, SKY_SAMPLE } from './sky.js';
 import { FogPass, TAAPass, BloomPass } from './post.js';
 import { Shadows } from './shadows.js';
+import { Volumetrics } from './volumetrics.js';
 
 const SKY_DRAW = /* glsl */ `
 ${COMMON}
@@ -167,6 +168,12 @@ export class Pipeline {
     this.setSize(canvas.clientWidth || 1280, canvas.clientHeight || 720);
   }
 
+  // Called once the terrain exists: passes that sample the terrain maps are created here.
+  attachWorld() {
+    this.volumetrics = new Volumetrics(this);
+    this.volumetrics.setSize(this.rw, this.rh);
+  }
+
   // Every uniform a lit surface material needs, shared by reference.
   lit() {
     const g = this.globals;
@@ -189,6 +196,7 @@ export class Pipeline {
     this.rtScene.depthTexture = new THREE.DepthTexture(rw, rh, THREE.FloatType);
     this.rtScene.depthTexture.minFilter = this.rtScene.depthTexture.magFilter = THREE.NearestFilter;
     this.rtFog = makeTarget(rw, rh);
+    this.volumetrics?.setSize(rw, rh);
     this.rtOpaque?.dispose();
     this.rtLinDepth?.dispose();
     this.rtOpaque = makeTarget(rw, rh);
@@ -244,7 +252,8 @@ export class Pipeline {
       r.render(this.sceneT, cam);
     }
 
-    this.fog.render(r, this.rtScene.texture, this.rtScene.depthTexture, this.rtFog);
+    const vol = this.volumetrics?.enabled ? this.volumetrics.render(r, this.rtScene.depthTexture) : null;
+    this.fog.render(r, this.rtScene.texture, this.rtScene.depthTexture, this.rtFog, vol, this.volumetrics?.maxDist ?? 0);
 
     let color = this.rtFog.texture;
     if (this.taa.enabled) {

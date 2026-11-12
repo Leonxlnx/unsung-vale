@@ -56,21 +56,50 @@ ${DEPTH_GLSL}
 ${FOG_GLSL}
 uniform sampler2D uColor;
 uniform sampler2D uDepth;
+uniform sampler2D uVol;
+uniform vec3 uVolInfo;     // x: enabled, y: march distance, z: unused
+uniform vec2 uVolSize;
 uniform vec3 uSunDir;
 uniform vec3 uSunColor;
+
+float viewDist(vec2 uv) {
+  float d = textureLod(uDepth, uv, 0.0).r;
+  return isSky(d) ? 1.0e5 : length(viewPosFromDepth(uv, d));
+}
+// Depth-aware upsample of the quarter-resolution volumetrics so shafts do not bleed
+// across silhouettes.
+vec4 volumetric(float dist) {
+  vec2 p = vUv * uVolSize - 0.5;
+  vec2 base = floor(p), f = p - base;
+  vec4 acc = vec4(0.0); float wsum = 0.0;
+  for (int j = 0; j < 2; j++) for (int i = 0; i < 2; i++) {
+    vec2 o = vec2(float(i), float(j));
+    vec2 uv = (base + o + 0.5) / uVolSize;
+    float w = (i == 0 ? 1.0 - f.x : f.x) * (j == 0 ? 1.0 - f.y : f.y);
+    float dd = min(viewDist(uv), uVolInfo.y), dc = min(dist, uVolInfo.y);
+    w *= 1.0 / (1.0 + abs(dd - dc) * 40.0 / max(dc, 1.0));
+    acc += textureLod(uVol, uv, 0.0) * w; wsum += w;
+  }
+  return acc / max(wsum, 1e-5);
+}
 void main() {
   vec3 col = texture(uColor, vUv).rgb;
   float d = texture(uDepth, vUv).r;
-  if (!isSky(d)) {
-    vec3 vp = viewPosFromDepth(vUv, d);
-    float dist = length(vp);
-    vec3 rd = normalize(worldFromView(vp) - uCamPos);
+  bool sky = isSky(d);
+  vec3 vp = viewPosFromDepth(vUv, sky ? 0.5 : d);
+  float dist = sky ? 1.0e5 : length(vp);
+  vec3 rd = normalize(worldFromView(vp) - uCamPos);
+  if (uVolInfo.x > 0.5) {
+    vec4 v = volumetric(dist);
+    vec4 far = vec4(0.0, 0.0, 0.0, 1.0);
+    if (!sky && dist > uVolInfo.y) far = fogBetween(uCamPos + rd * uVolInfo.y, rd, dist - uVolInfo.y, uSunDir, uSunColor);
+    col = col * v.a * far.a + v.rgb + v.a * far.rgb;
+  } else if (!sky) {
     vec4 f = fogBetween(uCamPos, rd, dist, uSunDir, uSunColor);
     col = col * f.a + f.rgb;
   }
   outColor = vec4(col, 1.0);
 }`;
-
 const TAA_PASS = /* glsl */ `
 ${COMMON}
 ${DEPTH_GLSL}
@@ -203,12 +232,19 @@ export class FogPass {
     this.pass = new FullscreenPass({
       fragment: FOG_PASS,
       defines: pipe.depthDefines,
-      uniforms: { uColor: { value: null }, uDepth: { value: null }, ...pipe.camUniforms, ...pipe.sky.uniforms, ...this.uniforms, uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH },
+      uniforms: {
+        uColor: { value: null }, uDepth: { value: null }, uVol: { value: null }, uVolInfo: { value: new THREE.Vector3() }, uVolSize: { value: new THREE.Vector2(1, 1) },
+        ...pipe.camUniforms, ...pipe.sky.uniforms, ...this.uniforms, uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH,
+      },
     });
   }
-  render(renderer, color, depth, target) {
-    this.pass.uniforms.uColor.value = color;
-    this.pass.uniforms.uDepth.value = depth;
+  render(renderer, color, depth, target, vol = null, volMax = 0) {
+    const u = this.pass.uniforms;
+    u.uColor.value = color;
+    u.uDepth.value = depth;
+    u.uVol.value = vol;
+    u.uVolInfo.value.set(vol ? 1 : 0, volMax, 0);
+    if (vol) u.uVolSize.value.set(vol.image.width, vol.image.height);
     this.pass.render(renderer, target);
   }
 }

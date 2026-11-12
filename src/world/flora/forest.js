@@ -299,7 +299,7 @@ export class Forest {
       const layer = SPECIES[species].leaf;
       const lods = [
         { max: 96, wood: buildWood(tree, 2, [9, 6, 4, 3]), leaves: buildLeaves(tree, 1, 1), fade: [0, NEAR - 10] },
-        { max: 768, wood: buildWood(tree, 1, [6, 4, 3, 3]), leaves: buildLeaves(tree, 0.26, 1.75), fade: [NEAR, MID - 10] },
+        { max: 768, wood: buildWood(tree, 1, [6, 4, 3, 3]), leaves: buildLeaves(tree, 0.36, 1.6), fade: [NEAR, MID - 10] },
       ].map((l) => {
         const iTree = new THREE.InstancedBufferAttribute(new Float32Array(l.max * 4), 4);
         const iParam = new THREE.InstancedBufferAttribute(new Float32Array(l.max * 4), 4);

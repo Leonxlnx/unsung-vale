@@ -5,6 +5,8 @@ import { Water } from './world/water.js';
 import { WORLD } from './world/layout.js';
 import { Forest } from './world/flora/forest.js';
 import { GroundCover } from './world/flora/grass.js';
+import { Architecture } from './world/arch/sites.js';
+import { buildMesas } from './world/layout.js';
 
 const canvas = document.getElementById('view');
 const params = new URLSearchParams(location.search);
@@ -26,9 +28,14 @@ canvas.addEventListener('mousemove', (e) => {
 
 const terrain = await Terrain.load(pipe);
 window.__terrain = terrain;
+pipe.attachWorld();
 pipe.scene.add(terrain.mesh);
 const water = new Water(pipe, terrain);
 pipe.sceneT.add(water.group);
+const arch = new Architecture(pipe, terrain, buildMesas());
+window.__arch = arch;
+console.log('far holds:', arch.buildFarCities(), JSON.stringify(arch.stats));
+pipe.scene.add(arch.group);
 const forest = new Forest(pipe, terrain);
 window.__forest = forest;
 console.log('trees placed:', forest.populate());

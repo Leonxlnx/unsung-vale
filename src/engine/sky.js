@@ -364,7 +364,7 @@ export class Sky {
     this.ambBottom = new THREE.Vector3(0.2, 0.17, 0.2);
     this.atmoBake = new FullscreenPass({
       fragment: ATMO_BAKE,
-      uniforms: { ...sun, uMs: { value: 2.6 }, uCamAlt: { value: 350 }, uAmbTop: { value: this.ambTop }, uGroundAlbedo: { value: new THREE.Vector3(0.1, 0.12, 0.07) } },
+      uniforms: { ...sun, uMs: { value: 1.25 }, uCamAlt: { value: 350 }, uAmbTop: { value: this.ambTop }, uGroundAlbedo: { value: new THREE.Vector3(0.1, 0.12, 0.07) } },
     });
     this.cloudBake = new FullscreenPass({
       fragment: CLOUD_BAKE,
@@ -429,7 +429,8 @@ export class Sky {
     const az = THREE.MathUtils.degToRad(azimuthDeg), el = THREE.MathUtils.degToRad(elevationDeg);
     this.sunDir.set(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az));
     const t = sunTransmittanceCPU(350, this.sunDir.toArray(), this.turbidity);
-    this.sunColor.setRGB(this.sunIrradiance.x * t[0], this.sunIrradiance.y * t[1], this.sunIrradiance.z * t[2]);
+    // The direct light is pushed a little toward gold beyond what the physics gives.
+    this.sunColor.setRGB(this.sunIrradiance.x * t[0] * 1.08, this.sunIrradiance.y * t[1] * 0.93, this.sunIrradiance.z * t[2] * 0.74);
     this.invalidate();
   }
 
