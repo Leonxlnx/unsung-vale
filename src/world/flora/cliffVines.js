@@ -44,6 +44,8 @@ export class CliffVines {
       }
       if (rows.length < 2) continue;
       const kind = r5 < 0.8 ? 4 : r5 < 0.93 ? 9 : 1;
+      // Flowering trails stay short: a long chain of identical racemes reads as bunting.
+      if (kind !== 4 && rows.length > 3) rows.length = 3;
       lists[kind].push({ x, z, nx, nz, w, rows, ph: rnd() * 6.283, r: rnd() });
       count++;
     }

@@ -237,7 +237,13 @@ export function column(b, radius, height, { sides = 12, shaftMat = M.MARBLE, gol
 export function spire(b, radius, height, { sides = 8, mat = M.ROOF, finial = true } = {}) {
   const r = radius, h = height;
   b.mat_(M.MARBLE).prism(r * 1.12, r * 1.12, 0, r * 0.18, sides, { capTop: true });
-  b.mat_(mat).lathe([[r, r * 0.18], [r * 0.8, h * 0.16], [r * 0.5, h * 0.48], [r * 0.2, h * 0.84], [r * 0.045, h]], sides, { smooth: false, phase: Math.PI / sides });
+  if (mat === M.ROOF) {
+    // Slate below, gilded above: the upper spire is sheathed in gold and takes the evening sun.
+    b.mat_(M.ROOF).lathe([[r, r * 0.18], [r * 0.8, h * 0.16], [r * 0.5, h * 0.48]], sides, { smooth: false, phase: Math.PI / sides });
+    b.mat_(M.GOLD).lathe([[r * 0.5, h * 0.48], [r * 0.56, h * 0.487], [r * 0.56, h * 0.5], [r * 0.485, h * 0.507], [r * 0.2, h * 0.84], [r * 0.045, h]], sides, { smooth: false, phase: Math.PI / sides });
+  } else {
+    b.mat_(mat).lathe([[r, r * 0.18], [r * 0.8, h * 0.16], [r * 0.5, h * 0.48], [r * 0.2, h * 0.84], [r * 0.045, h]], sides, { smooth: false, phase: Math.PI / sides });
+  }
   if (finial) {
     b.mat_(M.GOLD).lathe([[r * 0.1, h * 0.84], [r * 0.24, h * 0.86], [r * 0.24, h * 0.875], [r * 0.08, h * 0.89]], 8);
     b.lathe([[r * 0.045, h], [r * 0.13, h + r * 0.14], [r * 0.16, h + r * 0.28], [r * 0.1, h + r * 0.42], [r * 0.022, h + r * 0.6], [r * 0.012, h + r * 1.6], [0, h + r * 1.8]], 8);

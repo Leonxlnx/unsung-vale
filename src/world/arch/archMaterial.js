@@ -76,7 +76,7 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
   float lap = smoothstep(0.0, 0.12, fy);
   float fine = pfbm(uv, vec2(60.0), 3, 2.0);
   h = (0.3 + 0.6 * (1.0 - fy)) * mix(0.45, 1.0, tip) * lap + 0.05 * fine;
-  col = mix(srgb(0.42, 0.47, 0.5), srgb(0.55, 0.58, 0.58), id) * (0.8 + 0.3 * fine);
+  col = mix(srgb(0.47, 0.53, 0.58), srgb(0.6, 0.64, 0.66), id) * (0.8 + 0.3 * fine);
   col = mix(col, srgb(0.5, 0.6, 0.5), smoothstep(0.6, 0.9, pfbm(uv, vec2(4.0), 3, 5.0)) * 0.3);
   col *= mix(0.5, 1.0, tip * lap);
   rough = 0.55 + 0.2 * fine;
