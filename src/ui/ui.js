@@ -103,7 +103,7 @@ export class UI {
       marker: $('#hud .marker.main'), markerText: $('#hud .marker.main span'), marker2: $('#hud .marker.side'), marker2Text: $('#hud .marker.side span'),
       reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), toastBig: $('#hud .toast .big'), toastSmall: $('#hud .toast .small'), card: $('#hud .card'), cardTitle: $('#hud .card b'), cardText: $('#hud .card span'),
       hints: $('#hud .hints'), fps: $('#hud .fps'), grab: $('#hud .grab'), tally: $('#hud .tally'), beat: $('#hud .beat'), beatCue: $('#hud .beat .cue'), beatRing: $('#hud .beat .cue i'), beatPips: $('#hud .beat .pips'),
-      foes: $('#hud .foe'),
+      foes: $$('#hud .foe'),
       compass: $('#hud .compass'), ticks: $('#hud .compass .ticks'), card4: $$('#hud .compass b'), pinGoal: $('#hud .compass .pin.goal'), pinSide: $('#hud .compass .pin.side'),
       talk: $('#talk'), talkName: $('#talk .who b'), talkRole: $('#talk .who span'), talkText: $('#talk p'), talkNext: $('#talk .next'),
       tabBody: $('#settings .tabbody'), play: $('[data-act="play"]'), newGame: $('[data-act="new"]'),

@@ -17,7 +17,7 @@ const page = (await browser.pages())[0];
 await page.setViewport({ width: W, height: H });
 const errors = [];
 page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text().slice(0, 300)); });
-page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.stack || e.message).slice(0, 500)));
 await page.goto(arg('url', 'http://localhost:5183') + '/', { timeout: 0 });
 await page.waitForFunction(() => window.__ui && !document.getElementById('boot'), { timeout: 300000, polling: 500 });
 await sleep(1500);
@@ -135,6 +135,19 @@ if (want('moves')) {
   await grid('heavy', { press: ['heavy'], n: 12, every: 4, zoom: 2.2, dist: 5, pitch: -0.14, yawOff: 0.5, fit: false });
   await grid('plunge', { press: ['jump'], again: 0, n: 12, every: 4, zoom: 1.7, dist: 6, pitch: -0.1, yawOff: 0.6, fit: false, hold: [] });
   await ev(() => window.__dbg.ui(true));
+}
+if (want('vfx')) {
+  // The big effects of a fight, each caught a moment after it goes off.
+  const ring = () => ev(() => { const g = window.__game, p = g.player; window.__tour.tune(['petal', 'cantor', 'choir', 'east', 'south3']); window.__tour.tp(-512, 210.5, -64, 1.57, -0.16, 6.5); window.__tour.clear('vfx'); for (let k = 0; k < 4; k++) { const a = k * 1.57 + 0.6, e = g.enemies.spawn(k === 3 ? 'warden' : 'thrall', p.pos.x + Math.cos(a) * 3.4, p.pos.z + Math.sin(a) * 3.4, 'vfx', null, p.pos.y); e.state = 'chase'; e.assembled = 1; e.snap = true; e.def = { ...e.def, damage: 0 }; } p.stamina = 200; p.pulseTimer = 0; window.__dbg.ui(false); });
+  await ring(); await sleep(900);
+  await page.keyboard.press('KeyF'); await sleep(170); await shot('vfx_pulse');
+  await ring(); await sleep(900);
+  await page.mouse.down({ button: 'right' }); await page.mouse.up({ button: 'right' }); await sleep(520); await shot('vfx_heavy');
+  await ring(); await sleep(900);
+  await page.keyboard.press('Space'); await sleep(300); await page.mouse.down(); await page.mouse.up(); await sleep(560); await shot('vfx_plunge');
+  await ring(); await sleep(900);
+  await page.mouse.down(); await page.mouse.up(); await sleep(230); await shot('vfx_cut');
+  await ev(() => { window.__tour.clear('vfx'); window.__dbg.ui(true); });
 }
 if (want('courts')) {
   // Each of the outer courts, restored, seen from where the string sets the hero down.
