@@ -11,6 +11,7 @@ import { Enemies } from './enemies.js';
 import { MeshBuilder, M } from '../world/arch/builder.js';
 import { spireRadius } from '../world/arch/kit.js';
 import { Notes } from './notes.js';
+import { Tuning } from './tuning.js';
 import { LEGS } from './story.js';
 
 const SAVE_KEY = 'unsung-vale-save-v1';
@@ -147,6 +148,8 @@ export class Game {
     this.time = 0; this.hitStop = 0; this.listeners = [];
     this.prompt = null; this.objective = ''; this.boss = null;
     this.tuneHold = 0;
+    this.tuning = new Tuning(this);
+    this._idle = { pressed: new Set(), held: new Set(), move: { x: 0, y: 0 }, look: { x: 0, y: 0 }, zoom: 0 };
 
     // Stand-in body until the hero model is attached (see attachHero).
     const b = new MeshBuilder();
@@ -349,10 +352,11 @@ export class Game {
     const p = this.player;
 
     this.world.stream(p.pos.x, p.pos.z);
-    p.update(dt, this.input, this.rig.yaw);
+    // While a spire is being tuned the hero stands to it and the camera belongs to the moment.
+    const busy = this.tuning.active;
+    p.update(dt, busy ? this._idle : this.input, this.rig.yaw);
     this._bodies();
-    this._lockOn();
-    this._combat();
+    if (!busy) { this._lockOn(); this._combat(); }
     this.enemies.update(dt, p, this.time);
     for (const e of this.enemies.events) this._onEnemyEvent(e);
     this.enemies.events.length = 0;
@@ -363,7 +367,8 @@ export class Game {
     this._animateWorld(dt);
     this.particles.update(dt); this.vfx.update(dt);
     // In a cinematic the director owns the camera; the rig only tracks yaw for movement.
-    if (!this.cine) this.rig.update(realDt, p, this.input);
+    if (busy) this.tuning.update(realDt);
+    else if (!this.cine) this.rig.update(realDt, p, this.input);
 
     if (this.hero) this.hero.update(dt, p, this);
     else { this.standIn.position.copy(p.pos); this.standIn.rotation.y = p.yaw; this.standIn.updateMatrixWorld(); }
@@ -534,6 +539,11 @@ export class Game {
       s.power += ((ready ? 0.22 : 0) - s.power) * Math.min(1, 2 * dt);
       const near = Math.hypot(p.pos.x - s.x, p.pos.z - s.z) < 6.5 && Math.abs(p.pos.y - s.base) < 4;
       if (ready && near && p.state === 'move') {
+        if (!this.cine) {
+          // Played: a press begins the tuning proper (see tuning.js).
+          if (!this.tuning.active) { this.prompt = { key: 'E', text: 'Tune the spire' }; if (this.input.pressed.has('interact')) { this.prompt = null; this.tuning.begin(s); } }
+          continue;
+        }
         this.prompt = { key: 'E', text: 'Hold to tune the spire', progress: s.tuning / 1.5 };
         if (this.input.held.has('interact')) {
           s.tuning += dt;
@@ -543,7 +553,7 @@ export class Game {
           if (Math.random() < dt * 30) this.particles.spawn(s.x + (Math.random() - 0.5) * 5, s.base + Math.random() * 3, s.z + (Math.random() - 0.5) * 5, { vel: [(s.x - p.pos.x) * 0.2, 5 + Math.random() * 4, (s.z - p.pos.z) * 0.2], life: 1.1, size: 0.1, color: [4, 3, 1.4], drag: 0.6 });
           if (s.tuning >= 1.5) this._tune(s);
         } else s.tuning = Math.max(0, s.tuning - dt * 2);
-      } else s.tuning = Math.max(0, s.tuning - dt * 2);
+      } else if (!(this.tuning.active && this.tuning.s === s)) s.tuning = Math.max(0, s.tuning - dt * 2);
     }
     if (!this.prompt && this.ended && this.state === 'playing') this.prompt = null;
   }

@@ -102,9 +102,11 @@ export class Vfx {
 
   // A shockwave. kind 0: a ring spreading over the ground; 1: a bubble seen from any side.
   // It grows from r0 to r1 over life seconds (after an optional delay), easing out.
-  wave(x, y, z, { kind = 0, r0 = 0.3, r1 = 6, life = 0.6, strength = 1, width = 0.12, color = [3, 2.2, 1], delay = 0 } = {}) {
+  // linear: the radius changes at an even pace (for timing by eye); rise: it brightens toward
+  // the end of its life instead of fading.
+  wave(x, y, z, { kind = 0, r0 = 0.3, r1 = 6, life = 0.6, strength = 1, width = 0.12, color = [3, 2.2, 1], delay = 0, linear = false, rise = false } = {}) {
     if (this.waves.length >= this.max) this.waves.shift();
-    this.waves.push({ x, y, z, kind, r0, r1, life, strength, width, color, age: -delay });
+    this.waves.push({ x, y, z, kind, r0, r1, life, strength, width, color, age: -delay, linear, rise });
   }
 
   // Strands of light around a spire: { x, base, z, h }. Returns a handle with .start() to
@@ -141,9 +143,9 @@ export class Vfx {
       w.age += dt;
       if (w.age >= w.life) { this.waves.splice(i--, 1); continue; }
       if (w.age < 0) continue;
-      const t = w.age / w.life, e = 1 - (1 - t) * (1 - t) * (1 - t);
+      const t = w.age / w.life, e = w.linear ? t : 1 - (1 - t) * (1 - t) * (1 - t);
       P.set([w.x, w.y, w.z, w.r0 + (w.r1 - w.r0) * e], n * 4);
-      I.set([w.kind, w.strength, w.width, (1 - t) * (1 - t) * Math.min(1, t * 14)], n * 4);
+      I.set([w.kind, w.strength, w.width, w.rise ? Math.min(1, t * 5) * (0.35 + 0.65 * t) * Math.min(1, (1 - t) * 30) : (1 - t) * (1 - t) * Math.min(1, t * 14)], n * 4);
       C.set(w.color, n * 3);
       n++;
     }

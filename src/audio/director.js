@@ -68,6 +68,10 @@ export function connectAudio(audio, game, ui, falls) {
       triumph = 1;
       if (d.spire.id === 'cantor') setTimeout(() => audio.sfx('bridge', { volume: 0.8 }), 1800);
     }
+    if (type === 'tuning' && d.phase === 'result') {
+      if (d.ok) { audio.sfx('pickup', { volume: 0.7, pitch: d.pitch, spread: 0, wet: 0.5 }); if (d.perfect) audio.sfx('crystal', { volume: 0.3, wet: 0.5 }); }
+      else audio.sfx('block', { volume: 0.25, pitch: 0.6, wet: 0.4 });
+    }
     if (type === 'note') audio.sfx('pickup', { volume: 0.5, pitch: d.pitch, spread: 0, wet: 0.4 });
     if (type === 'objective' && game.state === 'playing') audio.sfx('objective', { volume: 0.4, wet: 0.3 });
     if (type === 'respawn') audio.sfx('respawn', { volume: 0.45, wet: 0.3 });
@@ -96,7 +100,7 @@ export function connectAudio(audio, game, ui, falls) {
     }
     audio.update(dt, { mute, fall: Math.min(1, fall * 1.15), lake: here.y < 8 ? 1 : 0 });
     // The tone of a spire being tuned, for as long as the key is held.
-    audio.hold('tune_hold', game.state === 'playing' && !!game.prompt && game.input.held.has('interact'), 0.42);
+    audio.hold('tune_hold', game.state === 'playing' && (game.tuning?.active ? game.tuning.phase === 'beats' : !!game.prompt && game.input.held.has('interact')), game.tuning?.active ? 0.22 : 0.42);
 
     if (triumph) return;
     if (game.state === 'home' || game.state === 'intro') audio.playMusic('home');

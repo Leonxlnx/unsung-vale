@@ -26,6 +26,7 @@ export class UI {
         <div class="pulse"></div>
         <div class="prompt"><div class="key"><span></span></div><div class="text"></div></div>
         <div class="toast"></div>
+        <div class="beat"><div class="cue"><i></i><b>E</b></div><div class="pips"></div><span>Strike the note as the ring closes</span></div>
         <div class="tally"></div>
         <div class="hints"></div>
         <div class="grab">Click to look around</div>
@@ -64,7 +65,7 @@ export class UI {
       settings: $('#settings'), credits: $('#credits'), ending: $('#ending'), fade: $('#fade'), story: $('#story'), caption: $('#story .caption'),
       health: $('.meter.health i'), stamina: $('.meter.stamina i'), objective: $('#hud .objective'), prompt: $('#hud .prompt'), promptKey: $('#hud .prompt .key'),
       promptKeyText: $('#hud .prompt .key span'), promptText: $('#hud .prompt .text'), boss: $('#hud .boss'), bossName: $('#hud .boss .name'), bossBar: $('#hud .boss .meter i'),
-      pulse: $('#hud .pulse'), marker: $('#hud .marker'), markerText: $('#hud .marker span'), reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), hints: $('#hud .hints'), fps: $('#hud .fps'), grab: $('#hud .grab'), tally: $('#hud .tally'),
+      pulse: $('#hud .pulse'), marker: $('#hud .marker'), markerText: $('#hud .marker span'), reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), hints: $('#hud .hints'), fps: $('#hud .fps'), grab: $('#hud .grab'), tally: $('#hud .tally'), beat: $('#hud .beat'), beatCue: $('#hud .beat .cue'), beatRing: $('#hud .beat .cue i'), beatPips: $('#hud .beat .pips'),
       tabBody: $('#settings .tabbody'), play: $('[data-act="play"]'), newGame: $('[data-act="new"]'),
     };
     this.el.hints.innerHTML = [...KEYS.slice(0, 5), KEYS.find(([a]) => a === 'Walk or run')].map(([a, k]) => `<b>${k}</b><span>${a}</span>`).join('');
@@ -137,6 +138,14 @@ export class UI {
       else this.el.caption.classList.remove('on');
     }
     if (type === 'fade') this.el.fade.classList.toggle('on', !!d.on);
+    if (type === 'tuning') {
+      const el = this.el;
+      if (d.phase === 'begin') { el.beat.classList.add('on'); el.beatPips.innerHTML = '<i></i>'.repeat(d.total); el.hud.classList.add('quiet'); }
+      if (d.phase === 'beat') { el.beatRing.style.animation = 'none'; void el.beatRing.offsetWidth; el.beatRing.style.animation = `beat ${d.period}s linear forwards`; el.beatCue.classList.remove('good', 'miss'); }
+      if (d.phase === 'result') { el.beatCue.classList.add(d.ok ? 'good' : 'miss'); el.beatRing.style.animation = 'none'; [...el.beatPips.children].forEach((x, i) => x.classList.toggle('on', i < d.beat)); }
+      if (d.phase === 'finale') el.beat.classList.remove('on');
+      if (d.phase === 'end') { el.beat.classList.remove('on'); el.hud.classList.remove('quiet'); }
+    }
     if (type === 'note') { this.el.tally.textContent = `Lost notes ${d.count} / ${d.total}`; this.el.tally.classList.add('on'); clearTimeout(this._tallyT); this._tallyT = setTimeout(() => this.el.tally.classList.remove('on'), 3200); }
     if (type === 'objective') this.el.objective.textContent = d.text;
     if (type === 'enemy' && d.type === 'wake' && !this._fightHint) {
