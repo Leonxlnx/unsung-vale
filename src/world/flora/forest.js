@@ -154,12 +154,13 @@ ${LEAF_SHADE}
 uniform sampler2DArray uLeaves;
 uniform sampler2DArray uLeavesB;
 uniform float uLeafLayer;
+uniform float uLeafTile;     // sprays per card edge: 1 for ordinary trees, more for the colossal one
 in vec3 vWorld; in vec3 vNormal; in vec2 vUv; in vec3 vLeaf;
 void main() {
-  vec4 t = texture(uLeaves, vec3(vUv, uLeafLayer));
-  vec4 tb = texture(uLeavesB, vec3(vUv, uLeafLayer));
+  vec2 uvt = vUv * uLeafTile, dux = dFdx(uvt), duy = dFdy(uvt);
+  vec4 t = textureGrad(uLeaves, vec3(fract(uvt), uLeafLayer), dux, duy);
+  vec4 tb = textureGrad(uLeavesB, vec3(fract(uvt), uLeafLayer), dux, duy);
   vec3 dpx = dFdx(vWorld), dpy = dFdy(vWorld);
-  vec2 dux = dFdx(vUv), duy = dFdy(vUv);
   // Far crowns keep more of each card so they stay full instead of thinning into specks.
 #if defined(BAKE_ALBEDO) || defined(BAKE_NORMAL)
   if (t.a < 0.22) discard;
@@ -314,9 +315,9 @@ export class Forest {
       vertexShader: WOOD_VERT, fragmentShader: WOOD_FRAG, defines: { ...D, ...defines },
       uniforms: { ...shared, uBarkA: { value: this.bark.a }, uBarkB: { value: this.bark.b }, uBarkTint: { value: new THREE.Vector3(...tint) }, uFade: { value: new THREE.Vector2(...fade) } },
     });
-    const mkLeaf = (layer, fade, defines = {}) => new THREE.ShaderMaterial({
+    const mkLeaf = (layer, fade, defines = {}, tile = 1) => new THREE.ShaderMaterial({
       vertexShader: LEAF_VERT, fragmentShader: LEAF_FRAG, defines: { ...D, ...defines }, side: THREE.DoubleSide,
-      uniforms: { ...shared, uLeaves: { value: this.leafAtlas }, uLeavesB: { value: this.leafAtlasB }, uLeafLayer: { value: layer }, uFade: { value: new THREE.Vector2(...fade) } },
+      uniforms: { ...shared, uLeaves: { value: this.leafAtlas }, uLeavesB: { value: this.leafAtlasB }, uLeafLayer: { value: layer }, uLeafTile: { value: tile }, uFade: { value: new THREE.Vector2(...fade) } },
     });
 
     const woodDepth = new THREE.ShaderMaterial({ vertexShader: WOOD_DEPTH_VERT, fragmentShader: 'void main() {}', uniforms: shared, colorWrite: false });
@@ -441,7 +442,7 @@ export class Forest {
     const tree = generateTree('great', 4);
     const one = (arr) => new THREE.InstancedBufferAttribute(new Float32Array(arr), 4);
     const iTree = one([x, y, z, 1]), iParam = one([0.6, 0.35, SPECIES.great.leaf, 0]);
-    const parts = [[buildWood(tree, 3, [14, 9, 6, 4]), this._mkWood(BARK_TINT.elder, [0, 0])], [buildLeaves(tree, 1, 1), this._mkLeaf(SPECIES.great.leaf, [0, 0])]];
+    const parts = [[buildWood(tree, 3, [14, 9, 6, 4]), this._mkWood(BARK_TINT.elder, [0, 0])], [buildLeaves(tree, 1, 1), this._mkLeaf(SPECIES.great.leaf, [0, 0], {}, 4)]];
     for (const [data, mat] of parts) {
       const geo = geometryFrom(data);
       geo.setAttribute('iTree', iTree); geo.setAttribute('iParam', iParam);
@@ -478,7 +479,7 @@ export class Forest {
         const kind = fbm(x / 290, z / 290, 2, 777) * 0.5 + 0.5;
         let sp;
         if (r2 < 0.12) sp = 'cypress';
-        else if (low) sp = r3 < 0.8 ? 'green' : r3 < 0.9 ? 'ember' : r3 < 0.96 ? 'elder' : 'blossom';
+        else if (low) sp = r3 < 0.9 ? 'green' : r3 < 0.94 ? 'ember' : r3 < 0.97 ? 'elder' : 'blossom';   // the lowland forest is green; colour is an accent
         else if (kind < 0.4) sp = r3 < 0.5 ? 'ember' : r3 < 0.88 ? 'green' : 'elder';
         else if (kind < 0.55) sp = r3 < 0.5 ? 'blossom' : r3 < 0.8 ? 'green' : 'ember';
         else sp = r3 < 0.68 ? 'green' : r3 < 0.86 ? 'elder' : 'blossom';

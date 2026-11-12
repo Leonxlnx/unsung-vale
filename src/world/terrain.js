@@ -338,11 +338,20 @@ void main() {
   alb *= mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), n1.r) * (0.86 + 0.28 * n2.a);
   // Under the blades the ground wears the meadow's own colours, a little darker, so what
   // shows between them reads as depth in the grass. Clover patches are darker and bluer.
-  float fam = meadowFamily(n1, n2);
-  float clover = meadowClover(texture(uNoise, xz / 13.0 + 0.7).g);
+  vec4 pn = texture(uNoise, xz / 13.0 + 0.7);
+  float fam = meadowFamily(n1, n2, pn.r);
+  float clover = meadowClover(pn.g);
   vec3 meadow = meadowTip(fam, vec2(0.5)) * mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), n1.r);
   meadow = mix(meadow, meadow * vec3(0.62, 0.92, 0.78), clover);
   alb = mix(alb, meadow * (0.34 + 3.4 * dot(A.rgb, vec3(0.3, 0.6, 0.1))), grass * 0.9);
+  // Past the reach of the drawn blades and flowers the ground has to be the whole meadow:
+  // the drifts of lupin, poppy, daisy and buttercup show as a broken wash of their colour.
+  float farMeadow = grass * gFar;
+  float drift = smoothstep(0.5, 0.68, texture(uNoise, xz / 73.0 + 0.6).b);
+  float famF = fract(texture(uNoise, xz / 131.0 + 0.2).g * 3.7);
+  vec3 fcol = famF < 0.34 ? vec3(0.4, 0.29, 0.72) : famF < 0.6 ? vec3(0.78, 0.2, 0.2) : famF < 0.82 ? vec3(0.86, 0.86, 0.8) : vec3(0.92, 0.68, 0.14);
+  float speck = smoothstep(0.42, 0.7, texture(uNoise, xz / 5.3 + 0.13).r);
+  alb = mix(alb, fcol * 0.55, drift * speck * 0.34 * farMeadow);
   // Rain streaks and damp at the foot of the cliffs.
   alb *= 1.0 - rock * 0.3 * smoothstep(0.5, 0.75, texture(uNoise, vec2(dot(xz, vec2(0.021, 0.017)), h * 0.0016)).g);
   float wet = 1.0 - smoothstep(-0.1, 0.9, h);
@@ -357,6 +366,13 @@ void main() {
   vec3 out_ = vec3(N.x, 0.0, N.z) * (1.5 * texel * smoothstep(0.3, 0.7, 1.0 - N.y) / max(length(N.xz), 1e-3));
   float vis = sunVisibility(vWorld + N * 0.35 + out_ + uSunDir * 0.25) * relief;
   vec3 col = shadeSurface(alb, rough, 0.0, Ns, V, vis, ao, 0.0);
+  // Standing grass catches a low sun on its blades and glows when the sun is behind it;
+  // a bare ground plane would do neither. Add what the blades would add where they are no
+  // longer drawn, so near and far meadow carry the same light.
+  if (farMeadow > 0.0) {
+    float back = pow(saturate(dot(-V, uSunDir)), 2.0);
+    col += alb * uSunColor * (0.3183 * vis * (0.16 + 0.6 * back) * farMeadow * ao);
+  }
   if (cw > 0.0) col += alb * lampLight(vWorld, Ns) * ao;
   gl_FragColor = vec4(col, 1.0);
 }`;

@@ -1,9 +1,10 @@
 // The meadow's colours and patches, shared by the grass blades and the ground under them, so
 // that whatever shows between the blades is more grass and never a different surface.
 // Both sides sample the same noise at the same scales (n1: 410 m, n2: 57 m, patch: 13 m).
+// The patch noise breaks every lawn into areas a few strides across: lush here, dry there.
 export const MEADOW_GLSL = /* glsl */ `
 // 0 = lush, 1 = dry and golden. Broad drift across the mesa with patches a few strides wide.
-float meadowFamily(vec4 n1, vec4 n2) { return clamp(0.5 + (n1.a - 0.5) * 1.5 + (n2.a - 0.5) * 1.2, 0.0, 1.0); }
+float meadowFamily(vec4 n1, vec4 n2, float patchNoise) { return clamp(0.5 + (n1.a - 0.5) * 1.5 + (n2.a - 0.5) * 1.2 + (patchNoise - 0.5) * 1.3, 0.0, 1.0); }
 // Low, dark, blue-green patches (clover and moss) scattered through the taller grass.
 float meadowClover(float patchNoise) { return smoothstep(0.6, 0.7, patchNoise); }
 // Colour of a blade tip. r is a per-blade random pair; pass 0.5 for the average.

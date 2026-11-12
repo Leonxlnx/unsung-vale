@@ -173,7 +173,7 @@ export function arcade(b, length, { bay = 4.4, colH = 4.8, t = 0.9, top = 1.5, d
 
 // Arched bridge from (ax, az) to (bx, bz) with its deck at deckY. Piers run down to the
 // terrain; very tall piers get a second tier of arches part-way up.
-export function viaduct(b, heightAt, ax, az, bx, bz, deckY, { width = 7, span = 24, detail = 1, parapet = true, slope = 0 } = {}) {
+export function viaduct(b, heightAt, ax, az, bx, bz, deckY, { width = 7, span = 24, detail = 1, parapet = true, slope = 0, balusters = false } = {}) {
   const L = Math.hypot(bx - ax, bz - az), yaw = Math.atan2(-(bz - az), bx - ax);
   const n = Math.max(1, Math.round(L / span)), bw = L / n, pw = Math.min(3.4, bw * 0.2);
   const open = bw - pw, sharp = 0.8, rise = archRise(open, sharp), spring = deckY - 1.5 - rise;
@@ -209,7 +209,7 @@ export function viaduct(b, heightAt, ax, az, bx, bz, deckY, { width = 7, span = 
   b.mat_(M.MARBLE).box(-1, deckY - 0.5, -width / 2 - 0.5, L + 2, 0.3, width + 1.0);
   b.mat_(M.PAVING).box(-1, deckY - 0.2, -width / 2, L + 2, 0.2, width, '-y');
   if (parapet) {
-    if (detail) { for (const sz of [-1, 1]) b.at(0, deckY, sz * (width / 2 - 0.25), 0, (q) => balustrade(q, L, { detail: 0 })); }
+    if (detail) { for (const sz of [-1, 1]) b.at(0, deckY, sz * (width / 2 - 0.25), 0, (q) => balustrade(q, L, { detail: balusters ? 1 : 0 })); }
     else for (const sz of [-1, 1]) b.mat_(M.MARBLE).box(0, deckY, sz * (width / 2 - 0.25) - 0.15, L, 1.0, 0.3);
   }
   b.pop();

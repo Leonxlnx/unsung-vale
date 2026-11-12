@@ -41,8 +41,9 @@ vec4 groundInfo(vec2 xz) {
   }
   grow *= step(max(abs(xz.x), abs(xz.y)), CORE_SIZE * 0.45);
   grow *= 1.0 - smoothstep(0.25, 0.7, textureLod(uPathTex, xz / CORE_SIZE + 0.5, 0.0).r);
-  gClover = meadowClover(textureLod(uNoise, xz / 13.0 + 0.7, 0.0).g);
-  return vec4(h, grow, n1.r, meadowFamily(n1, n2));
+  vec4 pn = textureLod(uNoise, xz / 13.0 + 0.7, 0.0);
+  gClover = meadowClover(pn.g);
+  return vec4(h, grow, n1.r, meadowFamily(n1, n2, pn.r));
 }
 // One unfiltered shadow lookup is plenty for a blade of grass.
 float coverShadow(vec3 p) {
@@ -85,7 +86,7 @@ void main() {
 
   float t = position.y;
   // Taller where the meadow is lush, cropped short in the clover.
-  float height = (0.13 + 0.22 * gi.z + 0.13 * (1.0 - gi.w) + 0.3 * rr.x * rr.x * rr.x) * (0.55 + 0.45 * scale) * mix(1.0, 0.6, gClover);
+  float height = (0.13 + 0.2 * gi.z + 0.2 * smoothstep(0.35, 0.8, gi.w) + 0.3 * rr.x * rr.x * rr.x) * (0.55 + 0.45 * scale) * mix(1.0, 0.6, gClover);
   float width = 0.019 * (1.0 + dist * 0.11) * mix(1.0, 1.6, gClover);
   float yaw = rr.y * 6.2831853;
   vec2 dir = vec2(cos(yaw), sin(yaw));

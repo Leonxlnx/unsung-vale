@@ -197,6 +197,10 @@ float cloudDensity(vec3 p, bool detail) {
   vec3 wp = vec3(p.x + uWind.x * uCloudTime, p.y, p.z + uWind.y * uCloudTime);
   vec2 w = textureLod(uWeather, wp.xz / 104000.0, 0.0).rg;
   float cov = saturate((w.r - (1.0 - uCoverage)) / uCoverage);
+  // The sky opens around the sun: only thin veils remain there, so the disc and its glow
+  // break through a gap whose edges catch the light.
+  float cs = dot(normalize(vec3(p.x, p.y - uCamAlt, p.z)), uSunDir);
+  cov *= mix(0.25, 1.0, 1.0 - smoothstep(0.982, 0.9972, cs));
   if (cov <= 0.01) return 0.0;
   float topH = mix(0.28, 1.0, smoothstep(0.2, 0.85, cov) * (0.55 + 0.45 * w.g));
   float hg = smoothstep(0.0, 0.07, h) * (1.0 - smoothstep(topH * 0.5, topH, h));

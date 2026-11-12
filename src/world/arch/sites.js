@@ -153,7 +153,8 @@ export class Architecture {
         q.at(0, -rise, -13 - run, -Math.PI / 2, (g) => stairs(g, run, rise, 18));
         for (const sx of [-1, 1]) q.mat_(M.ASHLAR).box(sx * 9.6 - 0.5, -rise - 2, -13 - run, 1.0, rise + 2.9, run);
       });
-      for (const [dx, dz] of [[12.5, 20], [12.5, -20], [-12.5, 20], [-12.5, -20], [20.3, 0]]) lamp(b, cx + dx, y, cz + dz);
+      // Two lanterns flank the lookout rather than one at its tip, which stood in the middle of the view.
+      for (const [dx, dz] of [[12.5, 20], [12.5, -20], [-12.5, 20], [-12.5, -20], [14.7, 6.3], [14.7, -6.3]]) lamp(b, cx + dx, y, cz + dz);
       // A small domed pavilion on the south lawn.
       const px = -540, pz = -22;
       b.at(px, H(px, pz) + 0.05, pz, 0, (q) => pavilion(q, { r: 4.6, colH: 5.2, n: 8, detail: 1 }));
@@ -168,7 +169,7 @@ export class Architecture {
       // Both ends reach well back from the rim, so the deck meets solid ground a step high.
       const a = [-573.5, -152.9], c = [-446.6, -289.7], ya = H(a[0], a[1]) + 0.3, yc = H(c[0], c[1]) + 0.3;
       const L = Math.hypot(c[0] - a[0], c[1] - a[1]);
-      viaduct(b, H, a[0], a[1], c[0], c[1], ya, { width: 6.4, span: 28, detail: 1, slope: (yc - ya) / L });
+      viaduct(b, H, a[0], a[1], c[0], c[1], ya, { width: 6.4, span: 28, detail: 1, slope: (yc - ya) / L, balusters: true });
       out.viaduct = { a, c, ya, yc };
       finish(b);
     }
