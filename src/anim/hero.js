@@ -336,9 +336,7 @@ export class Hero {
     this.flash.value = Math.max(0, this.flash.value - dt * 4);
     const cy = Math.cos(p.yaw), sy = Math.sin(p.yaw);
     const speed = p.speed, grounded = p.grounded;
-    if (this.visY === undefined || !grounded || Math.abs(p.pos.y - this.visY) > 0.6 || p.state === 'roll') this.visY = this.visY1 = p.pos.y;
-    else { this.visY1 = (this.visY1 ?? this.visY) + (p.pos.y - (this.visY1 ?? this.visY)) * Math.min(1, 24 * dt); this.visY += (this.visY1 - this.visY) * Math.min(1, 24 * dt); }
-    const PY = this.visY;
+    const PY = (this.visY = p.viewY ?? p.pos.y);       // smoothed over steps (see Player)
     const runK = sstep(2.9, 3.9, speed), sprK = sstep(5.9, 7.6, speed);
 
     // --- slow state: how much of each behaviour is in the pose ---
@@ -521,15 +519,15 @@ export class Hero {
         f.pos.lerpVectors(f.from, want, k); f.yaw = f.fromYaw + wrap(wantYaw - f.fromYaw) * k; f.lift = Math.sin(Math.PI * k) * f.h;
         if (f.step >= 1) { f.step = -1; f.lift = 0; if (grounded && ikW > 0.5) game.emit('player', { type: 'step', soft: true }); }
       } else {
+        // One foot at a time, unless the body has got well away from this one.
         const err = Math.hypot(want.x - f.pos.x, want.z - f.pos.z), yerr = Math.abs(wrap(wantYaw - f.yaw)), other = feet[s === 'L' ? 'R' : 'L'];
-        const otherErr = other.init ? Math.hypot(other.pos.x - p.pos.x, other.pos.z - p.pos.z) : 0;
-        if ((err > (attacking ? 0.1 : 0.2) || yerr > 0.55) && (other.step < 0 || err > 0.5) && (err > 0.5 || otherErr < 0.75)) {
+        if ((err > (attacking ? 0.1 : 0.2) || yerr > 0.55) && (other.step < 0 || err > 0.5)) {
           f.from.copy(f.pos); f.fromYaw = f.yaw; f.step = 0; f.dur = Math.max(0.1, Math.min(0.24, 0.1 + err * 0.22)) * (attacking ? 0.7 : 1); f.h = 0.04 + Math.min(0.1, err * 0.14);
         }
       }
       // Height of the ground under the foot, eased so a kerb is a step and not a jolt.
-      const gx = lerp(f.pos.x, want.x, 0), gz = f.pos.z;
-      const floor = grounded ? W.floorBelow(g > 0.5 ? p.pos.x + (o.x * cb + o.z * sb) : gx, p.pos.y + 0.55, g > 0.5 ? p.pos.z + (-o.x * sb + o.z * cb) : gz, 1.2) - PY : 0;
+      const fx = g > 0.5 ? p.pos.x + (o.x * cb + o.z * sb) : f.pos.x, fz = g > 0.5 ? p.pos.z + (-o.x * sb + o.z * cb) : f.pos.z;
+      const floor = grounded ? W.floorBelow(fx, p.pos.y + 0.55, fz, 1.2) - PY : 0;
       this.gy[s] += (Math.max(-0.45, Math.min(0.45, floor)) - this.gy[s]) * Math.min(1, 18 * dt);
       // Blend: planted / stepping foot, the gait cycle, the air pose.
       const a = (ankles[s] = { pos: new THREE.Vector3(), yaw: f.yaw - bodyYawW, pitch: 0, abs: 1 });

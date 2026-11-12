@@ -41,8 +41,10 @@ export class CameraRig {
 
     // The pivot trails the player slightly so motion reads as weight, not as a rigid mount.
     const k = 1 - Math.exp(-14 * dt);
-    this.follow.lerp(player.pos, k);
-    this.follow.y += (player.pos.y - this.follow.y) * (1 - Math.exp(-9 * dt)) * 0.5;
+    const py = player.viewY ?? player.pos.y;            // rises over steps instead of jumping
+    this.follow.x += (player.pos.x - this.follow.x) * k; this.follow.z += (player.pos.z - this.follow.z) * k;
+    this.follow.y += (py - this.follow.y) * k;
+    this.follow.y += (py - this.follow.y) * (1 - Math.exp(-9 * dt)) * 0.5;
 
     const cp = Math.cos(this.pitch);
     _dir.set(Math.sin(this.yaw) * cp, Math.sin(this.pitch), Math.cos(this.yaw) * cp);

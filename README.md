@@ -34,6 +34,7 @@ load takes a little while because the world is baked on your GPU.
 | --- | --- | --- |
 | Move / look | W A S D / mouse | Left stick / right stick |
 | Sprint | Shift | Left stick click or left trigger |
+| Walk or run | X | Tilt the stick |
 | Jump | Space | A |
 | Dodge roll | Ctrl or C | B |
 | Strike (three-step combo) | Left mouse | X or right bumper |

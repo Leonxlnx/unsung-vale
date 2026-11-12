@@ -52,7 +52,7 @@ export class Player {
   }
 
   spawn(x, y, z, yaw = 0) {
-    this.pos.set(x, y, z); this.vel.set(0, 0, 0); this.yaw = yaw;
+    this.pos.set(x, y, z); this.vel.set(0, 0, 0); this.yaw = yaw; this.viewY = this._viewY1 = y;
     this.lastSafe.copy(this.pos);
     this.state = 'move'; this.health = TUNE.healthMax; this.stamina = TUNE.staminaMax;
   }
@@ -247,6 +247,10 @@ export class Player {
       this.coyote = Math.max(0, this.coyote - dt); this.airTime += dt;
     }
     this.grounded = grounded;
+    // A height that rises over steps and kerbs instead of jumping with them: what the body is
+    // drawn at and what the camera follows. In the air it is simply the true height.
+    if (this.viewY === undefined || !grounded || !wasGrounded || Math.abs(this.pos.y - this.viewY) > 0.6 || this.state === 'roll') this.viewY = this._viewY1 = this.pos.y;
+    else { const k = Math.min(1, 24 * dt); this._viewY1 += (this.pos.y - this._viewY1) * k; this.viewY += (this._viewY1 - this.viewY) * k; }
     this.speed = Math.hypot(this.vel.x, this.vel.z);
     if (this.speed > 0.2) this.moveDir.set(this.vel.x / this.speed, 0, this.vel.z / this.speed);
 

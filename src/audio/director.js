@@ -44,6 +44,7 @@ export function connectAudio(audio, game, ui, falls) {
       audio.sfx('hit', { volume: d.heavy ? 0.75 : 0.65 });
       audio.sfx('crystal', { volume: 0.34, delay: 0.02 });
       if (d.heavy) audio.sfx('hit_heavy', { volume: 0.5 });
+      if (d.enemy?.def.boss) audio.sfx('block', { volume: 0.3, wet: 0.3 });        // the colossus rings like struck armour
     }
     if (type === 'enemy') {
       const e = d.enemy, boss = e?.def.boss;
