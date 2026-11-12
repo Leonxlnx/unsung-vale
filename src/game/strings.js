@@ -22,15 +22,18 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * vec4(p + side * aSide * w, 1.0);
 }`;
 const STRING_FRAG = /* glsl */ `
-uniform float uTime; uniform float uPower; uniform float uLen;
+uniform float uTime; uniform float uPower; uniform float uLen; uniform float uGrow; uniform float uFrom;
 in vec2 vUv;
 void main() {
+  float along = mix(vUv.x, 1.0 - vUv.x, uFrom);
+  if (along > uGrow) discard;
+  float head = exp(-pow((uGrow - along) * uLen * 0.12, 2.0)) * step(uGrow, 0.999);
   float x = abs(vUv.y), core = exp(-x * x * 7.0);
   // Beads of light run along it, the way a plucked string shows its wave.
   float run = 0.5 + 0.5 * pow(0.5 + 0.5 * sin(vUv.x * uLen * 0.35 - uTime * 5.0), 3.0);
   float ends = smoothstep(0.0, 0.004, vUv.x) * smoothstep(0.0, 0.004, 1.0 - vUv.x);
   float a = core * run * ends * uPower;
-  gl_FragColor = vec4(vec3(1.0, 0.76, 0.4) * a * 1.25, 0.0);
+  gl_FragColor = vec4(vec3(1.0, 0.76, 0.4) * a * 1.25 + vec3(1.0, 0.9, 0.7) * core * head * 6.0, 0.0);
 }`;
 const PYLON_VERT = /* glsl */ `
 out vec3 vWorld;
@@ -87,7 +90,7 @@ export class Strings {
       let need = -1e9;
       for (let i = 1; i < 32; i++) { const t = i / 32, x = A.top.x + (B.top.x - A.top.x) * t, z = A.top.z + (B.top.z - A.top.z) * t; const sn = Math.sin(Math.PI * t); need = Math.max(need, (Math.max(0, W.groundHeight(x, z)) + 3 + 26 * sn - (A.top.y + (B.top.y - A.top.y) * t)) / sn); }
       const bump = need > 0 ? need * 1.05 : -Math.min(len * 0.035, -need * 0.6);
-      const u = { uA: { value: A.top }, uB: { value: B.top }, uBump: { value: bump }, uTime: time, uPower: { value: 0 }, uLen: { value: len } };
+      const u = { uA: { value: A.top }, uB: { value: B.top }, uBump: { value: bump }, uTime: time, uPower: { value: 0 }, uLen: { value: len }, uGrow: { value: 1 }, uFrom: { value: 0 } };
       const m = new THREE.Mesh(sgeo, new THREE.ShaderMaterial({ vertexShader: STRING_VERT, fragmentShader: STRING_FRAG, uniforms: u, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor }));
       m.frustumCulled = false; m.renderOrder = 4; m.visible = false;
       pipe.sceneT.add(m);
@@ -129,7 +132,17 @@ export class Strings {
 
   update(dt, playing) {
     const g = this.game, p = g.player, show = !g.cine || !!g.cineAll;
-    for (const l of this.links) { l.u.uPower.value += ((this.awake(l) ? 1 : 0) - l.u.uPower.value) * Math.min(1, dt * 1.2); l.mesh.visible = show && l.u.uPower.value > 0.01; }
+    for (const l of this.links) {
+      const on = this.awake(l);
+      if (on && l.on === false && !g.cine) {
+        // It has just woken: it runs out from whichever end the hero stands nearer to.
+        l.u.uGrow.value = 0; l.u.uFrom.value = Math.hypot(p.pos.x - l.A.x, p.pos.z - l.A.z) < Math.hypot(p.pos.x - l.B.x, p.pos.z - l.B.z) ? 0 : 1; l.u.uPower.value = 1;
+        g.emit('string', { phase: 'wake', a: l.a, b: l.b });
+      }
+      l.on = on;
+      if (l.u.uGrow.value < 1) l.u.uGrow.value = Math.min(1, l.u.uGrow.value + dt * Math.max(0.16, 150 / l.len));
+      l.u.uPower.value += ((on ? 1 : 0) - l.u.uPower.value) * Math.min(1, dt * 1.2); l.mesh.visible = show && l.u.uPower.value > 0.01;
+    }
     for (const n of Object.values(this.nodes)) { n.u.uPower.value += ((this.links.some((l) => (l.a === n.id || l.b === n.id) && this.awake(l)) ? 1 : 0) - n.u.uPower.value) * Math.min(1, dt * 2); n.mesh.visible = show; n.mesh.rotation.y += dt * 0.3 * n.u.uPower.value; n.mesh.updateMatrixWorld(); }
     if (!playing) return;
     if (this.ride) { this._ride(dt); return; }
@@ -199,6 +212,9 @@ export class Strings {
     // Sparks where the blade runs on the string.
     const n = Math.min(4, Math.floor(dt * v * 2.2 + Math.random()));
     for (let i = 0; i < n; i++) g.particles.spawn(_a.x, _a.y - 0.04, _a.z, { vel: [-Math.sin(p.yaw) * v * 0.25 + (Math.random() - 0.5) * 3, -0.5 - Math.random() * 3, -Math.cos(p.yaw) * v * 0.25 + (Math.random() - 0.5) * 3], life: 0.45, size: 0.05, color: [4.2, 3.0, 1.3], gravity: 7, streak: 0.12 });
+    // The air he passes through: thin streaks coming at him from ahead.
+    const ws = Math.min(5, Math.floor(dt * v * 1.6 + Math.random()));
+    for (let i = 0; i < ws; i++) { const a = Math.random() * 6.283, rr = 1.2 + Math.random() * 3.2, fx = Math.sin(p.yaw), fz = Math.cos(p.yaw), d0 = 9 + Math.random() * 9; g.particles.spawn(p.pos.x + fx * d0 + Math.cos(a) * rr * fz, p.pos.y + 1.2 + Math.sin(a) * rr, p.pos.z + fz * d0 - Math.cos(a) * rr * fx, { vel: [-fx * v * 0.9, 0, -fz * v * 0.9], life: 0.32, size: 0.022, color: [1.3, 1.25, 1.1], streak: 0.5 }); }
     if (u >= 1) {
       const node = r.to;
       if (r.land) p.pos.copy(r.land);

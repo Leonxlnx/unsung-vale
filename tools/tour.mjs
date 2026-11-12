@@ -47,6 +47,14 @@ await ev(() => {
 });
 if (want('terrace')) { await sleep(1200); await shot('terrace'); }
 
+if (want('menus')) {
+  await page.keyboard.press('Escape'); await sleep(900); await shot('pause');
+  await ev(() => document.querySelector('#pause [data-act="settings"]').click()); await sleep(700); await shot('settings_graphics');
+  await ev(() => document.querySelector('[data-tab="controls"]').click()); await sleep(400); await shot('settings_controls');
+  await ev(() => document.querySelector('[data-tab="audio"]').click()); await sleep(400); await shot('settings_audio');
+  await ev(() => { document.querySelector('#settings [data-act="back"]').click(); }); await sleep(500);
+  await ev(() => document.querySelector('#pause [data-act="resume"]').click()); await sleep(700); await page.mouse.click(W / 2, H / 2); await sleep(300);
+}
 if (want('talk')) {
   await ev(() => { const g = window.__game, n = g.people.get('maren'); window.__tour.tp(n.x - 1.8, n.y + 0.1, n.z + 1.6, 2.3); });
   await sleep(700);

@@ -54,6 +54,7 @@ export function connectAudio(audio, game, ui, falls) {
       else { audio.sfx(k('ride_end', 'land'), { volume: 0.5 }); audio.sfx('land', { volume: 0.4, delay: 0.25 }); }
     }
     if (type === 'mote') audio.sfx(k('item', 'pickup'), { volume: 0.22, pitch: 1.5 + Math.random() * 0.25, spread: 0, wet: 0.4 });
+    if (type === 'string' && d.phase === 'wake') audio.sfx(k('ride_start', 'pickup'), { volume: 0.45, pitch: 0.7, wet: 0.5, delay: 0.3 });
     if (type === 'echo') audio.sfx(k('echo', 'pulse'), { volume: 0.6, pitch: audio.manifest?.sfx?.echo ? 1 : 0.6, wet: 0.4 });
     if (type === 'people' && d.type === 'wake') { const n = game.people.get(d.id); if (n) at(k('wake', 'restore'), new THREE.Vector3(n.x, n.y + 1, n.z), { volume: 0.7, range: 26 }); }
     if (type === 'quest' && d.phase === 'item') audio.sfx(k('item', 'pickup'), { volume: 0.55, pitch: SCALE[Math.min(7, d.count - 1)], spread: 0, wet: 0.35 });
