@@ -5,16 +5,31 @@
 import * as THREE from 'three';
 
 const VERT = /* glsl */ `
-out vec3 vWorld;
-void main() { vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
+in float aGlow;
+out vec3 vWorld; out float vGlow;
+void main() { vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xyz; vGlow = aGlow; gl_Position = projectionMatrix * viewMatrix * w; }`;
 const FRAG = /* glsl */ `
-uniform float uTime;
-in vec3 vWorld;
+uniform float uTime; uniform float uGlow; uniform vec3 uColor; uniform vec3 uLight;
+in vec3 vWorld; in float vGlow;
 void main() {
   vec3 N = normalize(cross(dFdx(vWorld), dFdy(vWorld))), V = normalize(cameraPosition - vWorld);
-  float f = pow(1.0 - abs(dot(N, V)), 2.0);
-  gl_FragColor = vec4(vec3(1.0, 0.9, 0.72) * (1.5 + 3.0 * f) * (0.85 + 0.15 * sin(uTime * 3.1 + vWorld.x)), 1.0);
+  float f = pow(1.0 - abs(dot(N, V)), 2.0), sun = 0.45 + 0.55 * clamp(dot(N, normalize(vec3(0.5, 0.45, 0.74))), 0.0, 1.0);
+  vec3 matter = uColor * sun + uColor * f * 0.6;
+  vec3 light = uLight * (1.2 + 2.6 * f) * (0.88 + 0.12 * sin(uTime * 3.1 + vWorld.x));
+  gl_FragColor = vec4(mix(matter, matter * 0.4 + light * uGlow, vGlow), 1.0);
 }`;
+
+// What each kind of thing looks like: parts as [geometry, glows?], the colour of its matter
+// and of its light, whether it stays once touched, how high it hangs and whether it turns.
+const part = (geo, glow) => { const g = geo.index ? geo.toNonIndexed() : geo; g.setAttribute('aGlow', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count).fill(glow), 1)); return g; };
+const join = (parts) => { const pos = [], gl = []; for (const g of parts) { pos.push(...g.attributes.position.array); gl.push(...g.attributes.aGlow.array); } const o = new THREE.BufferGeometry(); o.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); o.setAttribute('aGlow', new THREE.Float32BufferAttribute(gl, 1)); return o; };
+const SHAPES = {
+  'lantern seed': () => ({ geo: join([part(new THREE.SphereGeometry(0.13, 10, 8).scale(1, 1.35, 1), 1), part(new THREE.ConeGeometry(0.1, 0.14, 6).translate(0, 0.2, 0), 0), part(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 5).translate(0, 0.33, 0), 0)]), color: [0.1, 0.16, 0.05], light: [1.0, 0.82, 0.45], hang: 1.0, turn: 0.8 }),
+  'survey mark': () => ({ geo: join([part(new THREE.CylinderGeometry(0.09, 0.17, 1.25, 4).translate(0, 0.625, 0), 0), part(new THREE.CylinderGeometry(0.24, 0.26, 0.1, 4).translate(0, 0.05, 0), 0), part(new THREE.OctahedronGeometry(0.11, 0).scale(1, 1.5, 1).translate(0, 1.45, 0), 1)]), color: [0.46, 0.44, 0.4], light: [1.0, 0.76, 0.36], stay: true, idle: 0.5, lit: 1.6 }),
+  lamp: () => ({ geo: join([part(new THREE.CylinderGeometry(0.045, 0.07, 2.3, 6).translate(0, 1.15, 0), 0), part(new THREE.CylinderGeometry(0.2, 0.24, 0.12, 6).translate(0, 0.06, 0), 0), part(new THREE.OctahedronGeometry(0.21, 0).scale(1, 1.5, 1).translate(0, 2.62, 0), 1), part(new THREE.ConeGeometry(0.26, 0.16, 4).translate(0, 3.0, 0), 0)]), color: [0.06, 0.06, 0.07], light: [1.0, 0.74, 0.34], stay: true, idle: 0.1, lit: 1.9 }),
+  float: () => ({ geo: join([part(new THREE.CylinderGeometry(0.2, 0.2, 0.34, 10), 0), part(new THREE.TorusGeometry(0.205, 0.03, 5, 14).rotateX(Math.PI / 2), 1), part(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 5).translate(0, 0.4, 0), 0), part(new THREE.OctahedronGeometry(0.06, 0).translate(0, 0.68, 0), 1)]), color: [0.3, 0.2, 0.1], light: [1.0, 0.9, 0.7], hang: -0.04, bob: 0.06 }),
+  'golden pear': () => ({ geo: join([part(new THREE.SphereGeometry(0.12, 10, 8).scale(1, 1.1, 1), 1), part(new THREE.SphereGeometry(0.078, 8, 6).translate(0, 0.13, 0), 1), part(new THREE.CylinderGeometry(0.01, 0.014, 0.1, 5).translate(0.01, 0.24, 0), 0)]), color: [0.2, 0.12, 0.04], light: [1.0, 0.72, 0.22], hang: 0.9, turn: 0.6 }),
+};
 
 // kind: gather (spots, taken by touch) | slay (packs of the wilds) | notes (lost notes found).
 export const QUESTS = [
@@ -81,14 +96,14 @@ export class Quests {
     this.g = game; this.pipe = pipe;
     this.state = {};                 // id -> { s: 'active' | 'ready' | 'done', got: [spot indices] }
     this.items = [];                 // things standing in the world to be gathered
-    const geo = new THREE.OctahedronGeometry(1, 0).scale(0.2, 0.34, 0.2);
-    this.mesh = new THREE.InstancedMesh(geo, new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: { uTime: pipe.globals.uTime } }), 40);
-    this.mesh.frustumCulled = false; this.mesh.count = 0; this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    pipe.scene.add(this.mesh);
-    for (const [id, st] of Object.entries(game.questSave ?? {})) { this.state[id] = { s: st.s, got: [...(st.got ?? [])] }; if (st.s === 'active') this._place(this.def(id)); }
+    this.group = new THREE.Group(); pipe.scene.add(this.group); this.shapes = {};
+    // Things still to be gathered come back with a saved journey; so do the ones that stay
+    // where they stand once touched (lamps lit, marks found).
+    for (const [id, st] of Object.entries(game.questSave ?? {})) { this.state[id] = { s: st.s, got: [...(st.got ?? [])] }; const q = this.def(id); if (q && (st.s === 'active' || this._shape(q.thing)?.stay)) this._place(q); }
   }
 
   def(id) { return QUESTS.find((q) => q.id === id); }
+  _shape(thing) { return thing && SHAPES[thing] ? (this.shapes[thing] ??= SHAPES[thing]()) : null; }
   dump() { return this.state; }
   get active() { return QUESTS.filter((q) => this.state[q.id]?.s === 'active' || this.state[q.id]?.s === 'ready'); }
   get doneCount() { return QUESTS.filter((q) => this.state[q.id]?.s === 'done').length; }
@@ -98,12 +113,18 @@ export class Quests {
     if (q.kind !== 'gather') return;
     const W = this.g.world, st = this.state[q.id];
     // A spot may name the height of the floor it stands on (a platform out over a drop).
+    const sh = this._shape(q.thing);
     q.spots.forEach(([x, z, at], i) => {
-      if (st.got.includes(i)) return;
+      const got = st.got.includes(i);
+      if ((got && !sh.stay) || this.items.some((it) => it.q === q.id && it.i === i)) return;
       W.stream(x, z, 4);
       const water = W.waterLevel(x, z), ground = at !== undefined ? W.floorBelow(x, at + 2, z, 6) : W.floorBelow(x, W.groundHeight(x, z) + 30, z, 60);
-      const y = (q.swim && Number.isFinite(water) ? Math.max(water, ground) + 0.55 : ground + 1.2);
-      this.items.push({ q: q.id, i, x, y, z, k: 1, taken: false, phase: i * 1.9 });
+      const base = q.swim && Number.isFinite(water) ? Math.max(water, ground) : ground;
+      const u = { uTime: this.pipe.globals.uTime, uGlow: { value: 0 }, uColor: { value: new THREE.Vector3(...sh.color) }, uLight: { value: new THREE.Vector3(...sh.light) } };
+      const mesh = new THREE.Mesh(sh.geo, new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: u, side: THREE.DoubleSide }));
+      mesh.frustumCulled = false; this.group.add(mesh);
+      // y is where the hero's reach is tested (about chest height above its foot).
+      this.items.push({ q: q.id, i, x, y: base + 1.2, base, z, k: 1, taken: got, phase: i * 1.9, mesh, u, sh });
     });
   }
 
@@ -130,7 +151,7 @@ export class Quests {
     const g = this.g, st = this.state[q.id], p = g.player.pos;
     if (st.s === 'ready') { const n = g.people.get(q.giver); return { x: n.x, y: n.y + 2.4, z: n.z, name: n.def.name }; }
     let best = null, bd = 1e9;
-    if (q.kind === 'gather') for (const it of this.items) { if (it.q !== q.id || it.taken) continue; const d = Math.hypot(it.x - p.x, it.z - p.z); if (d < bd) { bd = d; best = { x: it.x, y: it.y + 0.8, z: it.z, name: q.thing[0].toUpperCase() + q.thing.slice(1) }; } }
+    if (q.kind === 'gather') for (const it of this.items) { if (it.q !== q.id || it.taken) continue; const d = Math.hypot(it.x - p.x, it.z - p.z); if (d < bd) { bd = d; best = { x: it.x, y: it.base + (it.sh.stay ? 3.6 : 2.0), z: it.z, name: q.thing[0].toUpperCase() + q.thing.slice(1) }; } }
     if (q.kind === 'slay') for (const i of q.packs) { if (g.wildDone.includes(i)) continue; const e = g.enemies.list.find((f) => f.alive && f.group === `wild${i}`); if (!e) continue; const d = Math.hypot(e.pos.x - p.x, e.pos.z - p.z); if (d < bd) { bd = d; best = { x: e.pos.x, y: e.pos.y + 3, z: e.pos.z, name: 'The Mute' }; } }
     return best;
   }
@@ -178,30 +199,39 @@ export class Quests {
 
   update(dt, playing) {
     const g = this.g, p = g.player, t = this.pipe.time, P = g.particles;
-    this.mesh.visible = !g.cine;
+    this.group.visible = !g.cine;
     if (g.cine) return;
     // Things to gather.
-    let n = 0;
     for (const it of this.items) {
-      const d = Math.hypot(p.pos.x - it.x, p.pos.z - it.z), q = this.def(it.q);
+      const d = Math.hypot(p.pos.x - it.x, p.pos.z - it.z), q = this.def(it.q), sh = it.sh;
       if (playing && !it.taken && d < q.r && Math.abs(p.pos.y + 1 - it.y) < 2.6 && p.state !== 'ride') {
         it.taken = true;
         const st = this.state[it.q]; st.got.push(it.i);
         P.burst(it.x, it.y, it.z, 22, { speed: 3.6, life: 0.8, size: 0.05, color: [3.4, 3.0, 2.2], gravity: -1.2, drag: 1.5, up: 1.2 });
-        g.vfx.wave(it.x, it.y - 0.9, it.z, { r0: 0.2, r1: 3.2, life: 0.6, strength: 0.6, width: 0.1, color: [2.2, 1.9, 1.3] });
+        g.vfx.wave(it.x, it.base + 0.08, it.z, { r0: 0.2, r1: sh.stay ? 5 : 3.2, life: 0.7, strength: 0.7, width: 0.1, color: [2.6, 2.1, 1.2] });
         g.emit('quest', { phase: 'item', title: q.title, thing: q.thing, count: st.got.length, total: q.spots.length });
         this._check(q); g.save();
       }
-      it.k += ((it.taken ? 0 : 1) - it.k) * Math.min(1, dt * 9);
-      if (it.k < 0.01 || d > 160 || n >= 40) continue;
-      _p.set(it.x, it.y + Math.sin(t * 1.3 + it.phase) * 0.08, it.z);
-      _m.compose(_p, _q.setFromEuler(_e.set(0, t * 1.1 + it.phase, 0)), _s.set(it.k, it.k, it.k));
-      this.mesh.setMatrixAt(n++, _m);
-      // A thread of light above each one, so it can be found from across a meadow.
-      if (d < 120) { P.spawn(_p.x, _p.y, _p.z, { life: 0.1, size: 0.8, color: [1.5, 1.3, 0.9], alpha: 0.6 }); if (Math.random() < dt * 14) P.spawn(it.x + (Math.random() - 0.5) * 0.2, it.y + 0.3, it.z + (Math.random() - 0.5) * 0.2, { vel: [0, 2.2 + Math.random() * 2, 0], life: 1.6, size: 0.05, color: [2.6, 2.3, 1.6], drag: 0.3 }); }
+      // Taken things fade out, except those that stay and take light instead.
+      it.k += ((it.taken && !sh.stay ? 0 : 1) - it.k) * Math.min(1, dt * 9);
+      const show = it.k > 0.01 && d < 220;
+      it.mesh.visible = show;
+      if (!show) continue;
+      const hang = sh.hang ?? 0, bob = sh.hang !== undefined ? Math.sin(t * 1.3 + it.phase) * (sh.bob ?? 0.08) : 0;
+      it.mesh.position.set(it.x, it.base + hang + bob, it.z);
+      it.mesh.rotation.y = (sh.turn ?? 0) * t + it.phase;
+      it.mesh.scale.setScalar(it.k);
+      it.mesh.updateMatrixWorld();
+      it.u.uGlow.value += ((it.taken ? sh.lit ?? 1 : sh.idle ?? 1) - it.u.uGlow.value) * Math.min(1, dt * 4);
+      // A thread of light above each one still to be found, so it shows from across a meadow.
+      if (!it.taken && d < 120) {
+        const top = it.base + (sh.stay ? 3.2 : (sh.hang ?? 0) + 0.5);
+        P.spawn(it.x, top - 0.3, it.z, { life: 0.1, size: 0.7, color: [1.5, 1.3, 0.9], alpha: 0.5 });
+        if (Math.random() < dt * 14) P.spawn(it.x + (Math.random() - 0.5) * 0.2, top, it.z + (Math.random() - 0.5) * 0.2, { vel: [0, 2.2 + Math.random() * 2, 0], life: 1.6, size: 0.05, color: [2.6, 2.3, 1.6], drag: 0.3 });
+      }
     }
-    this.mesh.count = n; this.mesh.instanceMatrix.needsUpdate = true;
-    this.items = this.items.filter((it) => !it.taken || it.k > 0.01);
+    for (const it of this.items) if (it.taken && !it.sh.stay && it.k <= 0.01) { this.group.remove(it.mesh); it.mesh.material.dispose(); }
+    this.items = this.items.filter((it) => !it.taken || it.sh.stay || it.k > 0.01);
     if (!playing) return;
     // Packs cleared and notes found count without anyone having to be told.
     this.tick = (this.tick ?? 0) + dt;

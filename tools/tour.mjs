@@ -101,6 +101,11 @@ if (want('trial')) {
 if (want('item')) {
   await ev(() => { const g = window.__game, Q = g.quests; if (!Q.state.seeds) Q._start(Q.def('seeds')); const it = Q.items.find((i) => i.q === 'seeds'); window.__tour.tp(it.x - 5, it.y - 1.1, it.z - 3, Math.atan2(5, 3), -0.08, 6); });
   await sleep(1800); await shot('item');
+  await ev(() => { const g = window.__game, Q = g.quests; if (!Q.state.lamps) Q._start(Q.def('lamps')); const it = Q.items.find((i) => i.q === 'lamps'); window.__tour.tp(it.x - 4.5, it.base + 0.1, it.z - 2.5, Math.atan2(4.5, 2.5), -0.02, 6); });
+  await sleep(1500); await shot('lamp');
+  await page.keyboard.down('KeyW'); await sleep(900); await page.keyboard.up('KeyW'); await sleep(900); await shot('lamp_lit');
+  await ev(() => { const g = window.__game, Q = g.quests; if (!Q.state.windfall) Q._start(Q.def('windfall')); const it = Q.items.find((i) => i.q === 'windfall'); window.__tour.tp(it.x - 3.5, it.base + 0.1, it.z - 2, Math.atan2(3.5, 2), -0.05, 5); });
+  await sleep(1500); await shot('pear');
 }
 if (want('swim')) {
   await ev(() => window.__tour.tp(-300, 174.5, -330, 0.6, -0.25, 6));
