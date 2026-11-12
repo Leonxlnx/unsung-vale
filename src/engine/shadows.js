@@ -81,6 +81,7 @@ export class Shadows {
     this.staticCam = new THREE.OrthographicCamera();
     this.scene = new THREE.Scene();         // twins of everything that casts into the cascades
     this.staticScene = new THREE.Scene();   // twins of everything fixed in place
+    this.scene.matrixWorldAutoUpdate = false; this.staticScene.matrixWorldAutoUpdate = false;
     this.twins = [];
 
     this.uniforms = {

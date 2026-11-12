@@ -121,6 +121,9 @@ export class Pipeline {
 
     this.scene = new THREE.Scene();
     this.sceneT = new THREE.Scene();     // water and other surfaces that read the opaque scene
+    // Nearly everything in the world is static, so world matrices are not recomputed every
+    // frame; anything that moves calls updateMatrixWorld() on itself.
+    this.scene.matrixWorldAutoUpdate = false; this.sceneT.matrixWorldAutoUpdate = false;
     this.camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.3, 120000);
     this.renderScale = opts.renderScale ?? 1;
     this.exposure = 0.3;
