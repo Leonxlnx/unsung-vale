@@ -136,6 +136,9 @@ export class UI {
     this.el.chart.addEventListener('mouseleave', () => { this._hover = null; this.el.tip.classList.remove('on'); });
     this.el.chart.addEventListener('click', () => { const c = this._hover; if (c?.ride) { this.onSound?.('ui_open'); game.closeMenu(); game.strings.rideTo(c.id); } });
 
+    // Text and lines are a touch larger on tall screens, so they read from the same distance.
+    const fit = () => document.documentElement.style.setProperty('--s', Math.max(1, Math.min(1.5, innerHeight / 960)).toFixed(3));
+    fit(); window.addEventListener('resize', fit);
     game.on((type, d) => this._onGame(type, d));
     // Any key or click moves past the opening.
     const skip = (e) => { if (game.state === 'intro' && (e.type === 'mousedown' || ['Space', 'Enter', 'Escape'].includes(e.code))) this.story?.skip(); };

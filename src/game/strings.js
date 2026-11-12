@@ -35,13 +35,16 @@ const PYLON_VERT = /* glsl */ `
 out vec3 vWorld;
 void main() { vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
 const PYLON_FRAG = /* glsl */ `
-uniform float uTime; uniform float uPower;
+uniform float uTime; uniform float uPower; uniform float uBase;
 in vec3 vWorld;
 void main() {
   vec3 N = normalize(cross(dFdx(vWorld), dFdy(vWorld))), V = normalize(cameraPosition - vWorld);
-  float f = pow(1.0 - abs(dot(N, V)), 2.0);
-  vec3 lit = vec3(1.0, 0.74, 0.34) * (0.9 + 2.2 * f) * (0.85 + 0.15 * sin(uTime * 2.0 + vWorld.y));
-  gl_FragColor = vec4(mix(vec3(0.045, 0.045, 0.055) + vec3(0.16, 0.16, 0.2) * f, lit, uPower), 1.0);
+  float f = pow(1.0 - abs(dot(N, V)), 2.5), up = clamp((vWorld.y - uBase) / 7.0, 0.0, 1.0);
+  // Facets of dark glass, each a slightly different grey; gold climbing inside toward the tip.
+  vec3 glass = vec3(0.05, 0.055, 0.07) * (0.7 + 0.6 * abs(N.x + 0.4 * N.z)) + vec3(0.2, 0.2, 0.25) * f;
+  float climb = 0.5 + 0.5 * sin(vWorld.y * 3.0 - uTime * 2.2);
+  vec3 gold = vec3(1.0, 0.72, 0.32) * (0.05 + 1.5 * pow(up, 2.4) + 1.3 * f + 0.25 * climb * up);
+  gl_FragColor = vec4(glass + gold * uPower, 1.0);
 }`;
 const _a = new THREE.Vector3(), _b = new THREE.Vector3();
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -52,11 +55,11 @@ export class Strings {
     this.game = game; this.pipe = pipe; this.ride = null; this.goal = null;
     const W = game.world, time = pipe.globals.uTime;
     this.nodes = {};
-    const geo = new THREE.OctahedronGeometry(1, 0).scale(0.4, 3.3, 0.4);
+    const geo = new THREE.OctahedronGeometry(1, 0).scale(0.3, 3.3, 0.3);
     for (const [id, [x, z]] of Object.entries(nodes)) {
       W.stream(x, z, 6);
       const y = W.floorBelow(x, W.groundHeight(x, z) + 14, z, 40);
-      const u = { uTime: time, uPower: { value: 0 } };
+      const u = { uTime: time, uPower: { value: 0 }, uBase: { value: y } };
       const m = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader: PYLON_VERT, fragmentShader: PYLON_FRAG, uniforms: u }));
       m.position.set(x, y + 3.7, z); m.updateMatrixWorld(); m.frustumCulled = false;
       pipe.scene.add(m);

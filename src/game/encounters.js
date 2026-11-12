@@ -39,7 +39,7 @@ export class Encounters {
     for (const [kind, n, elite] of list) for (let i = 0; i < n; i++) flat.push([kind, elite]);
     const out = [];
     flat.forEach(([kind, elite], i) => {
-      const boss = kind === 'sovereign', a = a0 + (i / flat.length) * 6.283, rr = boss ? 0 : r * (0.8 + 0.4 * ((i * 7) % 3) / 2);
+      const boss = kind === 'sovereign', a = a0 + (i / flat.length) * 6.283, rr = boss ? r * 1.1 : r * (0.8 + 0.4 * ((i * 7) % 3) / 2);
       out.push(E.spawn(kind, cx + Math.cos(a) * rr, cz + Math.sin(a) * rr, group, elite ? ELITE[elite] : null, near));
     });
     return out;

@@ -30,10 +30,13 @@
 .rule i { position: absolute; left: -5px; top: -3px; width: 7px; height: 7px; background: var(--gold); transform: rotate(45deg); }
 .screen.on .rule, .toast.on .rule { transform: scaleX(1); }
 
+#home .block, #home .foot, .panel, #journey, #ending > div, #talk, #story .caption,
+#hud .goal, #hud .compass, #hud .vitals, #hud .prompt, #hud .boss, #hud .toast, #hud .card, #hud .hints, #hud .beat, #hud .tally, #hud .grab { zoom: var(--s, 1); }
+
 /* --- title --- */
 #home { background: linear-gradient(90deg, rgba(8, 10, 14, 0.66) 0%, rgba(8, 10, 14, 0.3) 36%, rgba(8, 10, 14, 0) 64%), linear-gradient(0deg, rgba(8, 10, 14, 0.42) 0%, rgba(8, 10, 14, 0) 42%); }
 #home .block { position: absolute; left: clamp(32px, 7.5vw, 132px); bottom: clamp(44px, 12vh, 140px); width: min(520px, 82vw); }
-#home h1 { font-size: clamp(52px, 7vw, 108px); font-weight: 200; letter-spacing: 0.005em; line-height: 0.95; padding-top: 0.12em; }
+#home h1 { font-size: clamp(52px, 7vw, 108px); font-weight: 200; letter-spacing: 0.005em; line-height: 0.95; padding-top: 0.12em; white-space: nowrap; }
 #home .rule { width: min(340px, 60vw); margin: 14px 0 20px 5px; }
 #home .sub { margin: 0 0 40px; font-size: 17px; line-height: 1.5; color: var(--ink-2); max-width: 34ch; font-weight: 400; }
 .menu { display: flex; flex-direction: column; gap: 0; align-items: flex-start; }
