@@ -64,7 +64,8 @@ void main() {
   float lattice = smoothstep(0.42, 0.5, abs(fract(vUv.y * 46.0 + vUv.x * 2.0) - 0.5)) * 0.35 + smoothstep(0.44, 0.5, abs(fract(vUv.x * 5.0) - 0.5)) * 0.3;
   float front = exp(-sq((uProgress - vUv.y) * 60.0)) * 3.0;
   float a = 0.3 + rail * 0.9 + lattice * 0.5 + n * 0.2 + front;
-  gl_FragColor = vec4(vec3(1.0, 0.82, 0.48) * a * 1.4, 0.55 + rail * 0.3);
+  // Light made solid: bright enough to bloom, clear enough to see the lake through it.
+  gl_FragColor = vec4(vec3(1.0, 0.8, 0.42) * a * 6.5, 0.3 + rail * 0.4);
 }`;
 
 export class Game {

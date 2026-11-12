@@ -107,7 +107,7 @@ export class Director {
         dur: 5.5,
         update: (d, t, k) => {
           // Low over the lake, threading the pinnacles and passing south of the Choir.
-          const path = [[-470, 150, 20], [-262, 96, -4], [-60, 66, 62], [122, 60, 124], [322, 82, 22], [600, 112, 30]];
+          const path = [[-470, 172, 24], [-250, 128, 8], [-40, 104, 96], [150, 100, 150], [330, 112, 40], [600, 126, 30]];
           const a = along(path, k * 0.8, false), b = along(path, Math.min(1, k * 0.8 + 0.16), false);
           d.cam(a, [b[0], b[1] - 4, b[2]], 46);
         },
@@ -177,9 +177,9 @@ export class Director {
         setup: (d) => d.game.cineSetup({ tuned: ['petal', 'cantor'], bridge: 0.0001, player: [br.from[0], br.from[1] + 0.1, br.from[2] - 12, 0.21] }),
         update: (d, t, k) => {
           const p = d.game.player.pos;
-          d.walkTo(lerp(br.from[0], br.to[0], 0.25), lerp(br.from[2], br.to[2], 0.25), { stop: 1 });
+          d.walkTo(lerp(br.from[0], br.to[0], 0.3), lerp(br.from[2], br.to[2], 0.3), { stop: 1 });
           // From beside the gate, just past it: the bridge runs away below toward the Choir.
-          d.cam([br.from[0] + 12 - 3 * k, br.from[1] + 4.2 + 2.2 * k, br.from[2] + 3 - 5 * k], [lerp(p.x, br.to[0], 0.3), lerp(p.y, br.to[1], 0.3) + 1, lerp(p.z, br.to[2], 0.3)], 42);
+          d.cam([p.x + 5.5 - 2 * k, p.y + 2.6 + 1.2 * k, p.z - 7.5 + 1.5 * k], [lerp(p.x, br.to[0], 0.22), lerp(p.y, br.to[1], 0.22) + 1.2, lerp(p.z, br.to[2], 0.22)], 44);
         },
       },
       { // 8. The valley at day's end.
