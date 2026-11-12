@@ -9,6 +9,7 @@ import { SH_GLSL, SKY_SAMPLE } from '../engine/sky.js';
 import { LIGHTING } from '../engine/lighting.js';
 import { TextureForge, FORGE_LIB } from '../engine/forge.js';
 import { TERRAIN_MATERIALS } from './terrainMaterials.js';
+import { MEADOW_GLSL } from './meadow.js';
 import { WORLD } from './layout.js';
 
 async function loadHeights(url, meta) {
@@ -202,6 +203,7 @@ uniform sampler2D uNoise;
 uniform sampler2D uPathTex;
 uniform float uFrame;
 in vec3 vWorld;
+${MEADOW_GLSL}
 
 void layerAt(float layer, vec2 p, vec2 dpx, vec2 dpy, float s, out vec4 A, out vec4 B) {
   A = textureGrad(uTA, vec3(p / s, layer), dpx / s, dpy / s);
@@ -334,7 +336,13 @@ void main() {
   vec3 alb = A.rgb;
   // Large-scale colour drift so no two meadows or cliff faces look the same.
   alb *= mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), n1.r) * (0.86 + 0.28 * n2.a);
-  alb = mix(alb, alb * vec3(1.25, 1.1, 0.7), grass * smoothstep(0.55, 0.8, n1.a) * 0.5);
+  // Under the blades the ground wears the meadow's own colours, a little darker, so what
+  // shows between them reads as depth in the grass. Clover patches are darker and bluer.
+  float fam = meadowFamily(n1, n2);
+  float clover = meadowClover(texture(uNoise, xz / 13.0 + 0.7).g);
+  vec3 meadow = meadowTip(fam, vec2(0.5)) * mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), n1.r);
+  meadow = mix(meadow, meadow * vec3(0.62, 0.92, 0.78), clover);
+  alb = mix(alb, meadow * (0.34 + 3.4 * dot(A.rgb, vec3(0.3, 0.6, 0.1))), grass * 0.9);
   // Rain streaks and damp at the foot of the cliffs.
   alb *= 1.0 - rock * 0.3 * smoothstep(0.5, 0.75, texture(uNoise, vec2(dot(xz, vec2(0.021, 0.017)), h * 0.0016)).g);
   float wet = 1.0 - smoothstep(-0.1, 0.9, h);

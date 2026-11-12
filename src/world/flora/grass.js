@@ -8,6 +8,8 @@ import { LIGHTING } from '../../engine/lighting.js';
 import { TERRAIN_SAMPLING } from '../terrain.js';
 import { mulberry32 } from '../../util/noise.js';
 
+import { MEADOW_GLSL } from '../meadow.js';
+
 const CELL = 16;           // grass cell size (m): small, so density can step down with distance
 const FCELL = 32;          // flower cell size: fewer, larger draws
 
@@ -19,7 +21,10 @@ uniform sampler2D uPathTex;
 uniform vec3 uWind;
 uniform float uTime;
 uniform float uFadeDist;
-// x: height above sea level, y: growth 0..1 (0 = nothing grows here), zw: macro noise
+${MEADOW_GLSL}
+// x: height above sea level, y: growth 0..1 (0 = nothing grows here), z: macro tone,
+// w: meadow family (lush to dry). clover is set to how much of a low clover patch this is.
+float gClover;
 vec4 groundInfo(vec2 xz) {
   float h = terrainHeight(xz);
   vec4 nm = textureLod(uNCore, xz / CORE_SIZE + 0.5, 0.0);
@@ -30,7 +35,8 @@ vec4 groundInfo(vec2 xz) {
   float grow = (1.0 - smoothstep(0.02, 0.2, cliff)) * smoothstep(1.3, 2.6, h) * (1.0 - soil * 0.85);
   grow *= step(max(abs(xz.x), abs(xz.y)), CORE_SIZE * 0.45);
   grow *= 1.0 - smoothstep(0.25, 0.7, textureLod(uPathTex, xz / CORE_SIZE + 0.5, 0.0).r);
-  return vec4(h, grow, n1.r, n1.a);
+  gClover = meadowClover(textureLod(uNoise, xz / 13.0 + 0.7, 0.0).g);
+  return vec4(h, grow, n1.r, meadowFamily(n1, n2));
 }
 // One unfiltered shadow lookup is plenty for a blade of grass.
 float coverShadow(vec3 p) {
@@ -72,8 +78,9 @@ void main() {
   if (scale < 0.02) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vColor = vec3(0.0); return; }
 
   float t = position.y;
-  float height = (0.16 + 0.4 * gi.z + 0.34 * rr.x * rr.x) * (0.55 + 0.45 * scale);
-  float width = 0.017 * (1.0 + dist * 0.09);
+  // Taller where the meadow is lush, cropped short in the clover.
+  float height = (0.16 + 0.28 * gi.z + 0.16 * (1.0 - gi.w) + 0.3 * rr.x * rr.x) * (0.55 + 0.45 * scale) * mix(1.0, 0.6, gClover);
+  float width = 0.027 * (1.0 + dist * 0.075) * mix(1.0, 1.5, gClover);
   float yaw = rr.y * 6.2831853;
   vec2 dir = vec2(cos(yaw), sin(yaw));
   vec2 bend = (dir * (0.12 + 0.3 * rr.x) + windBend(xz, 1.0)) * t * t;
@@ -85,7 +92,11 @@ void main() {
   vec3 base = vec3(xz.x, gi.x + 0.15, xz.y);
   vec3 V = normalize(cameraPosition - p);
   float vis = coverShadow(base + uSunDir * 0.3);
-  vec3 root = vec3(0.045, 0.088, 0.018), tip = mix(vec3(0.1, 0.21, 0.03), vec3(0.24, 0.27, 0.07), smoothstep(0.45, 0.85, gi.w + rr.x * 0.3));
+  vec3 tip = meadowTip(gi.w, rr);
+  // A few dry straws stand in any patch; clover is darker and bluer.
+  tip = mix(tip, vec3(0.36, 0.31, 0.14), step(0.94, rr.x) * 0.8);
+  tip = mix(tip, tip * vec3(0.62, 0.92, 0.78), gClover);
+  vec3 root = tip * vec3(0.42, 0.5, 0.44);
   vec3 alb = mix(root, tip, t) * mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), gi.z);
   vec3 N = normalize(vec3(bend.x * 0.6, 1.0, bend.y * 0.6));
   float ndl = saturate(dot(N, uSunDir)) * 0.55 + 0.25;
@@ -175,7 +186,7 @@ export class GroundCover {
       pos.push(-1, 0, b, 1, 0, b, -1, 0.5, b, 1, 0.5, b, 0, 1, b);
       idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2, o + 2, o + 3, o + 4);
     }
-    const perCell = Math.round(CELL * CELL * (opts.density ?? 8));
+    const perCell = Math.round(CELL * CELL * (opts.density ?? 15));
     const inst = new Float32Array(perCell * 4);
     for (let i = 0; i < perCell; i++) inst.set([rnd() * CELL, rnd() * CELL, rnd(), rnd()], i * 4);
     const instAttr = new THREE.InstancedBufferAttribute(inst, 4);
@@ -188,7 +199,7 @@ export class GroundCover {
       g.boundingSphere = new THREE.Sphere(new THREE.Vector3(CELL / 2, 0, CELL / 2), CELL);
       return g;
     };
-    this.grassGeo = [mkGeo(perCell), mkGeo(Math.round(perCell * 0.4)), mkGeo(Math.round(perCell * 0.16))];
+    this.grassGeo = [mkGeo(perCell), mkGeo(Math.round(perCell * 0.42)), mkGeo(Math.round(perCell * 0.17))];
     this.grassMat = new THREE.ShaderMaterial({ vertexShader: GRASS_VERT, fragmentShader: GRASS_FRAG, uniforms, defines: D, side: THREE.DoubleSide });
 
     // Flower bunch = two crossed cards.

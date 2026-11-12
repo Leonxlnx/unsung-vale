@@ -538,6 +538,7 @@ export class Forest {
       return { layer, iTree, iParam, meshes, count: 0, max };
     });
     this.shrubCells = new Map();
+    this._listPos = null;
     const step = 6.5, half = 1000;
     let n = 0;
     for (let gz = -half; gz < half; gz += step) for (let gx = -half; gx < half; gx += step) {
@@ -585,6 +586,10 @@ export class Forest {
 
   update(camera) {
     const cam = _v.setFromMatrixPosition(camera.matrixWorld);
+    // The lists carry a margin of a couple of metres beyond every fade band, so they only
+    // need rebuilding once the camera has moved a little. Most frames skip all of this.
+    if (this._listPos && cam.distanceToSquared(this._listPos) < 1.44 && this._listTrees === this.trees.length) return;
+    (this._listPos ??= new THREE.Vector3()).copy(cam); this._listTrees = this.trees.length;
     if (this.shrubs) this._updateShrubs(cam);
     for (const v of this.variants) for (const l of v.lods) l.count = 0;
     const C = this.chunkSize, R = Math.ceil((MID + 10) / C);
