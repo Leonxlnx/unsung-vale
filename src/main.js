@@ -126,6 +126,7 @@ for (const [z, face] of [[-87.5, 1], [-52.5, -1]]) {
 }
 dressing.finish();
 pipe.scene.add(dressing.group);
+pipe.sceneT.add(dressing.groupT);
 
 await stage(0.82, 'Waking the valley');
 const game = new Game({ pipe, terrain, arch, sites, canvas });

@@ -87,6 +87,42 @@ void main() {
   gl_FragColor = vec4(alb * vLight, 1.0);
 }`;
 
+// --- motes: dust and pollen adrift in the air, bright where the low sun shines through them ---
+const MOTE_VERT = /* glsl */ `
+in vec4 iSeed;
+uniform float uTime; uniform vec3 uWind; uniform vec3 uCenter; uniform float uBox;
+out vec2 vUv; out float vGlow;
+${COMMON.replace(/vec3 srgbToLinear[\s\S]*$/, '')}
+${TERRAIN_SAMPLING}
+uniform vec3 uSunDir;
+void main() {
+  float t = uTime;
+  // Carried slowly along by the wind, wandering a little, wrapped inside a box around the camera.
+  vec3 base = iSeed.xyz * uBox + vec3(uWind.x * 0.45, 0.0, uWind.z * 0.45) * t;
+  base += vec3(sin(t * 0.4 + iSeed.w * 40.0), sin(t * 0.33 + iSeed.x * 17.0), cos(t * 0.37 + iSeed.y * 31.0)) * 0.6;
+  vec3 c = uCenter + mod(base - uCenter + uBox * 0.5, uBox) - uBox * 0.5;
+  vec3 toC = cameraPosition - c;
+  float d = length(toC);
+  float fade = smoothstep(0.1, 0.8, c.y - terrainHeight(c.xz)) * (1.0 - smoothstep(0.38, 0.5, length(c - uCenter) / uBox)) * smoothstep(0.7, 2.5, d);
+  // Forward scattering: they blaze when the sun is behind them and all but vanish otherwise.
+  float mu = dot(-toC / d, uSunDir);
+  float phase = 0.14 + 2.9 * pow(max(mu, 0.0), 6.0);
+  float twinkle = 0.55 + 0.45 * sin(t * (1.5 + iSeed.w * 3.0) + iSeed.x * 60.0);
+  vGlow = fade * terrainSunVis(c) * phase * twinkle;
+  float size = (0.011 + 0.012 * iSeed.w) * (1.0 + d * 0.09);
+  vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), toC)), up = normalize(cross(toC, right));
+  vUv = position.xy;
+  gl_Position = projectionMatrix * viewMatrix * vec4(c + (right * position.x + up * position.y) * size, 1.0);
+}`;
+const MOTE_FRAG = /* glsl */ `
+uniform vec3 uSunColor;
+in vec2 vUv; in float vGlow;
+void main() {
+  float a = exp(-dot(vUv, vUv) * 3.6) - 0.027;
+  if (a <= 0.0 || vGlow <= 0.002) discard;
+  gl_FragColor = vec4(uSunColor * (0.13 * a * vGlow), 0.0);
+}`;
+
 // --- butterflies: a few dozen wandering low over the meadows around the camera ---
 const FLY_VERT = /* glsl */ `
 in vec4 iSeed;
@@ -185,6 +221,23 @@ export class Dressing {
     }));
     this.petals.frustumCulled = false;
     this.group.add(this.petals);
+
+    // Motes: drawn after the opaque scene and added to it.
+    const mn = 700, mseeds = new Float32Array(mn * 4);
+    for (let i = 0; i < mn * 4; i++) mseeds[i] = r();
+    const mg = new THREE.InstancedBufferGeometry();
+    mg.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
+    mg.setIndex([0, 1, 2, 0, 2, 3]);
+    mg.setAttribute('iSeed', new THREE.InstancedBufferAttribute(mseeds, 4));
+    mg.instanceCount = mn;
+    this.motes = new THREE.Mesh(mg, new THREE.ShaderMaterial({
+      vertexShader: MOTE_VERT, fragmentShader: MOTE_FRAG,
+      uniforms: { ...lit, uCenter: { value: this.petalCenter }, uBox: { value: 34 } },
+      transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    }));
+    this.motes.frustumCulled = false;
+    this.groupT = new THREE.Group();
+    this.groupT.add(this.motes);
 
     // Butterflies.
     const fn = 56, fseeds = new Float32Array(fn * 4);
