@@ -66,7 +66,7 @@ export class Player {
     if (this.state === 'dead' || this.invulnerable > 0) return false;
     if (this.state === 'roll' && this.stateTime > TUNE.rollIFrames[0] && this.stateTime < TUNE.rollIFrames[1]) { this.emit('evade'); return false; }
     this.health = Math.max(0, this.health - amount);
-    this.invulnerable = 0.55;
+    this.invulnerable = 0.55; this.sinceHurt = 0;
     if (from) { _v.copy(this.pos).sub(from).setY(0).normalize(); this.vel.x = _v.x * 5.5; this.vel.z = _v.z * 5.5; }
     this.attack = null; this.comboStep = -1;
     if (this.health <= 0) { this.setState('dead'); this.emit('death'); } else { this.setState('hurt'); this.emit('hurt', { amount }); }
@@ -85,10 +85,15 @@ export class Player {
     this.attack = desc; this.comboStep = index; this.attackQueued = false; this.hitDone.clear();
     this.setState('attack');
     // Turn toward the lock target or the stick before committing.
-    if (this.lockTarget) this.yaw = Math.atan2(this.lockTarget.pos.x - this.pos.x, this.lockTarget.pos.z - this.pos.z);
+    const want = this._wish.lengthSq() > 0.04 ? this._wish : this.facing;
+    const foe = this.lockTarget ?? this.aimAssist?.(want.x, want.z) ?? null;
+    if (foe) this.yaw = Math.atan2(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z);
     else if (this._wish.lengthSq() > 0.04) this.yaw = Math.atan2(this._wish.x, this._wish.z);
     const f = this.facing;
-    this.vel.x = f.x * desc.lunge; this.vel.z = f.z * desc.lunge;
+    // The lunge carries about lunge / 7.5 metres; with a foe ahead it ends at striking distance.
+    let lunge = desc.lunge;
+    if (foe) { const gap = Math.hypot(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z) - (foe.def?.radius ?? 0.5) - desc.reach * 0.5; lunge = Math.max(0.6, Math.min(desc.lunge * 1.5, gap * 7.5)); }
+    this.vel.x = f.x * lunge; this.vel.z = f.z * lunge;
     this.emit('swing', { index });
     return true;
   }
@@ -114,10 +119,14 @@ export class Player {
     if (this.state === 'dead') { this.vel.x *= Math.exp(-6 * dt); this.vel.z *= Math.exp(-6 * dt); this._integrate(dt); return; }
     if (input.pressed.has('jump')) this.jumpBuffer = T.buffer;
 
+    if (input.pressed.has('walk')) this.walking = !this.walking;
+    this.sinceHurt = (this.sinceHurt ?? 99) + dt;
+    if (this.sinceHurt > 7 && this.health < T.healthMax) this.health = Math.min(T.healthMax, this.health + 3 * dt);
     if (this.state === 'move') {
       this.sprinting = input.held.has('sprint') && wishLen > 0.5 && this.stamina > 1 && this.grounded;
+      if (this.sprinting) this.walking = false;
       if (this.sprinting) { this.stamina = Math.max(0, this.stamina - T.sprintCost * dt); this.staminaWait = 0.25; }
-      const top = (this.sprinting ? T.sprint : wishLen > 0.55 ? T.run : T.walk) * (this.lockTarget ? 0.82 : 1);
+      const top = (this.sprinting ? T.sprint : wishLen > 0.55 && !this.walking ? T.run : T.walk) * (this.lockTarget ? 0.82 : 1);
       const accel = this.grounded ? T.accel : T.airAccel;
       const tx = wish.x * top * wishLen, tz = wish.z * top * wishLen;
       const k = Math.min(1, (accel * dt) / Math.max(0.001, Math.hypot(tx - this.vel.x, tz - this.vel.z)));

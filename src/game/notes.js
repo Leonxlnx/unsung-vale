@@ -80,6 +80,8 @@ export class Notes {
         const step = this.streak++ % SCALE.length; this.streakT = 14;
         g.notesTaken = this.list.map((q, k) => (q.taken ? k : -1)).filter((k) => k >= 0); g.save();
         g.player.health = Math.min(100, g.player.health + 8);
+        // A note is also a place to return to, unless something hostile is close.
+        if (!g.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.pos.distanceTo(g.player.pos) < 30)) g.checkpoint = { x: n.x, y: n.y - 1.05, z: n.z, yaw: g.player.yaw };
         P.burst(n.x, n.y, n.z, 16, { speed: 3.2, life: 0.7, size: 0.05, color: [3.2, 2.4, 1.1], gravity: -1.5, drag: 1.6, up: 1 });
         g.vfx.wave(n.x, n.y - 1.0, n.z, { r0: 0.2, r1: 2.6, life: 0.55, strength: 0.4, width: 0.12, color: [1.6, 1.2, 0.6] });
         g.emit('note', { index: i, count: this.count, total: this.total, pitch: SCALE[step], line: this.count % 6 === 3 ? LINES[Math.floor(this.count / 6) % LINES.length] : null });

@@ -109,7 +109,7 @@ export class Vfx {
 
   // Strands of light around a spire: { x, base, z, h }. Returns a handle with .start() to
   // send the strands climbing (the moment of tuning) and .power to dim or brighten them.
-  helix(spire, color = [5, 3.6, 1.6]) {
+  helix(spire, color = [3.4, 2.5, 1.1]) {
     const N = 160, pos = [], idx = [];
     for (let i = 0; i <= N; i++) pos.push(i / N, -1, 0, i / N, 1, 0);
     for (let i = 0; i < N; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
@@ -128,7 +128,7 @@ export class Vfx {
     }));
     m.frustumCulled = false; m.renderOrder = 6; m.visible = false;
     this.group.add(m);
-    const h = { mesh: m, uniforms, rise: 0, power: 0, target: 0, start() { this.rise = 0.0001; this.target = 1; this.power = 2.1; }, set(on) { this.rise = on ? 1 : 0; this.target = on ? 1 : 0; this.power = on ? 0.45 : 0; } };
+    const h = { mesh: m, uniforms, rise: 0, power: 0, target: 0, start() { this.rise = 0.0001; this.target = 1; this.power = 1.6; }, set(on) { this.rise = on ? 1 : 0; this.target = on ? 1 : 0; this.power = on ? 0.45 : 0; } };
     this.helices.push(h);
     return h;
   }

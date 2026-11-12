@@ -9,7 +9,7 @@ const h = (html) => { const t = document.createElement('template'); t.innerHTML 
 
 const KEYS = [
   ['Move', 'W A S D'], ['Look', 'Mouse'], ['Sprint', 'Shift'], ['Jump', 'Space'], ['Dodge roll', 'Ctrl or C'],
-  ['Strike', 'Left mouse'], ['Heavy strike', 'Right mouse'], ['Resonance pulse', 'F'], ['Lock on', 'Q'], ['Tune a spire', 'Hold E'], ['Pause', 'Esc'],
+  ['Strike', 'Left mouse'], ['Heavy strike', 'Right mouse'], ['Resonance pulse', 'F'], ['Lock on', 'Q'], ['Tune a spire', 'Hold E'], ['Walk or run', 'X'], ['Pause', 'Esc'],
 ];
 
 export class UI {
@@ -67,7 +67,7 @@ export class UI {
       pulse: $('#hud .pulse'), marker: $('#hud .marker'), markerText: $('#hud .marker span'), reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), hints: $('#hud .hints'), fps: $('#hud .fps'), grab: $('#hud .grab'), tally: $('#hud .tally'),
       tabBody: $('#settings .tabbody'), play: $('[data-act="play"]'), newGame: $('[data-act="new"]'),
     };
-    this.el.hints.innerHTML = KEYS.slice(0, 8).map(([a, k]) => `<b>${k}</b><span>${a}</span>`).join('');
+    this.el.hints.innerHTML = [...KEYS.slice(0, 5), KEYS.find(([a]) => a === 'Walk or run')].map(([a, k]) => `<b>${k}</b><span>${a}</span>`).join('');
     this._renderCredits();
     this.tab = 'graphics'; this.returnTo = 'home';
     this._fpsAcc = 0; this._fpsN = 0;
@@ -139,6 +139,11 @@ export class UI {
     if (type === 'fade') this.el.fade.classList.toggle('on', !!d.on);
     if (type === 'note') { this.el.tally.textContent = `Lost notes ${d.count} / ${d.total}`; this.el.tally.classList.add('on'); clearTimeout(this._tallyT); this._tallyT = setTimeout(() => this.el.tally.classList.remove('on'), 3200); }
     if (type === 'objective') this.el.objective.textContent = d.text;
+    if (type === 'enemy' && d.type === 'wake' && !this._fightHint) {
+      this._fightHint = true;
+      this.el.hints.innerHTML = [['Left mouse', 'Strike'], ['Right mouse', 'Heavy strike'], ['Ctrl or C', 'Dodge roll'], ['Q', 'Lock on'], ['F', 'Resonance pulse']].map(([k, a]) => `<b>${k}</b><span>${a}</span>`).join('');
+      this.el.hints.classList.add('on'); setTimeout(() => this.el.hints.classList.remove('on'), 12000);
+    }
     if (type === 'boss') { this.el.boss.classList.toggle('on', !!d.enemy); if (d.enemy) this.el.bossName.textContent = d.enemy.def.name; }
     if (type === 'tuned') this.toast({ petal: 'The Petal Court sings', cantor: "Cantor's Rise sings", choir: 'The Choir sings' }[d.spire.id]);
     if (type === 'player' && d.type === 'hurt') { this.el.hurt.style.transition = 'none'; this.el.hurt.style.opacity = '1'; requestAnimationFrame(() => { this.el.hurt.style.transition = ''; this.el.hurt.style.opacity = '0'; }); }

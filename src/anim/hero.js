@@ -284,7 +284,7 @@ export class Hero {
     this.swG = SW.idle.gv.clone(); this.swQ = SW.idle.q.clone();
     this.atk = { w: 0, key: null, from: null, hips: [0, 0, 0], chest: [0, 0, 0], pel: [0, 0, 0], L: [...STAND.L], R: [...STAND.R], la: [0, 0, 0], two: 0, spin: 0, lock: 0 };
     this.uPos = new THREE.Vector3(); this.uQ = new THREE.Quaternion(); this.uPos0 = new THREE.Vector3(); this.uQ0 = new THREE.Quaternion(); this.uInit = false;
-    this.tip = new THREE.Vector3();
+    this.tip = new THREE.Vector3(); this.tipVel = new THREE.Vector3();
     this._buildTrail();
   }
 
@@ -424,7 +424,7 @@ export class Hero {
     const br = Math.sin(t * 1.5), sway = Math.sin(t * 0.47);
     // Walking sinks at each footfall and rises over the standing leg; running is the other
     // way round: lowest over the planted foot, highest in flight.
-    const bobWalk = -0.022 * Math.cos(2 * ph - 0.4), bobRun = 0.045 * Math.cos(2 * (ph - TAU * (duty + 0.25) * 0.5));
+    const bobWalk = -0.022 * Math.cos(2 * ph - 0.4), bobRun = 0.045 * Math.cos(2 * (ph - TAU * (0.25 + duty * 0.5)));
     let pelY = lerp(-0.012 - 0.004 * br, lerp(-0.03 + bobWalk, -0.065 - 0.02 * sprK + bobRun, runK), g);
     let pelX = lerp(0.012 * sway, lerp(0.022, 0.01, runK) * Math.sin(ph), g), pelZ = 0;
     pelY -= 0.07 * fight * (1 - g);
@@ -500,7 +500,8 @@ export class Hero {
     for (const s of order) {
       const f = feet[s], st = stand(s), o = gf[s];
       const want = toWorld(st[0], 0, st[1] + ANKLE[2], _v0), wantYaw = bodyYawW + st[2];
-      if (!f.init) { f.pos.copy(want); f.yaw = wantYaw; f.init = true; }
+      // First frame, or the body was moved somewhere else in one go: the feet go with it.
+      if (!f.init || Math.hypot(want.x - f.pos.x, want.z - f.pos.z) > 2.5) { f.pos.copy(want); f.yaw = wantYaw; f.init = true; f.step = -1; f.lift = 0; }
       // Planted feet stay where they are until the body has moved away from them, then step.
       if (lockW > 0.5) { f.pos.copy(want); f.yaw = wantYaw; f.step = -1; f.lift = 0; }
       else if (f.step >= 0) {
@@ -585,7 +586,7 @@ export class Hero {
       if (!this.uInit) { this.uPos0.copy(this.uPos); this.uQ0.copy(this.uQ); this.uInit = true; }
       if (!attacking) {
         // Carried low when walking, trailing behind at a run, raised between him and a foe.
-        const armSwing = -swing * g;
+        const armSwing = swing * g;
         let tg = _v0.copy(SW.idle.gv), tq = _q0.copy(SW.idle.q);
         const runW = g * runK;
         if (runW > 0.001) { tg.lerp(SW.run.gv, runW); tq.slerp(SW.run.q, runW); }
@@ -626,6 +627,7 @@ export class Hero {
     if (this.sword) {
       const cutting = attacking && p.stateTime > p.attack.hit[0] - 0.035 && p.stateTime < p.attack.hit[1] + 0.03;
       const base = this.sword.localToWorld(new THREE.Vector3(0, 0.12, 0)), tip = this.sword.localToWorld(new THREE.Vector3(0, 0.985, 0));
+      if (dt > 0) this.tipVel.subVectors(tip, this.tip).multiplyScalar(1 / dt);
       this.tip.copy(tip);
       if (cutting && this._cutT !== undefined && dt > 0) {
         // In-between positions of the blade for this frame, so the arc is smooth at any

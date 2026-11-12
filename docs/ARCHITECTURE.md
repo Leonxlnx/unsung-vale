@@ -129,7 +129,15 @@ frame is fixed post-processing at display resolution (anti-aliasing, bloom, tone
 rest the scene. Shadows are the largest single cost, so Low and Medium redraw the two
 cascades on alternate frames (`shadows.rate = 2`) and Medium keeps soft penumbrae to the
 near cascade (`shadows.soft = 'near'`). Measure with `node tools/perf.mjs` and `node tools/profile.mjs` on an
-idle machine only: other GPU work makes the numbers meaningless.
+idle machine only: other GPU work makes the numbers meaningless. `node tools/fps.mjs` lets
+the page run freely in a window and counts presented frames (the rate a player sees).
+
+`engine/governor.js` holds the frame rate chosen in the settings (`targetFps`, 50 by
+default, 0 = off): it reads the GPU time of each frame from timer queries (or the frame
+interval where they are missing) and moves the render scale in steps of 0.05 between 0.55
+and the preset's own scale. A change of scale keeps the anti-aliasing history and the bloom
+chain (`pipe.setSize(w, h, true)`), so it passes without a flicker. The sky is drawn after
+the opaque scene at the far plane with the depth test on, so it is only shaded where it shows.
 
 ## Game (`src/game`, `src/ui`)
 
@@ -139,7 +147,19 @@ idle machine only: other GPU work makes the numbers meaningless.
   `hit`, `ending`) that the UI and audio subscribe to with `game.on(fn)`.
 - `player.js`: kinematic capsule; run, sprint, jump, roll, three-step combo, heavy strike,
   resonance pulse. Facing convention: yaw 0 looks along +z, forward = (sin yaw, 0, cos yaw).
-- `collision.js`: terrain height field + three-mesh-bvh over the playable architecture.
+- `collision.js`: terrain height field + three-mesh-bvh over the playable architecture and
+  the boulders (each rock cell becomes one geometry the first time the player comes near:
+  `world.addLazy` / `world.stream`), and capsules for tree trunks in a spatial grid
+  (`forest.trunkColliders`). `resolveCapsule` pushes a character out of all of them, and
+  `raycast` (the camera) stops at them. `game._bodies` keeps hero and constructs apart.
+- `input.js`: pointer lock with `unadjustedMovement` (raw mouse counts, no pointer
+  acceleration); rogue jumps in the reported movement are dropped.
+- `story.js`: the 21 s opening (`game.state === 'intro'`: it leads the camera and has the
+  hero kneel and rise), lines of narration (`say(id, text)`, each once per journey), and the
+  current goal. `game.marker` is where the HUD marker points: breadcrumbs along `LEGS`
+  until the site is near, so the goal is always a short walk ahead.
+- `notes.js`: lost notes set down every 46 m along the same paths; gathering one mends a
+  little health and sounds the next step of a scale.
 - `enemies.js`: the Mute (thrall, lancer, colossus). Each body is a set of instanced crystal
   shards moved toward formation slots; they lie dormant as rubble until approached.
 - Spires are tuned (hold E) once their guards are gone. Untuned spires project a "mute zone"
@@ -163,8 +183,22 @@ idle machine only: other GPU work makes the numbers meaningless.
   the game's materials by glTF material name (Armor, Gold, Cloth, Cape, Leather, Mask, Blade,
   Undersuit), and animates procedurally from `Player` state. `hero.debugPose` is a hook for
   trying pose offsets from the console.
+  Legs and the sword arm are solved by inverse kinematics (`rig.ik`, two bones toward a
+  target with a pole; `rig.setCharQ` holds a foot flat whatever the leg does). Moving, the
+  feet follow a gait cycle whose stride and timing come from the ground speed, so they do not
+  slide; standing or fighting, each foot stays planted in the world until the body has moved
+  away from it and then takes a step. The sword is described in the chest's own space
+  (`SW`: where the hand grips, where the blade points), so turning the body swings the
+  blade. Each strike is a short table of keys in `ATTACKS` (sword, hips, chest, pelvis, feet);
+  the trail behind the blade is sampled from that table between frames, so the arc is smooth
+  at any frame rate. Footfalls are emitted by the feet themselves (`player` event `step`).
+  `__dbg.shots({ press: ['attack'] })` shows a grid of frames through the game's camera.
 - `audio/audio.js` + `audio/director.js`: Web Audio buses, music cross-fades, ambience by
   location, positional one-shots; everything comes from `public/audio/manifest.json`.
+  Effects are layered in the director (a hit is steel + a chip of crystal + weight on the
+  heavy ones), never repeat the same variation twice running, can be delayed to land on the
+  cut, and feed a convolution reverb (`ir/space.ogg`, a recorded stone court) through their
+  own send. `audio.hold()` plays a sustained tone for as long as something is held.
 - `cine/director.js`: the 45 s film as a list of shots (`setup`, `update`), driving the hero
   through `input.puppet` and the story state through `game.cineSetup()`.
   Each shot can pass a lens to `d.cam()`: focus distance and blur.

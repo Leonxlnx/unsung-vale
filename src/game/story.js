@@ -128,6 +128,7 @@ export class Story {
       const id = d.spire.id;
       if (id === 'petal') this.say('petal', 'The Petal Court answers. Far to the east, a second voice stirs.', 7);
       if (id === 'cantor') this.say('cantor', 'Two voices now. Across the water the old bridge remembers its shape.', 7);
+      if (id === 'choir') this.say('choir', 'Three voices, one chord. The Vale remembers its song.', 8);
       this.leg = null; this._goal();
     }
     if (type === 'enemy' && d.type === 'death') this._goal();
@@ -154,7 +155,7 @@ export class Story {
       if (this.wp < leg.length && !near) {
         const [x, z] = leg[this.wp];
         text = `Follow the path to ${NAMES[next.id]}`;
-        mark = { x, y: this.terrain.heightAt(x, z) + 1.6, z, name: NAMES[next.id].replace(/^the /, 'The '), way: true };
+        mark = { x, y: g.world.floorBelow(x, this.terrain.heightAt(x, z) + 60, z, 90) + 1.6, z, name: NAMES[next.id].replace(/^the /, 'The '), way: true };
       } else {
         text = alive ? `Break the silence at ${NAMES[next.id]}` : `Tune the spire at ${NAMES[next.id]}`;
         mark = { x: next.x, y: next.base + 9, z: next.z, name: NAMES[next.id].replace(/^the /, 'The ') };
@@ -185,6 +186,9 @@ export class Story {
     if (m?.arrive && Math.hypot(p.pos.x - m.x, p.pos.z - m.z) < m.arrive) {
       this.say('lookout', 'Three spires stood over the Vale. All three are silent. The nearest waits below, on the Petal Court.', 8);
       this._goal();
+    } else if (m?.arrive && Math.hypot(p.pos.x - m.x, p.pos.z - m.z) > 70) {
+      // Wandered off without visiting the lookout: let it go and point down the path.
+      this.said.add('lookout'); g.storySaid = [...this.said]; this._goal();
     } else if (m?.way) {
       const leg = LEGS[this.leg];
       // Pass a breadcrumb by reaching it, or by being nearer to a later one.

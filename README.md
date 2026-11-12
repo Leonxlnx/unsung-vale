@@ -43,8 +43,9 @@ load takes a little while because the world is baked on your GPU.
 | Tune a spire | Hold E | D-pad |
 | Pause | Esc | Start |
 
-Graphics quality, render scale, floor reflections, field of view, sensitivity and volumes
-are in Settings.
+Graphics quality, the frame rate to hold, render scale, floor reflections, field of view,
+sensitivity and volumes are in Settings. The mouse is read as raw movement, so the view
+turns exactly as far as the hand moves, whatever the system's pointer settings.
 
 ## What is in the demo
 
@@ -62,8 +63,15 @@ are in Settings.
   reflections on the water and in the polished, inlaid floors of the courts.
 - Three sites to restore (the Petal Court, Cantor's Rise, the Choir), three kinds of enemy
   including a boss, a light bridge that forms once the second spire is tuned.
-- Effects built for the moments that matter: shockwaves that bend the picture, sparks off
-  every blow, strands of light climbing a spire as it is tuned, the great rings answering.
+- A short opening and a light thread of story: a few lines at the stations of the journey,
+  goals that lead from one landmark to the next, and lost notes of the old song along the
+  paths that play a rising scale as they are gathered.
+- A hero animated entirely in code: feet placed on the ground by inverse kinematics, a
+  sword led along designed cuts with the body following, a cape on springs.
+- A solid world: trees, boulders and the constructs all stop you, and the camera with you.
+- Effects built for the moments that matter: a crescent of light behind every cut, sparks
+  off every blow, shockwaves that bend the picture, strands of light climbing a spire as it
+  is tuned, the great rings answering.
 - A title screen, HUD, pause menu and settings; progress is saved in the browser.
 
 ## How it is made
@@ -107,6 +115,10 @@ rendering, open the game with `?film=1` added to the address.
 
 The demo was developed on an integrated GPU (AMD Radeon 780M). The default Medium preset
 renders at two thirds resolution with temporal anti-aliasing; discrete GPUs start on High.
+Every preset holds a frame rate of your choosing (50 by default) by lowering the internal
+render resolution when it has to, never the detail: on that integrated GPU, Ultra at 1080p
+settles at about three quarters of full resolution. Set "Frame rate to hold" to Off to
+render at the preset's full resolution regardless.
 
 ## Licence
 

@@ -120,6 +120,22 @@ export class Game {
     this.input = new Input(canvas);
     this.player = new Player(this.world);
     this.rig = new CameraRig(pipe.camera, this.world);
+    // Without a lock, a strike still finds the foe it was meant for: the nearest one within
+    // reach of a step, roughly in the direction pushed (or faced).
+    this.player.aimAssist = (dx, dz) => {
+      const p = this.player.pos;
+      let best = null, bs = 1e9;
+      for (const e of this.enemies.list) {
+        if (!e.alive || e.state === 'dormant' || Math.abs(e.pos.y - p.y) > 3) continue;
+        const ex = e.pos.x - p.x, ez = e.pos.z - p.z, d = Math.hypot(ex, ez);
+        if (d > 5.5 + e.def.radius || d < 1e-3) continue;
+        const dot = (ex * dx + ez * dz) / d;
+        if (dot < 0.2) continue;
+        const s = d * (1.5 - dot);
+        if (s < bs) { bs = s; best = e; }
+      }
+      return best;
+    };
     this.particles = new Particles(pipe, 1600);
     pipe.sceneT.add(this.particles.mesh);
     this.vfx = new Vfx(pipe);
@@ -352,8 +368,11 @@ export class Game {
     if (this.hero) this.hero.update(dt, p, this);
     else { this.standIn.position.copy(p.pos); this.standIn.rotation.y = p.yaw; this.standIn.updateMatrixWorld(); }
 
-    if (p.state === 'dead' && p.stateTime > 2.6) {
+    if (p.state === 'dead' && p.stateTime > 1.9 && !this._deadFade) { this._deadFade = true; this.emit('fade', { on: true }); }
+    if (p.state === 'dead' && p.stateTime > 2.7) {
       this.respawnAtCheckpoint();
+      this.hero?.cloth?.reset();
+      this._deadFade = false; this.emit('fade', { on: false });
       this.emit('respawn');
     }
   }
@@ -421,7 +440,9 @@ export class Game {
         this.hitStop = heavy ? 0.11 : 0.06;
         this.rig.addShake(heavy ? 0.5 : 0.28);
         const c = e.center ?? e.pos, hy = c.y + (e.center ? 0 : 1.2);
-        this.particles.burst(c.x, hy, c.z, heavy ? 36 : 20, { speed: heavy ? 13 : 10, life: 0.42, size: 0.055, color: [5.5, 4, 1.9], gravity: 16, drag: 1.2, streak: 0.16, dir: [f.x, 0.35, f.z], bias: 4 });
+        const tv = this.hero?.tipVel, cut = tv && tv.lengthSq() > 9 ? tv.clone().normalize() : null;
+        const sd = cut ? [cut.x * 0.8 + f.x * 0.3, cut.y * 0.6 + 0.25, cut.z * 0.8 + f.z * 0.3] : [f.x, 0.35, f.z];
+        this.particles.burst(c.x, hy, c.z, heavy ? 36 : 20, { speed: heavy ? 13 : 10, life: 0.42, size: 0.055, color: [5.5, 4, 1.9], gravity: 16, drag: 1.2, streak: 0.16, dir: sd, bias: 5 });
         this.particles.spawn(c.x, hy, c.z, { life: 0.1, size: heavy ? 1.7 : 1.1, color: [3.6, 2.8, 1.6], alpha: 0.7 });
         this.vfx.wave(c.x, hy, c.z, { kind: 1, r0: 0.2, r1: heavy ? 2.4 : 1.5, life: heavy ? 0.26 : 0.18, strength: heavy ? 0.9 : 0.55, width: 0.18, color: [1.1, 0.85, 0.5] });
         if (heavy) this.vfx.wave(e.pos.x, e.pos.y + 0.08, e.pos.z, { r0: 0.4, r1: 4.5, life: 0.45, strength: 0.8, width: 0.1, color: [2.6, 1.9, 0.9] });
@@ -440,8 +461,8 @@ export class Game {
       // Resonance pulse: a ring of force that staggers everything nearby.
       for (let k = 0; k < 56; k++) { const a = (k / 56) * 6.283; this.particles.spawn(p.pos.x, p.pos.y + 1, p.pos.z, { vel: [Math.cos(a) * 15, 0.4, Math.sin(a) * 15], life: 0.55, size: 0.2, color: [3, 2.2, 1.1], drag: 2.5 }); }
       this.particles.spawn(p.pos.x, p.pos.y + 1, p.pos.z, { life: 0.35, size: 3.4, color: [1.3, 1.0, 0.5], grow: 1.4, alpha: 0.5 });
-      this.vfx.wave(p.pos.x, p.pos.y + 1.0, p.pos.z, { kind: 1, r0: 0.5, r1: TUNE.pulseRadius * 0.9, life: 0.55, strength: 1.5, width: 0.1, color: [5, 3.6, 1.6] });
-      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.5, r1: TUNE.pulseRadius * 1.25, life: 0.75, strength: 1.2, width: 0.07, color: [5, 3.6, 1.6] });
+      this.vfx.wave(p.pos.x, p.pos.y + 1.0, p.pos.z, { kind: 1, r0: 0.5, r1: TUNE.pulseRadius * 0.9, life: 0.55, strength: 1.5, width: 0.1, color: [3.2, 2.3, 1.0] });
+      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.5, r1: TUNE.pulseRadius * 1.25, life: 0.75, strength: 1.2, width: 0.07, color: [3.2, 2.3, 1.0] });
       this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.5, r1: TUNE.pulseRadius * 0.9, life: 0.7, strength: 0.7, width: 0.09, color: [2.5, 1.8, 0.8], delay: 0.14 });
       this.flash = Math.max(this.flash, 0.35);
       for (const en of this.enemies.list) if (en.alive && en.state !== 'dormant' && en.pos.distanceTo(p.pos) < TUNE.pulseRadius) { this.enemies.hit(en, 12, p.pos, true); }
@@ -455,22 +476,22 @@ export class Game {
     if (e.type === 'slam') {
       this.rig.addShake(0.7);
       const q = e.enemy?.pos ?? this.player.pos;
-      this.vfx.wave(q.x, q.y + 0.1, q.z, { r0: 1, r1: 11, life: 0.7, strength: 1.5, width: 0.08, color: [3.4, 1.6, 6.5] });
-      this.particles.burst(q.x, q.y + 0.3, q.z, 40, { speed: 9, life: 0.6, size: 0.07, color: [3.4, 1.6, 6.5], gravity: 8, drag: 1.5, streak: 0.1, up: 3 });
+      this.vfx.wave(q.x, q.y + 0.1, q.z, { r0: 1, r1: 11, life: 0.7, strength: 1.5, width: 0.08, color: [2.4, 1.15, 4.6] });
+      this.particles.burst(q.x, q.y + 0.3, q.z, 40, { speed: 9, life: 0.6, size: 0.07, color: [2.4, 1.15, 4.6], gravity: 8, drag: 1.5, streak: 0.1, up: 3 });
     }
     if (e.type === 'wake' && e.enemy.def.boss) { this.boss = e.enemy; this.emit('boss', { enemy: e.enemy }); }
     if (e.type === 'death') {
       // The construct comes apart: a bubble of force, a ring over the ground, and its light
       // rising out of it as slow embers.
       const en = e.enemy, c = en.center ?? en.pos, big = en.def.boss ? 2.6 : 1;
-      this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 0.4, r1: 4.5 * big, life: 0.5 * big, strength: 1.4, width: 0.12, color: [3.4, 1.6, 6.5] });
-      this.vfx.wave(en.pos.x, en.pos.y + 0.08, en.pos.z, { r0: 0.5, r1: 7 * big, life: 0.8 * big, strength: 1.0, width: 0.08, color: [3.4, 1.6, 6.5] });
-      this.particles.burst(c.x, c.y, c.z, en.def.boss ? 140 : 46, { speed: 2.6 * big, life: 2.2, size: 0.06, color: [4.5, 2.6, 8], gravity: -1.6, drag: 0.9, up: 1.2 });
+      this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 0.4, r1: 4.5 * big, life: 0.5 * big, strength: 1.4, width: 0.12, color: [2.4, 1.15, 4.6] });
+      this.vfx.wave(en.pos.x, en.pos.y + 0.08, en.pos.z, { r0: 0.5, r1: 7 * big, life: 0.8 * big, strength: 1.0, width: 0.08, color: [2.4, 1.15, 4.6] });
+      this.particles.burst(c.x, c.y, c.z, en.def.boss ? 140 : 46, { speed: 2.6 * big, life: 2.2, size: 0.06, color: [3.2, 1.9, 5.6], gravity: -1.6, drag: 0.9, up: 1.2 });
       this.flash = Math.max(this.flash, en.def.boss ? 0.9 : 0.25);
       if (en.def.boss) {
         // The colossus goes out like a struck bell: echo after echo, and a column of its light.
-        for (const [dl, r] of [[0.3, 26], [0.65, 34], [1.05, 42]]) this.vfx.wave(en.pos.x, en.pos.y + 0.1, en.pos.z, { r0: 1, r1: r, life: 1.6, strength: 1.3, width: 0.06, color: [3.4, 1.6, 6.5], delay: dl });
-        for (let k = 0; k < 160; k++) { const a = Math.random() * 6.283, r = Math.random() * 2.5; this.particles.spawn(c.x + Math.cos(a) * r, c.y + Math.random() * 3, c.z + Math.sin(a) * r, { vel: [Math.cos(a) * 1.5, 9 + Math.random() * 16, Math.sin(a) * 1.5], life: 2.4, size: 0.12, color: [5, 3, 9], drag: 0.7, streak: 0.08 }); }
+        for (const [dl, r] of [[0.3, 26], [0.65, 34], [1.05, 42]]) this.vfx.wave(en.pos.x, en.pos.y + 0.1, en.pos.z, { r0: 1, r1: r, life: 1.6, strength: 1.3, width: 0.06, color: [2.4, 1.15, 4.6], delay: dl });
+        for (let k = 0; k < 160; k++) { const a = Math.random() * 6.283, r = Math.random() * 2.5; this.particles.spawn(c.x + Math.cos(a) * r, c.y + Math.random() * 3, c.z + Math.sin(a) * r, { vel: [Math.cos(a) * 1.5, 9 + Math.random() * 16, Math.sin(a) * 1.5], life: 2.4, size: 0.12, color: [3.5, 2.1, 6.3], drag: 0.7, streak: 0.08 }); }
       }
       if (e.enemy === this.boss) { this.boss = null; this.emit('boss', { enemy: null }); }
       if (e.enemy === this.player.lockTarget) { this.player.lockTarget = null; this.emit('lock', { target: null }); }
@@ -507,14 +528,14 @@ export class Game {
     const p = this.player;
     p.health = TUNE.healthMax; p.stamina = TUNE.staminaMax;
     this.checkpoint = { x: p.pos.x, y: p.pos.y + 0.1, z: p.pos.z, yaw: p.yaw };
-    for (let k = 0; k < 120; k++) { const a = Math.random() * 6.283, r = Math.random() * 3; this.particles.spawn(s.x + Math.cos(a) * r, s.base + 1 + Math.random() * 18, s.z + Math.sin(a) * r, { vel: [Math.cos(a) * 3, 6 + Math.random() * 10, Math.sin(a) * 3], life: 1.8, size: 0.14, color: [5, 3.6, 1.6], drag: 0.8 }); }
+    for (let k = 0; k < 120; k++) { const a = Math.random() * 6.283, r = Math.random() * 3; this.particles.spawn(s.x + Math.cos(a) * r, s.base + 1 + Math.random() * 18, s.z + Math.sin(a) * r, { vel: [Math.cos(a) * 3, 6 + Math.random() * 10, Math.sin(a) * 3], life: 1.8, size: 0.14, color: [3.2, 2.3, 1.0], drag: 0.8 }); }
     this.rig.addShake(0.6);
     const gy = s.base + 0.2;
-    this.vfx.wave(s.x, gy, s.z, { r0: 1, r1: 80, life: 2.6, strength: 1.8, width: 0.045, color: [5, 3.6, 1.6] });
+    this.vfx.wave(s.x, gy, s.z, { r0: 1, r1: 80, life: 2.6, strength: 1.8, width: 0.045, color: [3.2, 2.3, 1.0] });
     this.vfx.wave(s.x, gy, s.z, { r0: 1, r1: 60, life: 2.6, strength: 1.2, width: 0.06, color: [3.5, 2.6, 1.2], delay: 0.35 });
     this.vfx.wave(s.x, gy, s.z, { r0: 1, r1: 44, life: 2.6, strength: 0.9, width: 0.08, color: [2.6, 2.0, 1.0], delay: 0.75 });
-    this.vfx.wave(s.x, s.base + (s.h ?? 24) * 0.5, s.z, { kind: 1, r0: 1, r1: 30, life: 1.3, strength: 1.6, width: 0.07, color: [5, 3.6, 1.6] });
-    for (let k = 0; k < 90; k++) { const a = (k / 90) * 6.283; this.particles.spawn(s.x + Math.cos(a) * 3, s.base + 0.5, s.z + Math.sin(a) * 3, { vel: [Math.cos(a) * (16 + Math.random() * 8), 1.5 + Math.random() * 3, Math.sin(a) * (16 + Math.random() * 8)], life: 1.1, size: 0.09, color: [7, 5, 2.2], drag: 1.6, gravity: 2, streak: 0.12 }); }
+    this.vfx.wave(s.x, s.base + (s.h ?? 24) * 0.5, s.z, { kind: 1, r0: 1, r1: 30, life: 1.3, strength: 1.6, width: 0.07, color: [3.2, 2.3, 1.0] });
+    for (let k = 0; k < 90; k++) { const a = (k / 90) * 6.283; this.particles.spawn(s.x + Math.cos(a) * 3, s.base + 0.5, s.z + Math.sin(a) * 3, { vel: [Math.cos(a) * (16 + Math.random() * 8), 1.5 + Math.random() * 3, Math.sin(a) * (16 + Math.random() * 8)], life: 1.1, size: 0.09, color: [4.5, 3.2, 1.4], drag: 1.6, gravity: 2, streak: 0.12 }); }
     s.helix?.start();
     this.flash = 1; this.ringPulse = 1.6;
     if (s.id === 'cantor') this.bridgeOpen = true;
@@ -559,7 +580,7 @@ export class Game {
         const { from, to } = this.sites.bridge, k = this.bridgeProgress;
         const bx = from[0] + (to[0] - from[0]) * k, by = from[1] + (to[1] - from[1]) * k, bz = from[2] + (to[2] - from[2]) * k;
         const n = Math.min(6, Math.floor(dt * 150 + Math.random()));
-        for (let i = 0; i < n; i++) this.particles.spawn(bx + (Math.random() - 0.5) * 6, by + 0.2, bz + (Math.random() - 0.5) * 2, { vel: [(Math.random() - 0.5) * 5, 2 + Math.random() * 5, (Math.random() - 0.5) * 5], life: 0.9, size: 0.07, color: [7, 5.2, 2.4], gravity: 6, drag: 0.8, streak: 0.1 });
+        for (let i = 0; i < n; i++) this.particles.spawn(bx + (Math.random() - 0.5) * 6, by + 0.2, bz + (Math.random() - 0.5) * 2, { vel: [(Math.random() - 0.5) * 5, 2 + Math.random() * 5, (Math.random() - 0.5) * 5], life: 0.9, size: 0.07, color: [4.5, 3.3, 1.5], gravity: 6, drag: 0.8, streak: 0.1 });
       }
       this.bridgeMat.uniforms.uProgress.value = this.bridgeProgress;
       // Solid from the first moment, so nobody can step onto the visible part and fall through.

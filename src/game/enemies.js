@@ -310,6 +310,8 @@ export class Enemies {
             if (e.attackKind === 1 && d.boss) { t.x += (right ? 1 : -1) * 0.9 * sc * wind * k; t.z += (1.6 * strike - 0.4 * wind) * sc * k; }
             else if (right || d.boss) { t.y += 0.95 * sc * wind * k - 0.7 * sc * strike * k; t.z += (-0.45 * wind + 1.5 * strike) * sc * k; dir.set(s.d.x, s.d.y + 1.6 * wind - 0.5 * strike, s.d.z + 1.4 * strike).normalize(); }
           }
+          if (!d.ranged && e.attackKind !== 2) t.z += (-0.24 * wind + 0.5 * strike) * (d.boss ? 2 : 1) * (s.tag === 'tail' ? 0.35 : 1);
+          if (strike > 0.5 && (s.tag === 'bladeR' || (d.boss && s.tag === 'bladeL'))) this.particles.spawn(sh.pos.x, sh.pos.y, sh.pos.z, { life: 0.16, size: 0.24 * (d.boss ? 2.2 : 1), color: [1.7, 0.75, 3.2], alpha: 0.6 });
           if (e.staggerK > 0.01) t.addScaledVector(_s.copy(s.p).setY(s.p.y - d.core).normalize(), e.staggerK * 0.55 * (d.boss ? 2 : 1));
           // Local to world.
           const wx = e.pos.x + t.x * cy + t.z * sy, wz = e.pos.z - t.x * sy + t.z * cy, wy = e.pos.y + t.y;

@@ -4,7 +4,7 @@
 const DEFAULT_KEYS = {
   forward: ['KeyW', 'ArrowUp'], back: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   sprint: ['ShiftLeft', 'ShiftRight'], jump: ['Space'], dodge: ['ControlLeft', 'AltLeft', 'KeyC'],
-  interact: ['KeyE'], lock: ['KeyQ', 'Tab'], pulse: ['KeyF'], pause: ['Escape', 'KeyP'], photo: ['KeyH'],
+  interact: ['KeyE'], lock: ['KeyQ', 'Tab'], walk: ['KeyX'], pulse: ['KeyF'], pause: ['Escape', 'KeyP'], photo: ['KeyH'],
 };
 
 export class Input {
