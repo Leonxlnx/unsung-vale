@@ -238,7 +238,10 @@ void main() {
         float tl = max(exp(-od), 0.62 * exp(-od * 0.22));
         float powder = 1.0 - exp(-d * 190.0);
         vec3 amb = mix(uAmbBottom, uAmbTop, sqrt(h));
-        vec3 S = (sunC * tl * phase * mix(1.0, powder, 0.55) * PI + amb) * d;
+        // Thick cloud is dominated by multiple scattering, which is close to isotropic, so
+        // blend the single-scatter phase toward 1/(4 pi) and keep the forward peak on top.
+        float phaseEff = mix(phase, 0.0796, 0.62) + 0.35 * phase * tl;
+        vec3 S = (sunC * tl * phaseEff * mix(1.0, powder, 0.5) * PI + amb) * d;
         float e = exp(-d * dt);
         L += T * (S - S * e) / max(d, 1e-6);
         wsum += T * (1.0 - e);
@@ -370,8 +373,8 @@ export class Sky {
         uCamAlt: { value: 350 },
         uCloudTime: { value: 0 },
         uWind: { value: new THREE.Vector2(14, 5) },
-        uCoverage: { value: 0.5 },
-        uDensity: { value: 0.03 },
+        uCoverage: { value: 0.66 },
+        uDensity: { value: 0.035 },
         uSeed: { value: 0 },
         uAmbTop: { value: this.ambTop },
         uAmbBottom: { value: this.ambBottom },

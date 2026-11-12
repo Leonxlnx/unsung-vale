@@ -4,6 +4,7 @@ import { FullscreenPass, makeTarget } from './fullscreen.js';
 import { COMMON, SKYMAP } from './glsl.js';
 import { Sky, SKY_SAMPLE } from './sky.js';
 import { FogPass, TAAPass, BloomPass } from './post.js';
+import { Shadows } from './shadows.js';
 
 const SKY_DRAW = /* glsl */ `
 ${COMMON}
@@ -116,7 +117,7 @@ export class Pipeline {
     this.sceneT = new THREE.Scene();     // water and other surfaces that read the opaque scene
     this.camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.3, 120000);
     this.renderScale = opts.renderScale ?? 1;
-    this.exposure = 0.55;
+    this.exposure = 0.3;
     this.time = 0;
     this.onBeforeScene = [];     // callbacks(camera) run after the camera is final for the frame
 
@@ -125,6 +126,7 @@ export class Pipeline {
     // Uniform holders shared by reference with every material in the scene.
     this.globals = {
       uTime: { value: 0 },
+      uFrame: { value: 0 },
       uSunDir: { value: this.sky.sunDir },
       uSunColor: { value: this.sky.sunColor },
       uSH: { value: this.sky.sh },
@@ -135,6 +137,10 @@ export class Pipeline {
       uCamWorld: { value: new THREE.Matrix4() },
       uCamPos: { value: new THREE.Vector3() },
     };
+
+    this.shadows = new Shadows(this, opts.shadows);
+    this.cloudShadow = new THREE.Vector4(0, 0, 0.7, 0.72);
+    this.terrainUniforms = {};      // filled in by the terrain once it has loaded
 
     this.skyPass = new FullscreenPass({
       fragment: SKY_DRAW,
@@ -154,11 +160,21 @@ export class Pipeline {
       fragment: TONEMAP,
       uniforms: {
         uColor: { value: null }, uBloom: { value: null }, uBloomStrength: { value: 0.06 }, uExposure: { value: this.exposure },
-        uSaturation: { value: 1.12 }, uContrast: { value: 1.08 }, uVignette: { value: 0.22 }, uSharpen: { value: 0.5 }, uTexel: { value: new THREE.Vector2() },
+        uSaturation: { value: 1.3 }, uContrast: { value: 1.08 }, uVignette: { value: 0.22 }, uSharpen: { value: 0.5 }, uTexel: { value: new THREE.Vector2() },
       },
     });
     this._viewProj = new THREE.Matrix4();
     this.setSize(canvas.clientWidth || 1280, canvas.clientHeight || 720);
+  }
+
+  // Every uniform a lit surface material needs, shared by reference.
+  lit() {
+    const g = this.globals;
+    return {
+      ...this.sky.uniforms, ...this.shadows.uniforms, ...this.terrainUniforms,
+      uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH, uTime: g.uTime, uFrame: g.uFrame,
+      uWeatherTex: { value: this.sky.weather.texture }, uCloudShadow: { value: this.cloudShadow },
+    };
   }
 
   setSize(w, h) {
@@ -193,6 +209,7 @@ export class Pipeline {
     const r = this.renderer;
     this.time += dt;
     this.globals.uTime.value = this.time;
+    this.globals.uFrame.value = (this.globals.uFrame.value + 1) % 64;
     r.info.reset();
     this.sky.update(dt);
 
@@ -206,6 +223,8 @@ export class Pipeline {
     this.camUniforms.uCamWorld.value.copy(cam.matrixWorld);
     this.camUniforms.uCamPos.value.setFromMatrixPosition(cam.matrixWorld);
     for (const fn of this.onBeforeScene) fn(cam, dt);
+    this.cloudShadow.x = this.sky.cloudTime * 14; this.cloudShadow.y = this.sky.cloudTime * 5;
+    this.shadows.update(cam);
 
     // Opaque scene on top of the sky.
     r.setRenderTarget(this.rtScene);

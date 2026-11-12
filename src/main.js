@@ -2,10 +2,13 @@ import * as THREE from 'three';
 import { Pipeline } from './engine/pipeline.js';
 import { Terrain } from './world/terrain.js';
 import { Water } from './world/water.js';
+import { WORLD } from './world/layout.js';
+import { Forest } from './world/flora/forest.js';
+import { GroundCover } from './world/flora/grass.js';
 
 const canvas = document.getElementById('view');
 const params = new URLSearchParams(location.search);
-const pipe = new Pipeline(canvas, { renderScale: Number(params.get('scale')) || 1 });
+const pipe = new Pipeline(canvas, { renderScale: Number(params.get('scale')) || 1, sky: { ...WORLD.sun } });
 window.__pipe = pipe;
 
 pipe.camera.position.set(-505, 232, -40);
@@ -26,7 +29,14 @@ window.__terrain = terrain;
 pipe.scene.add(terrain.mesh);
 const water = new Water(pipe, terrain);
 pipe.sceneT.add(water.group);
-pipe.onBeforeScene.push((cam) => { terrain.bakeStep(2); terrain.select(cam); });
+const forest = new Forest(pipe, terrain);
+window.__forest = forest;
+console.log('trees placed:', forest.populate());
+pipe.scene.add(forest.group);
+const cover = new GroundCover(pipe, terrain, forest.leafAtlas, forest.wind);
+window.__cover = cover;
+pipe.scene.add(cover.group);
+pipe.onBeforeScene.push((cam) => { terrain.bakeStep(2); terrain.select(cam); forest.update(cam); cover.update(cam); });
 
 function resize() { pipe.setSize(window.innerWidth, window.innerHeight); }
 window.addEventListener('resize', resize);

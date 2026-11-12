@@ -6,6 +6,7 @@ import { FullscreenPass } from '../engine/fullscreen.js';
 import { COMMON, SKYMAP, ATMOSPHERE } from '../engine/glsl.js';
 import { SKY_SAMPLE, SH_GLSL } from '../engine/sky.js';
 import { FOG_GLSL } from '../engine/post.js';
+import { LIGHTING } from '../engine/lighting.js';
 import { TERRAIN_SAMPLING } from './terrain.js';
 import { POOLS, WORLD } from './layout.js';
 
@@ -58,13 +59,12 @@ ${SKY_SAMPLE}
 ${SH_GLSL}
 ${FOG_GLSL}
 ${TERRAIN_SAMPLING}
+${LIGHTING}
 uniform sampler2D uOpaque;
 uniform sampler2D uLinDepth;
 uniform sampler2D uWaves;
 uniform mat4 uProjJ;
 uniform vec2 uResolution;
-uniform vec3 uSunDir;
-uniform vec3 uSunColor;
 uniform float uTime;
 in vec3 vWorld;
 
@@ -95,7 +95,7 @@ void main() {
   float depth = max(sceneZ2 - viewZ, 0.0) * max(V.y, 0.25);
   vec3 refr = textureLod(uOpaque, ruv, 0.0).rgb;
 
-  float vis = terrainSunVis(vWorld + vec3(0.0, 0.3, 0.0));
+  float vis = sunVisibility(vWorld + vec3(0.0, 0.3, 0.0));
   vec3 skyUp = shIrradiance(vec3(0.0, 1.0, 0.0));
   vec3 light = uSunColor * max(uSunDir.y, 0.0) * vis * 0.3183 + skyUp;
   vec3 absorb = exp(-depth * vec3(0.42, 0.11, 0.085));
@@ -166,10 +166,8 @@ export class Water {
     this.material = new THREE.ShaderMaterial({
       vertexShader: WATER_VERT,
       fragmentShader: WATER_FRAG,
-      uniforms: {
-        ...this.uniforms, ...pipe.sky.uniforms, ...terrain.uniforms, ...pipe.fog.uniforms,
-        uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH, uTime: g.uTime,
-      },
+      defines: pipe.depthDefines,
+      uniforms: { ...this.uniforms, ...pipe.lit(), ...pipe.fog.uniforms },
     });
 
     this.group = new THREE.Group();

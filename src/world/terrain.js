@@ -1,10 +1,14 @@
 // Terrain: two height maps (1 m core, 8 m region) drawn with a CDLOD quadtree of instanced
 // grid patches that morph between levels, so there are no cracks and no popping.
-// Normal maps and sun-shadow maps are derived on the GPU at load time.
+// Normal, occlusion and sun-shadow maps are derived on the GPU at load time, and every
+// surface texture is baked by the TextureForge.
 import * as THREE from 'three';
 import { FullscreenPass } from '../engine/fullscreen.js';
 import { COMMON, SKYMAP } from '../engine/glsl.js';
-import { SH_GLSL } from '../engine/sky.js';
+import { SH_GLSL, SKY_SAMPLE } from '../engine/sky.js';
+import { LIGHTING } from '../engine/lighting.js';
+import { TextureForge, FORGE_LIB } from '../engine/forge.js';
+import { TERRAIN_MATERIALS } from './terrainMaterials.js';
 import { WORLD } from './layout.js';
 
 async function loadHeights(url, meta) {
@@ -20,22 +24,9 @@ async function loadHeights(url, meta) {
 
 function heightTexture(data, res) {
   const t = new THREE.DataTexture(data, res, res, THREE.RedFormat, THREE.FloatType);
-  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.minFilter = THREE.LinearFilter;
   t.magFilter = THREE.LinearFilter;
   t.generateMipmaps = false;
-  // Float textures cannot rely on driver mip generation, so build the chain here.
-  const mips = [{ data, width: res, height: res }];
-  let src = data, n = res;
-  while (n > 1) {
-    const m = n >> 1, dst = new Float32Array(m * m);
-    for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) {
-      const o = 2 * j * n + 2 * i;
-      dst[j * m + i] = 0.25 * (src[o] + src[o + 1] + src[o + n] + src[o + n + 1]);
-    }
-    mips.push({ data: dst, width: m, height: m });
-    src = dst; n = m;
-  }
-  t.mipmaps = mips;
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   t.needsUpdate = true;
   return t;
@@ -51,9 +42,33 @@ void main() {
   float hd = textureLod(uH, vUv - vec2(0.0, e), 0.0).r, hu = textureLod(uH, vUv + vec2(0.0, e), 0.0).r;
   float hc = textureLod(uH, vUv, 0.0).r;
   vec3 n = normalize(vec3(hl - hr, 2.0 * uTexel, hd - hu));
-  // Curvature: positive in creases, negative on ridges. Used for dirt and soft occlusion.
+  // Curvature: positive in creases, negative on ridges.
   float curv = (hl + hr + hd + hu - 4.0 * hc) / uTexel;
-  outColor = vec4(n.xz * 0.5 + 0.5, clamp(curv * 0.25 + 0.5, 0.0, 1.0), 1.0);
+  // Cliff mask baked here so that its mips average the mask, not the normals.
+  float cliff = smoothstep(0.26, 0.5, 1.0 - n.y);
+  outColor = vec4(n.xz * 0.5 + 0.5, clamp(curv * 0.25 + 0.5, 0.0, 1.0), cliff);
+}`;
+
+// Horizon-based sky visibility over the height field.
+const AO_BAKE = /* glsl */ `
+uniform sampler2D uH;
+uniform float uSize;
+uniform float uRadius;
+void main() {
+  float h0 = textureLod(uH, vUv, 0.0).r;
+  float vis = 0.0;
+  for (int d = 0; d < 8; d++) {
+    float a = (float(d) + 0.5) * 0.7853982;
+    vec2 dir = vec2(cos(a), sin(a));
+    float maxTan = 0.0;
+    for (int i = 1; i <= 10; i++) {
+      float t = uRadius * float(i * i) / 100.0;
+      float h = textureLod(uH, vUv + dir * t / uSize, 0.0).r;
+      maxTan = max(maxTan, (h - h0) / t);
+    }
+    vis += 1.0 - maxTan / sqrt(1.0 + maxTan * maxTan);
+  }
+  outColor = vec4(vis / 8.0);
 }`;
 
 // For a fixed sun, stores how far above the ground the shadow boundary sits (r) and the
@@ -87,11 +102,15 @@ void main() {
   outColor = vec4(best, bestT, 0.0, 1.0);
 }`;
 
+const NOISE_BAKE = /* glsl */ `
+${FORGE_LIB}
+void main() {
+  outColor = vec4(pfbm(vUv, vec2(4.0), 6, 1.0), pfbm(vUv, vec2(4.0), 6, 7.0), pfbm(vUv, vec2(6.0), 5, 13.0), pfbm(vUv, vec2(3.0), 6, 23.0));
+}`;
+
 export const TERRAIN_SAMPLING = /* glsl */ `
 uniform sampler2D uHCore;
 uniform sampler2D uHRegion;
-uniform sampler2D uNCore;
-uniform sampler2D uNRegion;
 uniform sampler2D uSCore;
 uniform sampler2D uSRegion;
 const float CORE_SIZE = ${WORLD.coreSize.toFixed(1)};
@@ -100,10 +119,10 @@ float coreWeight(vec2 xz) {
   vec2 e = abs(xz) / (CORE_SIZE * 0.5);
   return 1.0 - smoothstep(0.9, 0.985, max(e.x, e.y));
 }
-float terrainHeightLod(vec2 xz, float lodC, float lodR) {
-  float h = textureLod(uHRegion, xz / REGION_SIZE + 0.5, lodR).r;
+float terrainHeight(vec2 xz) {
+  float h = textureLod(uHRegion, xz / REGION_SIZE + 0.5, 0.0).r;
   float w = coreWeight(xz);
-  if (w > 0.0) h = mix(h, textureLod(uHCore, xz / CORE_SIZE + 0.5, lodC).r, w);
+  if (w > 0.0) h = mix(h, textureLod(uHCore, xz / CORE_SIZE + 0.5, 0.0).r, w);
   return h;
 }
 // Sun visibility from the baked terrain shadow maps for a point at any height.
@@ -130,64 +149,129 @@ void main() {
   float cell = iNode.z / 8.0;
   vec2 g = position.xy;
   vec2 xz = iNode.xy + g * cell;
-  float h = terrainHeightLod(xz, 0.0, 0.0);
+  float h = terrainHeight(xz);
   float rEnd = uLodBase * exp2(iNode.w);
   float k = clamp((distance(vec3(xz.x, h, xz.y), uLodCam) - rEnd * 0.82) / (rEnd * 0.16), 0.0, 1.0);
   xz -= fract(g * 0.5) * 2.0 * cell * k;
   // Point-sampled heights keep cliff edges crisp at every level of detail.
-  h = terrainHeightLod(xz, 0.0, 0.0);
+  h = terrainHeight(xz);
   vWorld = vec3(xz.x, h, xz.y);
   gl_Position = projectionMatrix * viewMatrix * vec4(vWorld, 1.0);
 }`;
 
+const LAYER_DEFINES = TERRAIN_MATERIALS.map((m, i) => `#define L_${m.name.toUpperCase()} ${i.toFixed(1)}`).join('\n');
+
 const TERRAIN_FRAG = /* glsl */ `
 ${COMMON}
 ${SKYMAP}
+${SKY_SAMPLE}
 ${SH_GLSL}
 ${TERRAIN_SAMPLING}
-uniform vec3 uSunDir;
-uniform vec3 uSunColor;
+${LIGHTING}
+uniform sampler2D uNCore;
+uniform sampler2D uNRegion;
+uniform sampler2D uAOCore;
+uniform sampler2D uAORegion;
+uniform sampler2DArray uTA;
+uniform sampler2DArray uTB;
+${LAYER_DEFINES}
+uniform sampler2D uNoise;
 in vec3 vWorld;
 
-vec3 terrainNormal(vec2 xz, out float curv) {
-  float w = coreWeight(xz);
-  vec3 n = texture(uNRegion, xz / REGION_SIZE + 0.5).rgb;
-  if (w > 0.0) n = mix(n, texture(uNCore, xz / CORE_SIZE + 0.5).rgb, w);
-  curv = n.b * 2.0 - 1.0;
-  vec2 d = n.rg * 2.0 - 1.0;
-  return normalize(vec3(d.x, sqrt(max(1.0 - dot(d, d), 0.0)), d.y));
+void layerAt(float layer, vec2 p, vec2 dpx, vec2 dpy, float s, out vec4 A, out vec4 B) {
+  A = textureGrad(uTA, vec3(p / s, layer), dpx / s, dpy / s);
+  B = textureGrad(uTB, vec3(p / s, layer), dpx / s, dpy / s);
 }
-
+// Cliff rock: the close-up layer hands over to a dedicated far layer, which itself steps up
+// in scale again past a kilometre, so the faces keep believable structure at any range.
+void rockSample(vec2 p, float dist, out vec4 A, out vec4 B) {
+  vec2 dpx = dFdx(p), dpy = dFdy(p);
+  float f1 = smoothstep(45.0, 150.0, dist), f2 = smoothstep(700.0, 1600.0, dist);
+  vec4 a, b;
+  A = vec4(0.0); B = vec4(0.0);
+  if (f1 < 1.0) { layerAt(L_ROCK, p, dpx, dpy, 9.0, a, b); A += a * (1.0 - f1); B += b * (1.0 - f1); }
+  if (f1 > 0.0 && f2 < 1.0) { layerAt(L_ROCKFAR, p, dpx, dpy, 130.0, a, b); A += a * f1 * (1.0 - f2); B += b * f1 * (1.0 - f2); }
+  if (f2 > 0.0) { layerAt(L_ROCKFAR, p + 211.0, dpx, dpy, 620.0, a, b); A += a * f2; B += b * f2; }
+}
 void main() {
-  float curv;
-  vec3 N = terrainNormal(vWorld.xz, curv);
-  float slope = 1.0 - N.y;
-  float h = vWorld.y;
+  vec2 xz = vWorld.xz;
   float dist = distance(vWorld, cameraPosition);
+  vec3 V = (cameraPosition - vWorld) / dist;
+  float cw = coreWeight(xz);
+  vec4 nm = texture(uNRegion, xz / REGION_SIZE + 0.5);
+  float aoM = texture(uAORegion, xz / REGION_SIZE + 0.5).r;
+  if (cw > 0.0) {
+    nm = mix(nm, texture(uNCore, xz / CORE_SIZE + 0.5), cw);
+    aoM *= mix(1.0, texture(uAOCore, xz / CORE_SIZE + 0.5).r, cw);
+  }
+  vec2 nd = nm.rg * 2.0 - 1.0;
+  vec3 N = normalize(vec3(nd.x, sqrt(max(1.0 - dot(nd, nd), 0.0)), nd.y));
+  float curv = nm.b * 2.0 - 1.0;
+  float h = vWorld.y;
 
-  // First-pass materials straight from noise. Replaced by baked texture layers later.
-  float n1 = fbm2(vWorld.xz * 0.02, 4), n2 = fbm2(vWorld.xz * 0.21, 4), n3 = fbm2(vWorld.xz * 1.7, 3);
-  vec3 grass = mix(vec3(0.07, 0.13, 0.03), vec3(0.16, 0.2, 0.05), n1);
-  grass = mix(grass, vec3(0.2, 0.19, 0.07), smoothstep(0.55, 0.8, n2) * 0.6) * (0.75 + 0.5 * n3);
-  float strata = fbm2(vec2(h * 0.21 + n1 * 4.0, dot(vWorld.xz, vec2(0.031, 0.027))), 4);
-  vec3 rock = mix(vec3(0.2, 0.18, 0.16), vec3(0.42, 0.38, 0.33), strata) * (0.7 + 0.6 * n2);
-  rock = mix(rock, vec3(0.1, 0.12, 0.06), smoothstep(0.5, 0.75, n1) * 0.35);
-  vec3 soil = vec3(0.16, 0.12, 0.08) * (0.7 + 0.6 * n2);
-  vec3 sand = vec3(0.38, 0.33, 0.24) * (0.8 + 0.4 * n3);
-  vec3 snow = vec3(0.86, 0.9, 0.95);
+  vec4 n1 = texture(uNoise, xz / 410.0);
+  vec4 n2 = texture(uNoise, xz / 57.0 + 0.31);
 
-  float cliff = smoothstep(0.22, 0.42, slope + (n2 - 0.5) * 0.12);
-  vec3 alb = mix(grass, soil, smoothstep(0.1, 0.24, slope));
-  alb = mix(alb, rock, cliff);
-  alb = mix(alb, sand, (1.0 - smoothstep(0.6, 3.0, h + n2 * 1.5)) * (1.0 - cliff));
-  alb = mix(alb, sand * vec3(0.35, 0.5, 0.5), 1.0 - smoothstep(-6.0, 0.0, h));
-  float snowLine = smoothstep(1050.0, 1500.0, h + n1 * 500.0) * (1.0 - smoothstep(0.45, 0.75, slope));
-  alb = mix(alb, snow, snowLine);
-  alb *= 1.0 - 0.35 * saturate(curv * 2.0);
+  // --- layer weights ---
+  float cliff = smoothstep(0.3, 0.7, nm.a + (n2.r - 0.5) * 0.35);
+  float shore = (1.0 - smoothstep(0.5, 2.6, h + n2.g * 1.6)) * (1.0 - cliff);
+  float snow = smoothstep(1000.0, 1450.0, h + n1.r * 520.0) * (1.0 - 0.75 * cliff);
+  float ledge = smoothstep(0.5, 0.85, N.y + (n2.b - 0.5) * 0.3);
+  float moss = cliff * ledge * smoothstep(0.35, 0.6, n1.g + n2.a * 0.3);
+  float rock = cliff * (1.0 - moss);
+  float flat_ = (1.0 - cliff) * (1.0 - shore);
+  float soil = flat_ * saturate(smoothstep(0.1, 0.26, 1.0 - N.y) + smoothstep(0.25, 0.7, curv) * 0.7 + smoothstep(0.66, 0.8, n2.r) * 0.5);
+  float grass = flat_ - soil;
+  float lowland = 1.0 - smoothstep(26.0, 60.0, h);             // shaded forest floor in the lowlands
+  float litter = grass * smoothstep(0.5, 0.7, n1.b) * lowland * 0.8;
+  grass -= litter;
 
-  float vis = terrainSunVis(vWorld + N * 0.3);
-  float ndl = saturate(dot(N, uSunDir));
-  vec3 col = alb * (uSunColor * ndl * vis + shIrradiance(N) * (0.75 + 0.25 * saturate(-curv * 2.0 + 0.6)));
+  vec2 dpx = dFdx(xz), dpy = dFdy(xz);
+  vec4 A = vec4(0.0), B = vec4(0.0), a, b;
+  float ws = 0.0, w;
+  vec3 Nd = vec3(0.0);
+#define TOP(layer, weight, s0) if (weight > 0.004) { layerAt(layer, xz, dpx, dpy, s0, a, b); w = weight * (0.3 + a.a); A += a * w; B += b * w; ws += w; vec2 t = b.rg * 2.0 - 1.0; Nd += w * vec3(t.x, 0.0, t.y); }
+  // Grass hands over to the far meadow layer so the ground never goes flat with distance.
+  float gFar = smoothstep(18.0, 70.0, dist);
+  TOP(L_GRASS, grass * (1.0 - gFar), 2.6)
+  TOP(L_MEADOWFAR, grass * gFar, 46.0)
+  TOP(L_SOIL, soil, 3.2)
+  TOP(L_PEBBLE, shore, 2.2)
+  TOP(L_MOSS, moss, 3.4)
+  TOP(L_LITTER, litter, 2.8)
+  TOP(L_SNOW, snow * (1.0 - cliff), 6.0)
+  if (rock > 0.004) {
+    // Triplanar on the two side planes so strata stay horizontal on every face.
+    vec2 bw = pow(abs(N.xz) + 1e-4, vec2(5.0));
+    bw /= bw.x + bw.y;
+    vec3 pos = vWorld + vec3(n1.a * 9.0, 0.0, n1.r * 9.0);    // break up the bedding lines
+    if (bw.x > 0.03) {
+      rockSample(pos.zy, dist, a, b);
+      w = rock * bw.x * (0.3 + a.a); A += a * w; B += b * w; ws += w;
+      vec2 t = b.rg * 2.0 - 1.0; Nd += w * 1.6 * vec3(0.0, t.y, t.x);
+    }
+    if (bw.y > 0.03) {
+      rockSample(pos.xy, dist, a, b);
+      w = rock * bw.y * (0.3 + a.a); A += a * w; B += b * w; ws += w;
+      vec2 t = b.rg * 2.0 - 1.0; Nd += w * 1.6 * vec3(t.x, t.y, 0.0);
+    }
+  }  A /= max(ws, 1e-4); B /= max(ws, 1e-4); Nd /= max(ws, 1e-4);
+  vec3 Ns = normalize(N + Nd * 0.9);
+
+  vec3 alb = A.rgb;
+  // Large-scale colour drift so no two meadows or cliff faces look the same.
+  alb *= mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), n1.r) * (0.86 + 0.28 * n2.a);
+  alb = mix(alb, alb * vec3(1.25, 1.1, 0.7), grass * smoothstep(0.55, 0.8, n1.a) * 0.5);
+  // Rain streaks and damp at the foot of the cliffs.
+  alb *= 1.0 - rock * 0.3 * smoothstep(0.5, 0.75, texture(uNoise, vec2(dot(xz, vec2(0.021, 0.017)), h * 0.0016)).g);
+  float wet = 1.0 - smoothstep(-0.1, 0.9, h);
+  alb *= mix(1.0, 0.55, wet);
+  float rough = mix(B.b, 0.28, wet);
+  alb = mix(alb, vec3(0.9, 0.93, 0.98), snow * cliff * 0.5);
+
+  float ao = B.a * (0.25 + 0.75 * aoM) * (1.0 - 0.3 * saturate(curv * 1.5));
+  float vis = sunVisibility(vWorld + N * 0.35 + uSunDir * 0.25);
+  vec3 col = shadeSurface(alb, rough, 0.0, Ns, V, vis, ao, 0.0);
   gl_FragColor = vec4(col, 1.0);
 }`;
 
@@ -200,8 +284,7 @@ export class Terrain {
       loadHeights('/world/region_h.bin', meta.region),
     ]);
     onProgress('maps', 0.5);
-    const t = new Terrain(pipe, core, region, meta);
-    return t;
+    return new Terrain(pipe, core, region, meta);
   }
 
   constructor(pipe, core, region, meta) {
@@ -215,12 +298,15 @@ export class Terrain {
     this.texHRegion = heightTexture(region, this.regionRes);
 
     const mapTarget = (res, type, format) => {
-      const t = new THREE.WebGLRenderTarget(res, res, { depthBuffer: false, type, format, generateMipmaps: type === THREE.UnsignedByteType, minFilter: type === THREE.UnsignedByteType ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter, magFilter: THREE.LinearFilter });
-      t.texture.anisotropy = type === THREE.UnsignedByteType ? 8 : 1;
+      const bytes = type === THREE.UnsignedByteType;
+      const t = new THREE.WebGLRenderTarget(res, res, { depthBuffer: false, type, format, generateMipmaps: bytes, minFilter: bytes ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter, magFilter: THREE.LinearFilter });
+      t.texture.anisotropy = bytes ? 8 : 1;
       return t;
     };
     this.nCore = mapTarget(this.coreRes, THREE.UnsignedByteType, THREE.RGBAFormat);
     this.nRegion = mapTarget(this.regionRes, THREE.UnsignedByteType, THREE.RGBAFormat);
+    this.aoCore = mapTarget(this.coreRes, THREE.UnsignedByteType, THREE.RedFormat);
+    this.aoRegion = mapTarget(this.regionRes, THREE.UnsignedByteType, THREE.RedFormat);
     this.sCore = mapTarget(this.coreRes, THREE.HalfFloatType, THREE.RGFormat);
     this.sRegion = mapTarget(this.regionRes, THREE.HalfFloatType, THREE.RGFormat);
 
@@ -230,6 +316,14 @@ export class Terrain {
     nb.render(r, this.nRegion);
     nb.dispose();
 
+    this.noise = new THREE.WebGLRenderTarget(256, 256, { depthBuffer: false, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
+    this.noise.texture.wrapS = this.noise.texture.wrapT = THREE.RepeatWrapping;
+    const nz = new FullscreenPass({ fragment: NOISE_BAKE });
+    nz.render(r, this.noise);
+    nz.dispose();
+
+    this.layers = new TextureForge(r).bake(TERRAIN_MATERIALS, 1024);
+
     this.shadowBake = new FullscreenPass({
       fragment: SHADOW_BAKE,
       uniforms: {
@@ -237,37 +331,50 @@ export class Terrain {
         uTexel: { value: 1 }, uSunDir: { value: pipe.sky.sunDir }, uSteps: { value: 200 },
       },
     });
-    this._shadowQueue = [];
-    this.queueShadowBake();
+    this.aoBake = new FullscreenPass({ fragment: AO_BAKE, uniforms: { uH: { value: null }, uSize: { value: 1 }, uRadius: { value: 1 } } });
+    this._queue = [];
+    this.queueBakes();
 
     this.uniforms = {
       uHCore: { value: this.texHCore }, uHRegion: { value: this.texHRegion },
-      uNCore: { value: this.nCore.texture }, uNRegion: { value: this.nRegion.texture },
       uSCore: { value: this.sCore.texture }, uSRegion: { value: this.sRegion.texture },
     };
+    this.surfaceUniforms = {
+      uNCore: { value: this.nCore.texture }, uNRegion: { value: this.nRegion.texture },
+      uAOCore: { value: this.aoCore.texture }, uAORegion: { value: this.aoRegion.texture },
+      uTA: { value: this.layers.a }, uTB: { value: this.layers.b }, uNoise: { value: this.noise.texture },
+    };
 
+    pipe.terrainUniforms = this.uniforms;
     this._buildPyramid();
     this._buildMesh();
   }
 
-  // Queues the sun-shadow bake as small tiles; update() works through them a few per frame.
-  queueShadowBake() {
-    this._shadowQueue.length = 0;
+  // Queues the occlusion and sun-shadow bakes as small tiles; bakeStep() works through them.
+  queueBakes() {
+    this._queue.length = 0;
     const T = 256;
-    for (const [target, tex, size, res, steps] of [[this.sRegion, this.texHRegion, this.regionSize, this.regionRes, 150], [this.sCore, this.texHCore, this.coreSize, this.coreRes, 230]]) {
-      for (let y = 0; y < res; y += T) for (let x = 0; x < res; x += T) this._shadowQueue.push({ target, tex, size, texel: size / res, steps, x, y, T });
-    }
+    const tiles = (res, fn) => { for (let y = 0; y < res; y += T) for (let x = 0; x < res; x += T) this._queue.push(() => fn(x, y, T)); };
+    const r = this.pipe.renderer;
+    const ao = (target, tex, size, radius) => (x, y, t) => {
+      const u = this.aoBake.uniforms; u.uH.value = tex; u.uSize.value = size; u.uRadius.value = radius;
+      this.aoBake.renderRegion(r, target, x, y, t, t);
+    };
+    const sh = (target, tex, size, res, steps) => (x, y, t) => {
+      const u = this.shadowBake.uniforms; u.uH.value = tex; u.uSize.value = size; u.uTexel.value = size / res; u.uSteps.value = steps;
+      this.shadowBake.renderRegion(r, target, x, y, t, t);
+    };
+    tiles(this.regionRes, ao(this.aoRegion, this.texHRegion, this.regionSize, 640));
+    tiles(this.coreRes, ao(this.aoCore, this.texHCore, this.coreSize, 48));
+    tiles(this.regionRes, sh(this.sRegion, this.texHRegion, this.regionSize, this.regionRes, 150));
+    tiles(this.coreRes, sh(this.sCore, this.texHCore, this.coreSize, this.coreRes, 230));
+    this._queueTotal = this._queue.length;
   }
 
-  // Returns true while bake work remains.
+  // Runs a few bake tiles. Returns the fraction still to do (0 when finished).
   bakeStep(maxTiles = 2) {
-    const u = this.shadowBake.uniforms, r = this.pipe.renderer;
-    for (let i = 0; i < maxTiles && this._shadowQueue.length; i++) {
-      const j = this._shadowQueue.shift();
-      u.uH.value = j.tex; u.uSize.value = j.size; u.uTexel.value = j.texel; u.uSteps.value = j.steps;
-      this.shadowBake.renderRegion(r, j.target, j.x, j.y, j.T, j.T);
-    }
-    return this._shadowQueue.length > 0;
+    for (let i = 0; i < maxTiles && this._queue.length; i++) this._queue.shift()();
+    return this._queue.length / this._queueTotal;
   }
 
   heightAt(x, z) {
@@ -334,7 +441,8 @@ export class Terrain {
     this.material = new THREE.ShaderMaterial({
       vertexShader: TERRAIN_VERT,
       fragmentShader: TERRAIN_FRAG,
-      uniforms: { ...this.uniforms, ...this.lodUniforms, uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH },
+      defines: this.pipe.depthDefines,
+      uniforms: { ...this.pipe.lit(), ...this.surfaceUniforms, ...this.lodUniforms },
     });
     this.mesh = new THREE.Mesh(geo, this.material);
     this.mesh.frustumCulled = false;
