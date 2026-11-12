@@ -204,6 +204,9 @@ export class Story {
     this.lineT = (this.lineT ?? 0) - dt;
     if (this.lineT <= 0 && this.line) { this.line = null; g.emit('caption', { text: null }); this.lineT = 0.7; }
     else if (this.lineT <= 0 && this.queue?.length) { const [text, hold] = this.queue.shift(); this.line = text; this.lineT = hold; g.emit('caption', { text }); }
+    // Down in the lake there is no stair back up: say how to get out.
+    this.swimT = p.state === 'swim' && p.water < 20 ? (this.swimT ?? 0) + dt : 0;
+    if (this.swimT > 14) this.say('lake', 'The lake has no stair back up. Pause, and choose to return to the last safe place.', 9);
     // Arriving at things.
     const m = g.marker;
     if (m?.arrive && Math.hypot(p.pos.x - m.x, p.pos.z - m.z) < m.arrive) {

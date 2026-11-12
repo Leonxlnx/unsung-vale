@@ -414,6 +414,7 @@ window.__dbg = {
     let b = this._play;
     if (!b || fresh) {
       if (fresh) {
+        g.cine = false; g.input.puppet = null;
         g.cineSetup({ tuned: [] });
         for (const sp of g.spires) { sp.tuned = false; sp.power = 0; sp.zoneR = sp.zoneR0; sp.zone.z = sp.zoneR; sp.zone.w = 1; }
         g.enemies.list.length = 0; g.wildDone = []; g.xp = 0; g.bought = 0; g.ended = false; g.hasMap = false; g.metPeople = [];

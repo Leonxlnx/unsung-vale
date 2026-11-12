@@ -228,6 +228,14 @@ export class Game {
     return true;
   }
 
+  // Back to the last safe place (a tuned spire, a pylon, a bell, a note): the way out of
+  // anywhere there is no way out of, such as the lake under the mesas.
+  unstuck() {
+    if (this.state !== 'playing' || this.tuning.active || this.people.talk || this.strings.ride) return;
+    this.emit('fade', { on: true });
+    setTimeout(() => { if (this.trials.run) this.trials._end(false); this.respawnAtCheckpoint(); this.hero?.cloth?.reset(); this.emit('fade', { on: false }); }, 650);
+  }
+
   // A screen over the game (the map, the luthier's bench): the world waits behind it.
   openMenu(name) { if (this.state !== 'playing') return; this.state = 'menu'; this.menu = name; this.input.enabled = false; this.input.unlockPointer(); this.emit('state', { state: 'menu', menu: name }); }
   closeMenu() { if (this.state !== 'menu') return; this.menu = null; this.start(); }
@@ -591,7 +599,7 @@ export class Game {
   }
 
   _onEnemyEvent(e) {
-    if (e.type === 'hitPlayer') { this.player.damage(e.damage, e.from ?? e.enemy.pos); }
+    if (e.type === 'hitPlayer') { this.player.damage(Math.round(e.damage * ({ gentle: 0.6, hard: 1.4 }[this.challenge] ?? 1)), e.from ?? e.enemy.pos); }
     if (e.type === 'slam') {
       const big = e.enemy?.def.boss ? 1 : 0.5;
       this.rig.addShake(0.7 * big + 0.1);

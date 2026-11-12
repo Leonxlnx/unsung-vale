@@ -8,7 +8,7 @@ export const PRESETS = {
   ultra:  { renderScale: 1.0, shadows: true, volumetrics: true, reflections: true, cover: 1.0, clouds: 2, cloudRes: 2048, shadowRate: 1, softShadows: 2 },
 };
 
-const DEFAULTS = { preset: 'medium', ...PRESETS.medium, targetFps: 50, fov: 60, sensitivity: 1, invertY: false, master: 0.8, music: 0.55, sfx: 0.85, showFps: false };
+const DEFAULTS = { preset: 'medium', ...PRESETS.medium, targetFps: 50, fov: 60, sensitivity: 1, invertY: false, master: 0.8, music: 0.55, sfx: 0.85, showFps: false, challenge: 'standard' };
 
 export class Settings {
   constructor(renderer) {
@@ -54,6 +54,7 @@ export function applySettings(settings, { pipe, game, cover, audio, gloss, gover
   // Larger panoramas get more tiles per frame so a refresh takes about as long either way.
   pipe.sky.tilesPerFrame = (v.clouds === 0 ? 0 : v.clouds === 2 ? 2 : 1) * (v.cloudRes > 1024 ? 3 : 1);
   game.rig.baseFov = v.fov;
+  game.challenge = v.challenge ?? 'standard';
   game.input.sensitivity = v.sensitivity;
   game.input.invertY = v.invertY;
   audio?.setVolumes(v.master, v.music, v.sfx);

@@ -143,6 +143,7 @@ export class People {
     const g = this.game, p = g.player, cam = this.pipe.camera;
     this.talk = { n, lines, i: 0, done, t: 0, phase: 'in', from: { pos: cam.position.clone(), quat: cam.quaternion.clone(), fov: cam.fov } };
     p.vel.x = p.vel.z = 0; p.lockTarget = null; p.yaw = Math.atan2(n.x - p.pos.x, n.z - p.pos.z);
+    p.invulnerable = 1e6;                         // nothing reaches him while he listens
     g.emit('dialogue', { phase: 'open', name: n.def.name, role: n.def.role, text: lines[0], last: lines.length === 1 });
   }
 
@@ -210,7 +211,7 @@ export class People {
         const w = ease(clamp01(T.t / 0.6));
         g.rig.update(0, p, { look: { x: 0, y: 0 }, zoom: 0 });
         cam.position.lerpVectors(T.from.pos, cam.position, w); cam.quaternion.copy(_q.copy(T.from.quat).slerp(cam.quaternion, w));
-        if (T.t >= 0.6) { this.talk = null; T.done?.(); }
+        if (T.t >= 0.6) { this.talk = null; p.invulnerable = 0.5; T.done?.(); }
       }
     }
   }
