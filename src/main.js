@@ -158,7 +158,8 @@ async function runCapture() {
   settings.values.renderScale = 1; settings.values.shadows = true; settings.values.volumetrics = true; settings.values.cover = 1;
   apply();
   pipe.setSize(w, h);
-  terrain.lodScale = 3; pipe.sky.tilesPerFrame = 8;
+  terrain.lodScale = 3;
+  pipe.sky.setCloudQuality(4096, 72); pipe.sky.tilesPerFrame = 24;
   const film = new FilmOutput(pipe);
   film.setSize(w, h);
   director.begin();
@@ -205,6 +206,17 @@ window.__dbg = {
     });
   },
   hideSheet() { document.getElementById('sheet')?.remove(); },
+  // Magnifies a region of the frame (in canvas pixels) over the page for pixel-level checks.
+  crop(x, y, w, h, frames = 4) {
+    this.ui(false);
+    let c = document.getElementById('sheet');
+    if (!c) { c = document.createElement('canvas'); c.id = 'sheet'; c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:9'; document.body.appendChild(c); }
+    c.width = canvas.width; c.height = canvas.height;
+    this.step(frames);
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(canvas, x, y, w, h, 0, 0, c.width, c.height);
+  },
   views: [
     [-505, 236, -40, 0.2, -0.1, 62],       // valley from above the dawn terrace
     [60, 215, 255, 0.95, -0.06, 55],       // Aurel citadel

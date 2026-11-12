@@ -1,32 +1,54 @@
 // Procedural PBR materials for the terrain, written as GLSL for the TextureForge.
 // Colours are authored with srgb() so they read like paint values but are stored linear.
 
+const BLOCKS = /* glsl */ `
+// Jointed rock: cells measured with a squared-off distance so their borders run mostly
+// along and across the bedding, like real fracture sets. Returns x = distance to the nearest
+// joint, yzw = three hashes of the block; rel is the offset from the block's centre.
+vec4 blocks(vec2 uv, vec2 freq, float seed, out vec2 rel) {
+  vec2 p = uv * freq, i = floor(p), f = fract(p);
+  float f1 = 9.0, f2 = 9.0; vec2 idc = vec2(0.0); rel = vec2(0.0);
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec2 o = vec2(float(x), float(y));
+    vec2 c = mod(i + o, freq);
+    vec2 r = o + 0.14 + 0.72 * hash22(c + seed * 7.7) - f;
+    float d = max(abs(r.x), abs(r.y)) + 0.12 * (abs(r.x) + abs(r.y));
+    if (d < f1) { f2 = f1; f1 = d; idc = c; rel = r; } else if (d < f2) f2 = d;
+  }
+  return vec4(f2 - f1, hash12(idc + seed * 3.3), hash12(idc * 1.7 + seed * 9.1 + 4.0), hash12(idc * 2.3 + seed * 5.7 + 9.0));
+}`;
+
 const rock = /* glsl */ `
-// Stratified limestone cliff. u runs along the face, v is up.
+${BLOCKS}
+
+// Close-up cliff detail for a tile of a few metres: broken facets, chips and pitting.
+// Its colour is authored around mid grey because it multiplies the far layer's colour.
 void material(vec2 uv, out float h, out vec3 col, out float rough) {
-  float warp = pfbm(uv, vec2(3.0), 3, 1.0) - 0.5;
-  vec2 q = uv + vec2(0.0, warp * 0.07);
-  vec4 w = pworley(q, vec2(5.0, 11.0), 2.0);                 // bedding blocks, wider than tall
-  float crack = smoothstep(0.0, 0.09, w.y - w.x);
-  vec4 w2 = pworley(q + 0.013 * (pfbm(uv, vec2(9.0), 2, 3.0) - 0.5), vec2(13.0, 31.0), 5.0);
-  float crack2 = smoothstep(0.0, 0.12, w2.y - w2.x);
-  float strata = pfbm(q, vec2(2.0, 40.0), 3, 7.0);           // thin horizontal layering
-  float runnel = pfbm(uv, vec2(36.0, 3.0), 3, 9.0);          // vertical water streaks
-  float grain = pfbm(uv, vec2(64.0), 4, 11.0);
-  float pits = pridge(uv, vec2(24.0), 3, 13.0);
-  h = 0.38 * w.z + 0.22 * crack + 0.12 * crack2 + 0.14 * strata + 0.08 * (1.0 - pits) + 0.06 * grain;
-  h *= mix(0.55, 1.0, crack);
-  vec3 cA = srgb(0.63, 0.59, 0.53), cB = srgb(0.47, 0.44, 0.41), cC = srgb(0.71, 0.63, 0.51), cD = srgb(0.36, 0.34, 0.33);
-  col = mix(cA, cB, smoothstep(0.3, 0.7, w.w));
-  col = mix(col, cC, smoothstep(0.55, 0.8, strata) * 0.6);
-  col = mix(col, cD, smoothstep(0.6, 0.85, pfbm(uv, vec2(4.0, 9.0), 4, 17.0)) * 0.5);
-  col *= 0.72 + 0.5 * grain;
-  col *= mix(0.45, 1.0, crack) * mix(0.75, 1.0, crack2);
-  col *= 1.0 - 0.3 * smoothstep(0.55, 0.85, runnel);
-  vec4 l = pworley(uv, vec2(17.0), 21.0);
-  float lichen = (1.0 - smoothstep(0.12, 0.32, l.x)) * step(0.72, l.z);
-  col = mix(col, srgb(0.74, 0.76, 0.62), lichen * 0.45);
-  rough = 0.88 - 0.1 * lichen;
+  float wa = pfbm(uv, vec2(4.0), 3, 1.0) - 0.5, wb = pfbm(uv, vec2(4.0), 3, 2.0) - 0.5;
+  vec2 q = uv + vec2(wb, wa) * 0.045;
+  vec2 r1, r2, r3;
+  vec4 b1 = blocks(q, vec2(4.0, 3.0), 3.0, r1);
+  vec4 b2 = blocks(q + vec2(b1.y * 0.3, b1.z * 0.4), vec2(10.0, 7.0), 5.0, r2);
+  vec4 b3 = blocks(q + vec2(b2.z * 0.2, b2.y * 0.3), vec2(23.0, 17.0), 7.0, r3);
+  float open2 = smoothstep(0.38, 0.62, pfbm(q, vec2(5.0, 4.0), 2, 23.0));
+  float j1 = smoothstep(0.0, 0.05, b1.x), j2 = mix(1.0, smoothstep(0.0, 0.07, b2.x), open2);
+  // Every block breaks along its own plane, so neighbouring faces catch the light differently.
+  float t1 = 0.5 + (b1.y - 0.5) * 0.6 + dot(r1, vec2(b1.z - 0.5, b1.w - 0.5)) * 0.9;
+  float t2 = 0.5 + (b2.y - 0.5) * 0.5 + dot(r2, vec2(b2.z - 0.5, b2.w - 0.5)) * 1.5;
+  float t3 = 0.5 + (b3.y - 0.5) * 0.5 + dot(r3, vec2(b3.z - 0.5, b3.w - 0.5)) * 1.5;
+  float chips = pridge(uv + 0.01 * wa, vec2(17.0, 12.0), 4, 9.0);
+  float pits = pfbm(uv, vec2(38.0), 4, 11.0);
+  float grain = pfbm(uv, vec2(120.0), 3, 13.0);
+  h = saturate(0.2 * t1 * j1 + 0.3 * t2 * j2 + 0.18 * t3 + 0.14 * (1.0 - chips) + 0.1 * pits + 0.08 * grain);
+  col = vec3(0.5) * mix(vec3(0.88, 0.91, 0.97), vec3(1.12, 1.04, 0.92), b2.w);
+  col *= 0.86 + 0.28 * b3.w;
+  col *= mix(0.62, 1.0, j1) * mix(0.76, 1.0, j2);
+  col *= 0.74 + 0.3 * smoothstep(0.15, 0.75, h) + 0.34 * (grain - 0.5);
+  col *= 1.0 - 0.25 * smoothstep(0.55, 0.8, pits);
+  vec4 l = pworley(uv, vec2(15.0), 21.0);
+  float lichen = (1.0 - smoothstep(0.1, 0.34, l.x + 0.25 * (grain - 0.5))) * step(0.66, l.z) * j1;
+  col = mix(col, vec3(0.5) * (l.w < 0.5 ? vec3(1.18, 1.2, 0.9) : vec3(1.3, 1.02, 0.62)), lichen * 0.55);
+  rough = 0.9 - 0.08 * lichen;
 }`;
 
 const grass = /* glsl */ `
@@ -120,25 +142,44 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
 }`;
 
 const rockFar = /* glsl */ `
-// Cliff seen from a distance: thick beds, vertical fluting and sparse fractures.
-// One tile spans well over a hundred metres, so nothing here should read as small cracks.
+${BLOCKS}
+
+// Cliff face for a tile of well over a hundred metres: tall pillars between vertical joints,
+// cut by bedding planes into stepped blocks that each break along their own plane.
+// u runs along the face, v is up.
 void material(vec2 uv, out float h, out vec3 col, out float rough) {
-  float warp = pfbm(uv, vec2(2.0), 3, 1.0) - 0.5;
-  vec2 q = vec2(uv.x, uv.y + warp * 0.06);
-  float s1 = pfbm(q, vec2(1.0, 14.0), 2, 3.0);
-  float s2 = pfbm(q, vec2(2.0, 46.0), 2, 5.0);
-  float beds = smoothstep(0.38, 0.62, s1);
-  float flute = pridge(uv, vec2(9.0, 1.0), 3, 7.0);
-  float flute2 = pfbm(uv, vec2(26.0, 2.0), 3, 9.0);
-  vec4 w = pworley(uv + 0.03 * warp, vec2(4.0, 3.0), 11.0);
-  float crack = smoothstep(0.0, 0.035, w.y - w.x);
-  float grain = pfbm(uv, vec2(40.0), 4, 13.0);
-  h = (0.3 * beds + 0.2 * s2 + 0.25 * flute + 0.1 * flute2 + 0.15 * grain) * mix(0.7, 1.0, crack);
-  vec3 cream = srgb(0.68, 0.62, 0.52), grey = srgb(0.5, 0.48, 0.45), rust = srgb(0.62, 0.47, 0.34), dark = srgb(0.33, 0.31, 0.3);
-  col = mix(grey, cream, beds);
-  col = mix(col, rust, smoothstep(0.6, 0.85, pfbm(q, vec2(3.0, 9.0), 3, 17.0)) * 0.45);
-  col = mix(col, dark, smoothstep(0.62, 0.9, flute2) * 0.4);
-  col *= (0.7 + 0.5 * s2) * (0.85 + 0.3 * grain) * mix(0.6, 1.0, crack) * (0.8 + 0.3 * flute);
+  float wa = pfbm(uv, vec2(3.0), 3, 1.0) - 0.5, wb = pfbm(uv, vec2(3.0), 3, 2.0) - 0.5;
+  vec2 q = uv + vec2(wb * 0.035, wa * 0.05);
+  vec2 r1, r2, r3, r4;
+  vec4 b1 = blocks(q, vec2(6.0, 2.0), 3.0, r1);
+  vec4 b2 = blocks(q + vec2(0.0, b1.y * 0.41), vec2(11.0, 5.0), 5.0, r2);
+  vec4 b3 = blocks(q + vec2(b2.y * 0.3, b1.y * 0.17), vec2(26.0, 13.0), 7.0, r3);
+  vec4 b4 = blocks(q + vec2(b3.y * 0.2, b2.z * 0.3), vec2(57.0, 37.0), 11.0, r4);
+  float flute = pridge(uv + vec2(0.0, wa * 0.1), vec2(34.0, 3.0), 3, 9.0);
+  float grain = pfbm(uv, vec2(64.0), 4, 13.0);
+  float beds = pfbm(q, vec2(2.0, 30.0), 3, 15.0);
+  // Joints are only open in places, so blocks merge into larger slabs of irregular size.
+  float open2 = smoothstep(0.34, 0.58, pfbm(q, vec2(4.0, 3.0), 2, 23.0));
+  float open3 = smoothstep(0.46, 0.7, pfbm(q, vec2(8.0, 6.0), 2, 29.0));
+  float j1 = smoothstep(0.0, 0.07, b1.x);
+  float j2 = mix(1.0, smoothstep(0.0, 0.08, b2.x), open2);
+  float j3 = mix(1.0, smoothstep(0.0, 0.11, b3.x), open3);
+  float t1 = 0.5 + (b1.y - 0.5) * 0.8 + r1.x * (b1.z - 0.5) * 0.9;
+  float t2 = 0.5 + mix(0.0, (b2.y - 0.5) * 0.7 + dot(r2, vec2(b2.z - 0.5, b2.w - 0.5)) * 1.2, open2);
+  float t3 = 0.5 + (b3.y - 0.5) * 0.4 + dot(r3, vec2(b3.z - 0.5, b3.w - 0.5)) * 1.6;
+  float t4 = 0.5 + dot(r4, vec2(b4.z - 0.5, b4.w - 0.5)) * 1.7;
+  h = saturate(0.26 * t1 * j1 + 0.22 * t2 * j2 + 0.22 * t3 * j3 + 0.1 * t4 + 0.1 * flute + 0.05 * grain + 0.03 * beds);
+  vec3 cream = srgb(0.74, 0.7, 0.62), grey = srgb(0.56, 0.56, 0.55), warm = srgb(0.68, 0.56, 0.43), dark = srgb(0.3, 0.28, 0.27), pale = srgb(0.8, 0.78, 0.72);
+  col = mix(grey, cream, smoothstep(0.2, 0.8, 0.5 * b2.w + 0.3 * b1.w + 0.2 * b3.w));
+  col = mix(col, warm, smoothstep(0.52, 0.82, pfbm(q, vec2(3.0, 5.0), 3, 17.0)) * 0.5);
+  col = mix(col, pale, smoothstep(0.6, 0.85, pfbm(q, vec2(5.0, 9.0), 3, 31.0)) * 0.35);
+  col *= 0.94 + 0.14 * (beds - 0.5);
+  col *= 0.9 + 0.2 * b4.y;
+  col *= mix(0.7, 1.0, j1) * mix(0.78, 1.0, j2) * mix(0.86, 1.0, j3);
+  col *= 0.84 + 0.28 * smoothstep(0.15, 0.8, h);
+  float streak = pfbm(uv + vec2(0.0, wa * 0.06), vec2(42.0, 2.0), 3, 19.0);
+  col = mix(col, dark, smoothstep(0.58, 0.84, streak) * 0.42);
+  col *= 0.87 + 0.26 * grain;
   rough = 0.9;
 }`;
 
@@ -165,11 +206,11 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
 export const TERRAIN_MATERIALS = [
   { name: 'grass', code: grass, bump: 2.5 },
   { name: 'soil', code: soil, bump: 7 },
-  { name: 'rock', code: rock, bump: 11 },
+  { name: 'rock', code: rock, bump: 24, aoStrength: 0.4 },
   { name: 'moss', code: moss, bump: 6 },
   { name: 'pebble', code: pebble, bump: 9 },
   { name: 'litter', code: litter, bump: 5 },
   { name: 'snow', code: snow, bump: 3 },
-  { name: 'rockFar', code: rockFar, bump: 14 },
+  { name: 'rockFar', code: rockFar, bump: 22, aoRadius: 4, aoStrength: 0.33 },
   { name: 'meadowFar', code: meadowFar, bump: 5 },
 ];

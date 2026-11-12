@@ -198,22 +198,53 @@ uniform sampler2DArray uTB;
 ${LAYER_DEFINES}
 uniform sampler2D uNoise;
 uniform sampler2D uPathTex;
+uniform float uFrame;
 in vec3 vWorld;
 
 void layerAt(float layer, vec2 p, vec2 dpx, vec2 dpy, float s, out vec4 A, out vec4 B) {
   A = textureGrad(uTA, vec3(p / s, layer), dpx / s, dpy / s);
   B = textureGrad(uTB, vec3(p / s, layer), dpx / s, dpy / s);
 }
-// Cliff rock: the close-up layer hands over to a dedicated far layer, which itself steps up
-// in scale again past a kilometre, so the faces keep believable structure at any range.
-void rockSample(vec2 p, float dist, out vec4 A, out vec4 B) {
+// Cliff rock. The far layer carries the pillars, joints and blocks at every range; the close
+// layer adds fracture detail on top, and past a kilometre a coarser copy keeps the faces
+// alive. p is the position on the projection plane in metres, sunP the sun direction in that
+// plane and sunN its part along the outward normal, used to let the relief shadow itself.
+const float ROCK_TILE = 130.0;
+const float ROCK_DEPTH = 5.6;
+void rockSample(vec2 p, float dist, vec2 sunP, float sunN, out vec4 A, out vec4 B, out vec2 nrm, out float shade) {
   vec2 dpx = dFdx(p), dpy = dFdy(p);
-  float f1 = smoothstep(45.0, 150.0, dist), f2 = smoothstep(700.0, 1600.0, dist);
+  float near = 1.0 - smoothstep(60.0, 220.0, dist), far = smoothstep(700.0, 1600.0, dist);
   vec4 a, b;
-  A = vec4(0.0); B = vec4(0.0);
-  if (f1 < 1.0) { layerAt(L_ROCK, p, dpx, dpy, 9.0, a, b); A += a * (1.0 - f1); B += b * (1.0 - f1); }
-  if (f1 > 0.0 && f2 < 1.0) { layerAt(L_ROCKFAR, p, dpx, dpy, 130.0, a, b); A += a * f1 * (1.0 - f2); B += b * f1 * (1.0 - f2); }
-  if (f2 > 0.0) { layerAt(L_ROCKFAR, p + 211.0, dpx, dpy, 620.0, a, b); A += a * f2; B += b * f2; }
+  layerAt(L_ROCKFAR, p, dpx, dpy, ROCK_TILE, A, B);
+  float h0 = A.a;
+  nrm = B.rg * 2.0 - 1.0;
+  if (far > 0.0) {
+    layerAt(L_ROCKFAR, p + 211.0, dpx, dpy, 620.0, a, b);
+    A = mix(A, a, far); B.ba = mix(B.ba, b.ba, far); nrm = mix(nrm, b.rg * 2.0 - 1.0, far);
+  }
+  if (near > 0.0) {
+    layerAt(L_ROCK, p, dpx, dpy, 9.0, a, b);
+    A.rgb *= mix(vec3(1.0), a.rgb * 2.0, near);
+    A.a = mix(A.a, A.a * 0.8 + a.a * 0.2, near);
+    B.b = mix(B.b, b.b, near * 0.5); B.a *= mix(1.0, b.a, near);
+    nrm += (b.rg * 2.0 - 1.0) * near * 0.85;
+  }
+  shade = 1.0;
+  if (sunN > 0.0 && far < 1.0) {
+    float lp = max(length(sunP), 1e-3);
+    vec2 dir = sunP / lp;
+    float rise = sunN / lp;                                   // climb per metre along the face
+    float reach = min(ROCK_DEPTH * (1.02 - h0) / max(rise, 0.04), 22.0);
+    float lod = max(0.5 * log2(max(dot(dpx, dpx), dot(dpy, dpy))) + log2(1024.0 / ROCK_TILE), 0.0);
+    float jit = fract(ign(gl_FragCoord.xy) + uFrame * 0.618);
+    float occ = 0.0;
+    for (int i = 0; i < 6; i++) {
+      float s = reach * (float(i) + jit) / 6.0;
+      float hi = textureLod(uTA, vec3((p + dir * s) / ROCK_TILE, L_ROCKFAR), lod).a;
+      occ = max(occ, ((hi - h0) * ROCK_DEPTH - s * rise) / (0.2 + 0.1 * s));
+    }
+    shade = 1.0 - saturate(occ) * (1.0 - far);
+  }
 }
 void main() {
   vec2 xz = vWorld.xz;
@@ -228,6 +259,13 @@ void main() {
   }
   vec2 nd = nm.rg * 2.0 - 1.0;
   vec3 N = normalize(vec3(nd.x, sqrt(max(1.0 - dot(nd, nd), 0.0)), nd.y));
+  // The baked normal has one texel per metre of ground, which smears a rim down the steep
+  // face below it. Where the real face is much steeper than the map claims, trust the face.
+  vec3 Ng = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
+  if (Ng.y < 0.0) Ng = -Ng;
+  float steeper = smoothstep(0.1, 0.34, N.y - Ng.y);
+  N = normalize(mix(N, Ng, steeper));
+  nm.a = mix(nm.a, 1.0, steeper * smoothstep(0.26, 0.5, 1.0 - Ng.y));
   float curv = nm.b * 2.0 - 1.0;
   float h = vWorld.y;
 
@@ -267,22 +305,26 @@ void main() {
   TOP(L_MOSS, moss, 3.4)
   TOP(L_LITTER, litter, 2.8)
   TOP(L_SNOW, snow * (1.0 - cliff), 6.0)
+  float relief = 1.0;
   if (rock > 0.004) {
-    // Triplanar on the two side planes so strata stay horizontal on every face.
-    vec2 bw = pow(abs(N.xz) + 1e-4, vec2(5.0));
+    // Triplanar on the two side planes so joints stay upright on every face.
+    vec2 bw = pow(abs(N.xz) + 1e-4, vec2(6.0));
     bw /= bw.x + bw.y;
-    vec3 pos = vWorld + vec3(n1.a * 9.0, 0.0, n1.r * 9.0);    // break up the bedding lines
+    vec3 pos = vWorld + vec3(n1.a * 9.0, 0.0, n1.r * 9.0);    // keep the tiling from lining up
+    vec2 t; float sh, rs = 0.0, rw = 0.0;
     if (bw.x > 0.03) {
-      rockSample(pos.zy, dist, a, b);
+      rockSample(pos.zy, dist, uSunDir.zy, uSunDir.x * sign(N.x), a, b, t, sh);
       w = rock * bw.x * (0.3 + a.a); A += a * w; B += b * w; ws += w;
-      vec2 t = b.rg * 2.0 - 1.0; Nd += w * 1.6 * vec3(0.0, t.y, t.x);
+      Nd += w * 1.5 * vec3(0.0, t.y, t.x); rs += sh * w; rw += w;
     }
     if (bw.y > 0.03) {
-      rockSample(pos.xy, dist, a, b);
+      rockSample(pos.xy, dist, uSunDir.xy, uSunDir.z * sign(N.z), a, b, t, sh);
       w = rock * bw.y * (0.3 + a.a); A += a * w; B += b * w; ws += w;
-      vec2 t = b.rg * 2.0 - 1.0; Nd += w * 1.6 * vec3(t.x, t.y, 0.0);
+      Nd += w * 1.5 * vec3(t.x, t.y, 0.0); rs += sh * w; rw += w;
     }
-  }  A /= max(ws, 1e-4); B /= max(ws, 1e-4); Nd /= max(ws, 1e-4);
+    relief = mix(1.0, rs / max(rw, 1e-4), saturate(rw / max(ws, 1e-4)));
+  }
+  A /= max(ws, 1e-4); B /= max(ws, 1e-4); Nd /= max(ws, 1e-4);
   vec3 Ns = normalize(N + Nd * 0.9);
 
   vec3 alb = A.rgb;
@@ -297,7 +339,11 @@ void main() {
   alb = mix(alb, vec3(0.9, 0.93, 0.98), snow * cliff * 0.5);
 
   float ao = B.a * (0.25 + 0.75 * aoM) * (1.0 - 0.3 * saturate(curv * 1.5));
-  float vis = sunVisibility(vWorld + N * 0.35 + uSunDir * 0.25);
+  // On a steep face one shadow-map texel spans many metres of height, so a shadow lying on
+  // the ledge above would smear down the wall. Look the shadow up a texel out from the face.
+  float texel = mix(REGION_SIZE / ${WORLD.regionRes.toFixed(1)}, CORE_SIZE / ${WORLD.coreRes.toFixed(1)}, cw);
+  vec3 out_ = vec3(N.x, 0.0, N.z) * (1.5 * texel * smoothstep(0.3, 0.7, 1.0 - N.y) / max(length(N.xz), 1e-3));
+  float vis = sunVisibility(vWorld + N * 0.35 + out_ + uSunDir * 0.25) * relief;
   vec3 col = shadeSurface(alb, rough, 0.0, Ns, V, vis, ao, 0.0);
   gl_FragColor = vec4(col, 1.0);
 }`;

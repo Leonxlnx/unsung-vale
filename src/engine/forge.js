@@ -82,28 +82,33 @@ uniform sampler2DArray uA;
 uniform float uLayer;
 uniform float uBump;
 uniform float uRes;
+uniform float uAoR;
+uniform float uAoS;
 float H(vec2 uv) { return textureLod(uA, vec3(uv, uLayer), 0.0).a; }
+// Slopes come from the material itself: the stored height has only 8 bits, which would
+// terrace every gentle ramp into contour lines.
+float HM(vec2 uv) { float h; vec3 c; float r; material(uv, h, c, r); return saturate(h); }
 void main() {
   float h; vec3 col; float rough;
   material(vUv, h, col, rough);
   float e = 1.0 / uRes;
-  float hl = H(vUv - vec2(e, 0.0)), hr = H(vUv + vec2(e, 0.0)), hd = H(vUv - vec2(0.0, e)), hu = H(vUv + vec2(0.0, e));
+  float hl = HM(vUv - vec2(e, 0.0)), hr = HM(vUv + vec2(e, 0.0)), hd = HM(vUv - vec2(0.0, e)), hu = HM(vUv + vec2(0.0, e));
   vec3 n = normalize(vec3((hl - hr) * uBump, (hd - hu) * uBump, 1.0));
   // Cavity occlusion: how far this texel sits below a ring of neighbours.
   float occ = 0.0;
   for (int i = 0; i < 12; i++) {
     float a = float(i) * 0.5236;
-    float r = (i % 2 == 0) ? 5.0 : 13.0;
+    float r = ((i % 2 == 0) ? 5.0 : 13.0) * uAoR;
     occ += max(H(vUv + vec2(cos(a), sin(a)) * r * e) - h, 0.0);
   }
-  float ao = saturate(1.0 - occ / 12.0 * uBump * 0.9);
+  float ao = saturate(1.0 - occ / 12.0 * uBump * 0.9 * uAoS);
   outColor = vec4(n.xy * 0.5 + 0.5, saturate(rough), ao);
 }`;
 
 export class TextureForge {
   constructor(renderer) { this.renderer = renderer; }
 
-  // materials: [{ name, code, bump }]. Returns { a, b, index } with array textures.
+  // materials: [{ name, code, bump, aoRadius, aoStrength }]. Returns { a, b, index } with array textures.
   bake(materials, size = 1024) {
     const r = this.renderer, n = materials.length;
     const mk = (srgb) => {
@@ -127,7 +132,7 @@ export class TextureForge {
       pa.dispose();
     });
     materials.forEach((m, i) => {
-      const pb = new FullscreenPass({ fragment: PASS_B(m.code), uniforms: { uA: { value: A.texture }, uLayer: { value: i }, uBump: { value: m.bump ?? 6 }, uRes: { value: size } } });
+      const pb = new FullscreenPass({ fragment: PASS_B(m.code), uniforms: { uA: { value: A.texture }, uLayer: { value: i }, uBump: { value: m.bump ?? 6 }, uRes: { value: size }, uAoR: { value: m.aoRadius ?? 1 }, uAoS: { value: m.aoStrength ?? 1 } } });
       r.setRenderTarget(B, i);
       r.render(pb.mesh, _cam);
       pb.dispose();

@@ -176,6 +176,7 @@ uniform sampler3D uNoiseBase;
 uniform sampler3D uNoiseDetail;
 uniform sampler2D uWeather;
 uniform sampler2D uAtmo;
+uniform int uSteps;
 
 const float CLOUD_BOTTOM = 2300.0;
 const float CLOUD_TOP = 5200.0;
@@ -224,10 +225,9 @@ void main() {
   float T = 1.0, wsum = 0.0, dist = 0.0;
   vec3 L = vec3(0.0);
   if (t1 > t0) {
-    const int N = 44;
-    float dt = (t1 - t0) / float(N);
-    for (int i = 0; i < N; i++) {
-      if (T < 0.015) break;
+    float dt = (t1 - t0) / float(uSteps);
+    for (int i = 0; i < 96; i++) {
+      if (i >= uSteps || T < 0.015) break;
       float t = t0 + (float(i) + jitter) * dt;
       vec3 p = ro + rd * t;
       float d = cloudDensity(p, true);
@@ -275,6 +275,16 @@ void main() {
   outColor = vec4(max(cl + cc * (1.0 - a), 0.0), 1.0 - (1.0 - a) * (1.0 - ca));
 }`;
 
+// The march is jittered per texel; a 3x3 box filter averages that dither back out.
+const CLOUD_FILTER = /* glsl */ `
+uniform sampler2D uSrc;
+uniform vec2 uTexel;
+void main() {
+  vec4 c = vec4(0.0);
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) c += textureLod(uSrc, vUv + vec2(float(x), float(y)) * uTexel, 0.0);
+  outColor = c / 9.0;
+}`;
+
 // GLSL for reading the sky from other shaders.
 export const SKY_SAMPLE = /* glsl */ `
 ${CLOUD_MAP}
@@ -288,7 +298,28 @@ vec4 sampleClouds(vec3 d) {
   vec2 uv = dirToCloudUv(d);
   return mix(textureLod(uCloudA, uv, 0.0), textureLod(uCloudB, uv, 0.0), uCloudMix);
 }
+// B-spline lookup in four bilinear taps: hides the texel grid when the sky is magnified.
+uniform vec2 uCloudRes;
+vec4 cubicTap(sampler2D tex, vec2 uv) {
+  vec2 st = uv * uCloudRes - 0.5, i = floor(st), f = st - i, f2 = f * f, f3 = f2 * f;
+  vec2 w0 = (1.0 - 3.0 * f + 3.0 * f2 - f3) / 6.0, w1 = (4.0 - 6.0 * f2 + 3.0 * f3) / 6.0;
+  vec2 w3 = f3 / 6.0, w2 = 1.0 - w0 - w1 - w3;
+  vec2 g0 = w0 + w1, g1 = w2 + w3;
+  vec2 h0 = (i - 0.5 + w1 / g0) / uCloudRes, h1 = (i + 1.5 + w3 / g1) / uCloudRes;
+  return (textureLod(tex, vec2(h0.x, h0.y), 0.0) * g0.x + textureLod(tex, vec2(h1.x, h0.y), 0.0) * g1.x) * g0.y
+       + (textureLod(tex, vec2(h0.x, h1.y), 0.0) * g0.x + textureLod(tex, vec2(h1.x, h1.y), 0.0) * g1.x) * g1.y;
+}
+vec4 sampleCloudsSmooth(vec3 d) {
+  if (d.y <= 0.0) return vec4(0.0);
+  vec2 uv = dirToCloudUv(d);
+  return mix(cubicTap(uCloudA, uv), cubicTap(uCloudB, uv), uCloudMix);
+}
 // rgb = sky radiance, a = how much of the sun disc survives the clouds.
+vec4 sampleSkySmooth(vec3 d) {
+  vec3 atmo = textureLod(uSkyAtmo, dirToSky(d), 0.0).rgb;
+  vec4 c = sampleCloudsSmooth(d);
+  return vec4(atmo * (1.0 - c.a) + c.rgb, 1.0 - c.a);
+}
 vec4 sampleSky(vec3 d) {
   vec3 atmo = textureLod(uSkyAtmo, dirToSky(d), 0.0).rgb;
   vec4 c = sampleClouds(d);
@@ -350,6 +381,7 @@ export class Sky {
     };
     this.cloudFront = cloudTarget();
     this.cloudBack = cloudTarget();
+    this.cloudRaw = cloudTarget();          // the march lands here, then is filtered into the back buffer
     this.env = makeTarget(256, 128, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
     this.env.texture.wrapS = THREE.RepeatWrapping;
     this.tiny = makeTarget(32, 16, { type: THREE.FloatType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
@@ -378,6 +410,7 @@ export class Sky {
         uCoverage: { value: 0.58 },
         uDensity: { value: 0.045 },
         uSeed: { value: 0 },
+        uSteps: { value: opts.cloudSteps ?? 44 },
         uAmbTop: { value: this.ambTop },
         uAmbBottom: { value: this.ambBottom },
         uNoiseBase: { value: this.noiseBase.texture },
@@ -387,12 +420,15 @@ export class Sky {
       },
     });
 
+    this.cloudFilter = new FullscreenPass({ fragment: CLOUD_FILTER, uniforms: { uSrc: { value: this.cloudRaw.texture }, uTexel: { value: new THREE.Vector2(1 / this.cloudW, 1 / this.cloudH) } } });
+
     // Uniforms that the rest of the engine reads.
     this.uniforms = {
       uSkyAtmo: { value: this.atmo.texture },
       uCloudA: { value: this.cloudFront.texture },
       uCloudB: { value: this.cloudBack.texture },
       uCloudMix: { value: 1 },
+      uCloudRes: { value: new THREE.Vector2(this.cloudW, this.cloudH) },
       uSkyEnv: { value: this.env.texture },
     };
     this.resolve = new FullscreenPass({ fragment: RESOLVE, uniforms: this.uniforms });
@@ -441,6 +477,19 @@ export class Sky {
 
   invalidate() { this.ready = false; }
 
+  // Cloud panorama size and march quality. Bigger is sharper but takes longer to refresh.
+  setCloudQuality(width, steps = 44) {
+    const height = width / 4;
+    this.cloudBake.uniforms.uSteps.value = steps;
+    if (width === this.cloudW) return;
+    this.cloudW = width; this.cloudH = height;
+    for (const t of [this.cloudFront, this.cloudBack, this.cloudRaw]) t.setSize(width, height);
+    this.cloudFilter.uniforms.uTexel.value.set(1 / width, 1 / height);
+    this.uniforms.uCloudRes.value.set(width, height);
+    this._bakeTarget = null; this.mix = 1;
+    this.invalidate();
+  }
+
   _bakeAtmosphere() {
     // 32 scissored tiles of about 1.5 ms each.
     for (let y = 0; y < 512; y += 128) for (let x = 0; x < 1024; x += 128) this.atmoBake.renderRegion(this.renderer, this.atmo, x, y, 128, 128);
@@ -456,13 +505,14 @@ export class Sky {
   }
 
   _startSweep(time) {
-    this._bakeTarget = this.cloudBack;
+    this._bakeTarget = this.cloudRaw;
     this.cloudBake.uniforms.uCloudTime.value = time;
     this.cloudBake.uniforms.uSeed.value = (this._sweep % 16) * 7.31;
     this.cursor = 0;
   }
 
   _finishSweep(instant) {
+    this.cloudFilter.render(this.renderer, this.cloudBack);
     [this.cloudFront, this.cloudBack] = [this.cloudBack, this.cloudFront];
     this.uniforms.uCloudA.value = this.cloudBack.texture;    // previous clouds
     this.uniforms.uCloudB.value = this.cloudFront.texture;   // newest clouds
@@ -478,7 +528,8 @@ export class Sky {
     this._bakeAtmosphere();
     for (let pass = 0; pass < 2; pass++) {
       this._startSweep(this.cloudTime);
-      while (!this._bakeCloudTiles(8)) { /* small scissored draws */ }
+      const gl = this.renderer.getContext();
+      while (!this._bakeCloudTiles(64)) gl.flush();      // small scissored draws, handed over in batches
       this._finishSweep(true);
       this.uniforms.uCloudMix.value = 1;
       this.resolve.render(this.renderer, this.env);

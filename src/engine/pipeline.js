@@ -18,7 +18,7 @@ uniform vec3 uSunColor;
 void main() {
   vec4 v = uProjInv * vec4(vUv * 2.0 - 1.0, 0.5, 1.0);
   vec3 rd = normalize((uCamWorld * vec4(normalize(v.xyz / v.w), 0.0)).xyz);
-  vec4 s = sampleSky(rd);
+  vec4 s = sampleSkySmooth(rd);
   vec3 col = s.rgb;
   // Sun disc with limb darkening, dimmed by the cloud transmittance stored in alpha.
   float ang = acos(clamp(dot(rd, uSunDir), -1.0, 1.0));
