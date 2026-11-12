@@ -29,6 +29,12 @@ export class CameraRig {
     this.yaw -= input.look.x;
     this.pitch = Math.max(-1.15, Math.min(1.05, this.pitch - input.look.y));
     if (input.zoom) this.distance = Math.max(2.4, Math.min(16, this.distance * (1 + input.zoom * 0.1)));
+    // Riding a string: the view pulls back and, left alone, comes round to look ahead.
+    const riding = player.state === 'ride';
+    this.far = (this.far ?? 1) + ((riding ? 1.3 : 1) - (this.far ?? 1)) * (1 - Math.exp(-2.2 * dt));
+    this.idleLook = input.look.x || input.look.y ? 0 : (this.idleLook ?? 0) + dt;
+    if (riding && this.idleLook > 1) { const d = Math.atan2(Math.sin(player.yaw - this.yaw), Math.cos(player.yaw - this.yaw)); this.yaw += d * Math.min(1, 1.4 * dt); this.pitch += (-0.16 - this.pitch) * Math.min(1, 1.2 * dt); }
+    const distance = this.distance * this.far;
 
     const target = player.lockTarget;
     if (target) {
@@ -55,8 +61,8 @@ export class CameraRig {
     _pivot.addScaledVector(_right, Math.max(0, side));
 
     _dir.negate();
-    const free = this.world.raycast(_pivot, _dir, this.distance + 0.4) - 0.3;
-    const wantDist = Math.max(0.7, Math.min(this.distance, free));
+    const free = this.world.raycast(_pivot, _dir, distance + 0.4) - 0.3;
+    const wantDist = Math.max(0.7, Math.min(distance, free));
     // Pull in instantly, ease back out.
     this.current = wantDist < this.current ? wantDist : this.current + (wantDist - this.current) * (1 - Math.exp(-4 * dt));
     _want.copy(_pivot).addScaledVector(_dir, this.current);
@@ -71,7 +77,7 @@ export class CameraRig {
     this.camera.lookAt(_want.x + _dir.x, _want.y + _dir.y, _want.z + _dir.z);
     this.camera.rotateZ(Math.sin(this.time * 47) * s * 0.06);
 
-    const fovWant = this.baseFov + (player.sprinting ? 7 : 0) + (player.state === 'roll' ? 3 : 0);
+    const fovWant = this.baseFov + (player.sprinting ? 7 : 0) + (player.state === 'roll' ? 3 : 0) + (riding ? 9 : 0);
     this.fov += (fovWant - this.fov) * (1 - Math.exp(-5 * dt));
     if (Math.abs(this.camera.fov - this.fov) > 0.01) { this.camera.fov = this.fov; this.camera.updateProjectionMatrix(); }
   }

@@ -10,8 +10,8 @@ import { TERRAIN_SAMPLING } from '../world/terrain.js';
 import { mulberry32 } from '../util/noise.js';
 
 const SHARD_VERT = /* glsl */ `
-in vec2 iGlow;     // x: glow 0..1+, y: dissolve 0..1
-out vec3 vWorld; out vec2 vGlow; out vec3 vLocal;
+in vec3 iGlow;     // x: glow 0..1+, y: dissolve 0..1, z: tint (0 the Mute's violet, 1 an elite's ember red)
+out vec3 vWorld; out vec3 vGlow; out vec3 vLocal;
 void main() {
   vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
   vWorld = w.xyz; vGlow = iGlow; vLocal = position;
@@ -27,7 +27,7 @@ ${TERRAIN_SAMPLING}
 ${LIGHTING}
 uniform float uTime;
 uniform float uFrame;
-in vec3 vWorld; in vec2 vGlow; in vec3 vLocal;
+in vec3 vWorld; in vec3 vGlow; in vec3 vLocal;
 void main() {
   if (vGlow.y > 0.0 && ign(gl_FragCoord.xy + uFrame * 5.588) < vGlow.y) discard;
   // Facet normal straight from the geometry so every face is a clean plane.
@@ -38,12 +38,13 @@ void main() {
   // Dark glass with a faint oil-film sheen that shifts from violet to teal across each facet.
   float ndv = saturate(dot(N, V));
   vec3 base = mix(vec3(0.16, 0.13, 0.26), vec3(0.1, 0.2, 0.24), smoothstep(0.2, 0.9, ndv));
+  base = mix(base, vec3(0.2, 0.1, 0.09), vGlow.z * 0.7);
   vec3 col = shadeSurface(base, 0.14, 0.92, N, V, vis, 1.0, 0.0);
   // Light bleeding through the edges and along inner fractures, so the figure keeps a
   // bright outline even where the silence has drained the colour around it.
   float fres = pow(1.0 - ndv, 3.0);
   float vein = smoothstep(0.7, 0.95, vnoise3(vLocal * vec3(9.0, 3.0, 9.0) + uTime * 0.2));
-  vec3 violet = vec3(0.62, 0.24, 1.0);
+  vec3 violet = mix(vec3(0.62, 0.24, 1.0), vec3(1.0, 0.34, 0.16), vGlow.z);
   col += violet * (fres * 1.7 + vein * 0.9) * (0.55 + vGlow.x * 1.5);
   col += vec3(0.8, 0.85, 1.0) * pow(fres, 3.0) * 0.6;
   col += vec3(0.9, 0.7, 1.0) * max(vGlow.x - 1.0, 0.0) * 0.9;
@@ -110,21 +111,37 @@ const CHORISTER = [
   ...Array.from({ length: 10 }, (_, k) => { const a = (k / 10) * 6.283; return S(Math.cos(a) * 0.95, 3.45, Math.sin(a) * 0.95, Math.cos(a), 0.25, Math.sin(a), 0.5, 0.13, 'halo'); }),
 ];
 
+const SOVEREIGN = [
+  ...COLOSSUS.map((s) => S(s.p.x * 1.22, s.p.y * 1.22, s.p.z * 1.22, s.d.x, s.d.y, s.d.z, s.len * 1.22, s.th * 1.22, s.tag)),
+  ...Array.from({ length: 14 }, (_, k) => { const a = (k / 14) * 6.283; return S(Math.cos(a) * 2.5, 7.6, Math.sin(a) * 2.5, Math.cos(a), 0.5, Math.sin(a), 1.25, 0.26, 'halo'); }),
+  ...Array.from({ length: 4 }, (_, k) => S((k - 1.5) * 1.3, 5.6, -1.5, (k - 1.5) * 0.5, 1, -0.9, 2.2, 0.34, 'spine')),
+];
+
+// A stronger one of a kind: bigger, tougher, its light the colour of embers.
+function derive(base, m) {
+  const sc = m.scale ?? 1;
+  return { ...base, hp: Math.round(base.hp * (m.hp ?? 1)), damage: Math.round(base.damage * (m.dmg ?? 1)), speed: base.speed * (m.speed ?? 1), poise: base.poise * (m.poise ?? m.hp ?? 1),
+    radius: base.radius * sc, core: base.core * sc, core0: base.core, hover: base.hover, reach: base.ranged ? base.reach : base.reach * (0.55 + 0.45 * sc),
+    windup: base.windup * (m.windup ?? 1), recover: base.recover * (m.recover ?? 1), name: m.name ?? base.name, xp: Math.round((base.xp ?? 10) * (m.xp ?? m.hp ?? 1)) };
+}
+
 export const KINDS = {
-  hound:     { slots: HOUND, hp: 36, speed: 6.4, reach: 2.4, windup: 0.42, strike: 0.26, recover: 0.7, damage: 11, poise: 16, radius: 0.5, sight: 30, hover: 0.12, core: 0.8, circle: true, lunge: 19, name: 'Mute Hound' },
-  warden:    { slots: WARDEN, hp: 150, speed: 2.3, reach: 3.1, windup: 0.85, strike: 0.22, recover: 1.0, damage: 24, poise: 80, radius: 0.8, sight: 28, hover: 0.3, core: 1.95, shield: true, name: 'Mute Warden' },
-  chorister: { slots: CHORISTER, hp: 64, speed: 2.6, reach: 20, windup: 1.1, strike: 0.2, recover: 1.6, damage: 18, poise: 26, radius: 0.6, sight: 36, hover: 1.2, core: 2.3, ranged: true, caster: true, name: 'Mute Chorister' },
-  thrall:   { slots: THRALL, hp: 62, speed: 3.6, reach: 2.3, windup: 0.56, strike: 0.2, recover: 0.75, damage: 14, poise: 30, radius: 0.55, sight: 26, hover: 0.3, core: 1.4, name: 'Mute Thrall' },
-  lancer:   { slots: LANCER, hp: 44, speed: 3.0, reach: 15, windup: 0.95, strike: 0.15, recover: 1.3, damage: 12, poise: 20, radius: 0.55, sight: 34, hover: 0.35, core: 1.62, ranged: true, name: 'Mute Lancer' },
-  colossus: { slots: COLOSSUS, hp: 560, speed: 2.5, reach: 5.2, windup: 0.95, strike: 0.25, recover: 1.15, damage: 26, poise: 150, radius: 1.5, sight: 60, hover: 0.5, core: 3.2, boss: true, name: 'The Unsung' },
+  sovereign: { slots: SOVEREIGN, hp: 1100, speed: 2.9, reach: 6.2, windup: 0.9, strike: 0.25, recover: 1.0, damage: 30, poise: 200, radius: 1.8, sight: 70, hover: 0.6, core: 3.9, boss: true, phases: 3, xp: 400, name: 'The Stillness' },
+  hound:     { slots: HOUND, hp: 36, speed: 6.4, reach: 2.4, windup: 0.42, strike: 0.26, recover: 0.7, damage: 11, poise: 16, radius: 0.5, sight: 30, hover: 0.12, core: 0.8, circle: true, lunge: 19, xp: 8, name: 'Mute Hound' },
+  warden:    { slots: WARDEN, hp: 150, speed: 2.3, reach: 3.1, windup: 0.85, strike: 0.22, recover: 1.0, damage: 24, poise: 80, radius: 0.8, sight: 28, hover: 0.3, core: 1.95, shield: true, xp: 26, name: 'Mute Warden' },
+  chorister: { slots: CHORISTER, hp: 64, speed: 2.6, reach: 20, windup: 1.1, strike: 0.2, recover: 1.6, damage: 18, poise: 26, radius: 0.6, sight: 36, hover: 1.2, core: 2.3, ranged: true, caster: true, xp: 18, name: 'Mute Chorister' },
+  thrall:   { slots: THRALL, hp: 62, speed: 3.6, reach: 2.3, windup: 0.56, strike: 0.2, recover: 0.75, damage: 14, poise: 30, radius: 0.55, sight: 26, hover: 0.3, core: 1.4, xp: 10, name: 'Mute Thrall' },
+  lancer:   { slots: LANCER, hp: 44, speed: 3.0, reach: 15, windup: 0.95, strike: 0.15, recover: 1.3, damage: 12, poise: 20, radius: 0.55, sight: 34, hover: 0.35, core: 1.62, ranged: true, xp: 12, name: 'Mute Lancer' },
+  colossus: { slots: COLOSSUS, hp: 560, speed: 2.5, reach: 5.2, windup: 0.95, strike: 0.25, recover: 1.15, damage: 26, poise: 150, radius: 1.5, sight: 60, hover: 0.5, core: 3.2, boss: true, phases: 2, xp: 200, name: 'The Unsung' },
 };
 
 const _toP = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0), _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _m = new THREE.Matrix4(), _s = new THREE.Vector3(), _e = new THREE.Euler();
 
 class Enemy {
-  constructor(kind, x, y, z, seed, group) {
-    this.kind = kind; this.def = KINDS[kind]; this.group = group;
+  constructor(kind, x, y, z, seed, group, mods = null) {
+    this.kind = kind; this.def = mods ? derive(KINDS[kind], mods) : KINDS[kind]; this.group = group;
+    this.scale = mods?.scale ?? 1; this.tint = mods ? (mods.tint ?? 1) : 0; this.elite = !!mods?.elite; this.phase = 0;
     this.pos = new THREE.Vector3(x, y, z); this.home = this.pos.clone();
     this.yaw = seed * 6.283; this.vel = new THREE.Vector3();
     this.hp = this.def.hp; this.poise = this.def.poise;
@@ -148,7 +165,7 @@ export class Enemies {
     this.list = []; this.projectiles = []; this.events = []; this.blasts = [];
     this.max = 960;
     const geo = shardGeometry();
-    this.glowAttr = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 2), 2);
+    this.glowAttr = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 3), 3);
     this.glowAttr.setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('iGlow', this.glowAttr);
     const mat = new THREE.ShaderMaterial({ vertexShader: SHARD_VERT, fragmentShader: SHARD_FRAG, defines: pipe.depthDefines, uniforms: pipe.lit(), side: THREE.DoubleSide });
@@ -163,10 +180,12 @@ export class Enemies {
     pipe.shadows.scene.add(this.shadowMesh);
   }
 
-  spawn(kind, x, z, group = 'world') {
+  // near: a height to look for the floor from (a court built out over the water has its
+  // floor far above the ground under it).
+  spawn(kind, x, z, group = 'world', mods = null, near = null) {
     // Start from just above the ground so nothing ends up on a roof or an arch.
-    const y = this.world.floorBelow(x, this.world.groundHeight(x, z) + 2.5, z, 6);
-    const e = new Enemy(kind, x, y, z, Math.random(), group);
+    const y = this.world.floorBelow(x, (near ?? this.world.groundHeight(x, z)) + 2.5, z, 6);
+    const e = new Enemy(kind, x, y, z, Math.random(), group, mods);
     this.list.push(e);
     return e;
   }
@@ -209,6 +228,8 @@ export class Enemies {
 
   update(dt, player, time) {
     const P = this.particles, W = this.world;
+    let melee = 0;
+    for (const e of this.list) if (e.alive && !e.def.ranged && (e.state === 'windup' || e.state === 'strike')) melee++;
     for (const e of this.list) {
       const d = e.def;
       e.t += dt;
@@ -236,12 +257,21 @@ export class Enemies {
           } else if (d.circle && dist < 8.5) {
             // Round the hero at a few paces, then in.
             const s = (e.orbit ??= e.seed < 0.5 ? 1 : -1), inw = dist > 5.5 ? 0.7 : dist < 3.6 ? -0.5 : 0.05;
-            if (e.t > 1.1 + e.seed * 1.3 && dist < 6.5) { e.state = 'windup'; e.t = 0; e.attackKind = 0; this.events.push({ type: 'charge', enemy: e }); }
+            if (e.t > 1.1 + e.seed * 1.3 && dist < 6.5 && melee < 2) { melee++; e.state = 'windup'; e.t = 0; e.attackKind = 0; this.events.push({ type: 'charge', enemy: e }); }
             else { const tx = -toP.z * s, tz = toP.x * s; toP.set(tx * 0.9 + toP.x * inw, 0, tz * 0.9 + toP.z * inw).normalize(); wantSpeed = d.speed * 0.8; }
           } else {
-            if (dist > d.reach * 0.82) wantSpeed = d.speed;
-            else if (e.t > 0.25) { e.state = 'windup'; e.t = 0; e.attackKind = d.boss ? Math.floor(Math.random() * 2) : 0; this.events.push({ type: 'charge', enemy: e }); }
-            if (d.boss && dist > 12 && e.t > 2.5) { e.state = 'windup'; e.t = 0; e.attackKind = 2; this.events.push({ type: 'charge', enemy: e }); }
+            if (dist > d.reach * 0.82) wantSpeed = d.speed * (1 + 0.16 * e.phase);
+            else if (e.t > 0.25 && (d.boss || melee < 2)) { melee++; e.state = 'windup'; e.t = 0; e.attackKind = d.boss ? (e.phase > 0 && Math.random() < 0.22 * e.phase ? 3 : Math.floor(Math.random() * 2)) : 0; this.events.push({ type: 'charge', enemy: e }); }
+            else if (!d.boss && e.t > 0.25) {
+              // Waiting its turn: it prowls round him instead of standing in a queue.
+              const sgn = (e.orbit ??= e.seed < 0.5 ? 1 : -1); toP.set(-toP.z * sgn, 0, toP.x * sgn); wantSpeed = d.speed * 0.45;
+            }
+            if (d.boss && dist > 12 && e.t > 2.5) { e.state = 'windup'; e.t = 0; e.attackKind = e.phase > 0 && Math.random() < 0.5 ? 3 : 2; this.events.push({ type: 'charge', enemy: e }); }
+            // A wounded giant changes its song: a roar that calls others to it, then new blows.
+            if (d.phases) {
+              const ph = Math.min(d.phases - 1, Math.floor((1 - e.hp / d.hp) * d.phases));
+              if (ph > e.phase) { e.phase = ph; e.state = 'windup'; e.t = 0; e.attackKind = 4; this.events.push({ type: 'charge', enemy: e }); this.events.push({ type: 'phase', enemy: e, phase: ph }); }
+            }
           }
         } else if (e.state === 'return') {
           const h = _v.copy(e.home).sub(e.pos); h.y = 0; const hd = h.length();
@@ -252,16 +282,24 @@ export class Enemies {
           if (e.t >= d.windup) { e.state = 'strike'; e.t = 0; e.didHit = false; this.events.push({ type: 'attack', enemy: e }); }
         } else if (e.state === 'strike') {
           const f = _v2.set(Math.sin(e.yaw), 0, Math.cos(e.yaw));
-          if (d.caster) {
+          if (d.caster || e.attackKind === 3) {
             if (!e.didHit) {
               e.didHit = true;
-              // Where he stands now, and where he is heading: two marks, a breath apart.
-              for (const [lead, wait] of [[0, 1.05], [0.55, 1.5]]) {
-                const b = { x: player.pos.x + player.vel.x * lead, z: player.pos.z + player.vel.z * lead, t: wait, r: 2.7, dmg: d.damage, y: 0 };
+              // Where he stands now, and where he is heading: two marks, a breath apart. A giant
+              // rings him in as well: a circle of marks, and in its last fury a second, wider one.
+              const marks = [[0, 1.05, 0, 0], [0.55, 1.5, 0, 0]];
+              if (d.boss) {
+                for (let k = 0; k < 6; k++) marks.push([0, 1.7, 5.4, (k / 6) * 6.283 + e.t]);
+                if (e.phase > 1) for (let k = 0; k < 9; k++) marks.push([0, 2.3, 10, (k / 9) * 6.283]);
+              }
+              for (const [lead, wait, rr, an] of marks) {
+                const b = { x: player.pos.x + player.vel.x * lead + Math.cos(an) * rr, z: player.pos.z + player.vel.z * lead + Math.sin(an) * rr, t: wait, r: d.boss ? 3.0 : 2.7, dmg: Math.round(d.damage * (d.boss ? 0.7 : 1)), y: 0 };
                 b.y = W.floorBelow(b.x, player.pos.y + 1.5, b.z, 6);
                 this.blasts.push(b); this.events.push({ type: 'blastMark', blast: b, enemy: e });
               }
             }
+          } else if (e.attackKind === 4) {
+            if (!e.didHit) { e.didHit = true; this.events.push({ type: 'summon', enemy: e, phase: e.phase }); }
           } else if (d.ranged || e.attackKind === 2) {
             if (!e.didHit) {
               e.didHit = true;
@@ -292,7 +330,7 @@ export class Enemies {
           }
           if (e.t >= d.strike) { e.state = 'recover'; e.t = 0; e.slamFx = false; }
         } else if (e.state === 'recover') {
-          if (e.t >= d.recover) { e.state = 'chase'; e.t = 0; }
+          if (e.t >= d.recover * (1 - 0.16 * e.phase)) { e.state = 'chase'; e.t = 0; }
         } else if (e.state === 'stagger') {
           if (e.t >= (d.boss ? 1.4 : 0.6)) { e.state = 'chase'; e.t = 0; }
         }
@@ -368,7 +406,7 @@ export class Enemies {
     let n = 0;
     for (const e of this.list) {
       const d = e.def, cy = Math.cos(e.yaw), sy = Math.sin(e.yaw);
-      const hover = d.hover + Math.sin(time * 1.7 + e.seed * 9) * 0.06;
+      const hover = d.hover + Math.sin(time * 1.7 + e.seed * 9) * 0.06, c0 = d.core0 ?? d.core, es = e.scale;
       const wind = e.state === 'windup' ? Math.min(1, e.t / d.windup) : 0;
       const strike = e.state === 'strike' ? 1 : e.state === 'recover' ? Math.max(0, 1 - e.t * 4) : 0;
       for (const sh of e.shards) {
@@ -384,9 +422,9 @@ export class Enemies {
           const t = _v.copy(s.p), dir = _v2.copy(s.d);
           t.y += hover + Math.sin(time * 2.1 + sh.phase) * 0.035;
           if (s.tag === 'mote') { const a = time * 0.9 + sh.phase; t.x += Math.cos(a) * 0.12; t.z += Math.sin(a) * 0.12; }
-          if (s.tag === 'ring') { const a = time * (1.2 + wind * 9) + sh.phase * 0; const c = Math.cos(a), sn = Math.sin(a); const x = s.p.x, y = s.p.y - d.core; t.x = x * c - y * sn; t.y = d.core + x * sn + y * c + hover; dir.set(t.x, t.y - d.core - hover, 0).normalize(); }
+          if (s.tag === 'ring') { const a = time * (1.2 + wind * 9) + sh.phase * 0; const c = Math.cos(a), sn = Math.sin(a); const x = s.p.x, y = s.p.y - c0; t.x = x * c - y * sn; t.y = c0 + x * sn + y * c + hover; dir.set(t.x, t.y - c0 - hover, 0).normalize(); }
           if (s.tag === 'spear') { t.z += -0.5 * wind + 1.2 * strike; }
-          if (s.tag === 'halo') { const a = Math.atan2(s.p.z, s.p.x) + time * (0.7 + wind * 6), r = 0.95 + 0.25 * wind; t.x = Math.cos(a) * r; t.z = Math.sin(a) * r; t.y += 0.2 * wind; dir.set(Math.cos(a), 0.25 + wind, Math.sin(a)).normalize(); }
+          if (s.tag === 'halo') { const a = Math.atan2(s.p.z, s.p.x) + time * (0.7 + wind * 6) * (d.boss ? 0.5 : 1), r = Math.hypot(s.p.x, s.p.z) * (1 + 0.26 * wind); t.x = Math.cos(a) * r; t.z = Math.sin(a) * r; t.y += 0.2 * wind; dir.set(Math.cos(a), 0.25 + wind, Math.sin(a)).normalize(); }
           if (s.tag === 'shield') { t.z += 0.15 * wind - 0.5 * strike; t.y += 0.1 * Math.sin(time * 1.3 + s.p.x * 3); }
           const right = s.tag === 'bladeR' || s.tag === 'armR', arm = right || s.tag === 'bladeL' || s.tag === 'armL';
           if (arm && !d.ranged) {
@@ -394,9 +432,10 @@ export class Enemies {
             if (e.attackKind === 1 && d.boss) { t.x += (right ? 1 : -1) * 0.9 * sc * wind * k; t.z += (1.6 * strike - 0.4 * wind) * sc * k; }
             else if (right || d.boss) { t.y += 0.95 * sc * wind * k - 0.7 * sc * strike * k; t.z += (-0.45 * wind + 1.5 * strike) * sc * k; dir.set(s.d.x, s.d.y + 1.6 * wind - 0.5 * strike, s.d.z + 1.4 * strike).normalize(); }
           }
-          if (!d.ranged && e.attackKind !== 2) t.z += (-0.24 * wind + 0.5 * strike) * (d.boss ? 2 : 1) * (s.tag === 'tail' ? 0.35 : 1);
+          if (!d.ranged && e.attackKind < 2) t.z += (-0.24 * wind + 0.5 * strike) * (d.boss ? 2 : 1) * (s.tag === 'tail' ? 0.35 : 1);
           if (strike > 0.5 && (s.tag === 'bladeR' || (d.boss && s.tag === 'bladeL'))) this.particles.spawn(sh.pos.x, sh.pos.y, sh.pos.z, { life: 0.16, size: 0.24 * (d.boss ? 2.2 : 1), color: [1.7, 0.75, 3.2], alpha: 0.6 });
-          if (e.staggerK > 0.01) t.addScaledVector(_s.copy(s.p).setY(s.p.y - d.core).normalize(), e.staggerK * 0.55 * (d.boss ? 2 : 1));
+          if (e.staggerK > 0.01) t.addScaledVector(_s.copy(s.p).setY(s.p.y - c0).normalize(), e.staggerK * 0.55 * (d.boss ? 2 : 1));
+          if (es !== 1) t.multiplyScalar(es);
           // Local to world.
           const wx = e.pos.x + t.x * cy + t.z * sy, wz = e.pos.z - t.x * sy + t.z * cy, wy = e.pos.y + t.y;
           const dx = dir.x * cy + dir.z * sy, dz = -dir.x * sy + dir.z * cy;
@@ -412,10 +451,11 @@ export class Enemies {
           }
         }
         if (n >= this.max) break;
-        _m.compose(sh.pos, sh.quat, _s.set(s.th, s.len, s.th));
+        _m.compose(sh.pos, sh.quat, _s.set(s.th * es, s.len * es, s.th * es));
         M.setMatrixAt(n, _m);
-        G[n * 2] = e.state === 'dormant' ? 0 : e.glow + (e.state === 'rise' ? 0.6 : 0);
-        G[n * 2 + 1] = e.state === 'dead' ? Math.max(0, (e.t - 1.6) / 1.5) : 0;
+        G[n * 3] = e.state === 'dormant' ? 0 : e.glow + (e.state === 'rise' ? 0.6 : 0) + 0.25 * e.tint;
+        G[n * 3 + 1] = e.state === 'dead' ? Math.max(0, (e.t - 1.6) / 1.5) : 0;
+        G[n * 3 + 2] = e.tint;
         n++;
       }
       e.snap = false;
@@ -433,7 +473,7 @@ export class Enemies {
       if (n >= this.max) break;
       _q.setFromUnitVectors(_up, _v.copy(p.vel).normalize());
       _m.compose(p.pos, _q, _s.set(0.14, 0.9, 0.14));
-      M.setMatrixAt(n, _m); G[n * 2] = 2; G[n * 2 + 1] = 0; n++;
+      M.setMatrixAt(n, _m); G[n * 3] = 2; G[n * 3 + 1] = 0; G[n * 3 + 2] = 0; n++;
     }
     M.count = n; this.shadowMesh.count = n;
     M.instanceMatrix.needsUpdate = true; this.glowAttr.needsUpdate = true;

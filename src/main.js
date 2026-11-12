@@ -22,7 +22,7 @@ import { CliffVines } from './world/flora/cliffVines.js';
 import { FloorGloss } from './world/arch/floorGloss.js';
 import { FILM } from './engine/quality.js';
 import { Boats } from './world/boats.js';
-import { Story } from './game/story.js';
+import { Story, LEGS } from './game/story.js';
 import { Governor } from './engine/governor.js';
 
 const canvas = document.getElementById('view');
@@ -58,12 +58,16 @@ const routes = [
   [[-110, -459], [-60, -470], [8, -488], [46, -496]],
   [[72, -478], [85, -420], [96, -362], [98, -344]],
   [[-524, -48], [-536, -30]],
+  // On the outer mesas: from each court to its pool.
+  [[569, -414], [562, -372]], [[538, 425], [572, 352]], [[124, 524], [92, 452]], [[-388, 416], [-348, 356]], [[-968, -86], [-898, 26]],
 ];
 terrain.bakePaths(routes, [
   // Paved courts and platforms, where no grass should push through the stone.
   [-372, -392, -372, -392, 18.7], [66, -498, 66, -498, 21.7], [150, -15, 150, -15, 39.7], [94, -336, 102, -336, 4.9],
   // The long stair between the Petal mesa and Cantor's Rise, and its upper landing.
   [-172, -459, -119, -459, 5.4], [-178.5, -459, -178.5, -459, 6.6],
+  // The five courts beyond the water.
+  [578, -437, 578, -437, 20.7], [517, 437, 517, 437, 20.7], [136, 546, 136, 546, 20.7], [-405, 435, -405, 435, 20.7], [-990, -104, -990, -104, 24.7],
 ]);
 await stage(0.3, 'Building the cities');
 const arch = new Architecture(pipe, terrain, buildMesas());
@@ -90,7 +94,7 @@ await stage(0.64, 'Growing the forest');
 const forest = new Forest(pipe, terrain);
 window.__forest = forest;
 // Keep trees off the paved sites and the routes between them.
-const clear = [...POOLS.map((p) => [p.x, p.z, p.r + 5]), [-512, -70, 34], [-540, -22, 9], [-372, -392, 24], [66, -498, 27], [96, -590, 34], [98, -336, 13], [150, -15, 44], [-146, -459, 34]];
+const clear = [...POOLS.map((p) => [p.x, p.z, p.r + 5]), [-512, -70, 34], [-540, -22, 9], [-372, -392, 24], [66, -498, 27], [96, -590, 34], [98, -336, 13], [150, -15, 44], [-146, -459, 34], [578, -437, 27], [517, 437, 27], [136, 546, 27], [-405, 435, 27], [-990, -104, 31]];
 // ...and off the walking routes: a trunk in the middle of a path is in the way.
 const onRoute = (x, z) => routes.some((r) => r.some((a, i) => {
   if (i === 0) return false;
@@ -398,6 +402,87 @@ window.__dbg = {
     const res = { seconds: Math.round(b.t), waypoint: `${b.i}/${b.route.length}`, done: b.done, ended: !!g.ended, tuned: g.spires.filter((s) => s.tuned).map((s) => s.id), pos: p.pos.toArray().map(Math.round), health: Math.round(p.health), log: b.log.slice(-10) };
     if (b.done) d.end();
     return res;
+  },
+  // Plays the game as a player would, without drawing: no film mode, the real rules. It
+  // follows whatever the story asks (paths, strings, waves, tuning by striking the notes) and
+  // fights what wakes. Call repeatedly until `done`. opts.fresh starts a new journey;
+  // opts.cheat keeps the bot alive (it is no duellist), so the run measures the road, not it.
+  botPlay(seconds = 120, { fresh = false, cheat = true, side = true } = {}) {
+    const d = director, g = game, p = g.player, dt = 1 / 30, pu = d.puppet;
+    let b = this._play;
+    if (!b || fresh) {
+      if (fresh) {
+        g.cineSetup({ tuned: [] });
+        for (const sp of g.spires) { sp.tuned = false; sp.power = 0; sp.zoneR = sp.zoneR0; sp.zone.z = sp.zoneR; sp.zone.w = 1; }
+        g.enemies.list.length = 0; g.wildDone = []; g.xp = 0; g.bought = 0; g.ended = false; g.hasMap = false; g.metPeople = [];
+        Object.assign(p.up, { health: 0, stamina: 0, blade: 0 }); g._skills();
+        g.quests.state = {}; g.quests.items = []; g.trials.run = null; g.trials.list.forEach((t) => { t.done = false; }); g.trialsDone = []; g.notes.list.forEach((n) => { n.taken = false; n.k = 1; }); g.notes.count = 0;
+        for (const n of g.people.list) { n.awake = !n.spire; n.k = n.awake ? 1 : 0; g.people._dye(n); }
+        g._spawnEncounters(); g.story.said.add('lookout'); p.spawn(sites.spawn.x, sites.spawn.y, sites.spawn.z, sites.spawn.yaw); g.story.leg = null; g.story._goal();
+      }
+      b = this._play = { t: 0, stuck: 0, last: p.pos.clone(), log: [], deaths: 0, obj: '', talkT: 0, sideT: 0, time: { story: 0, side: 0, fight: 0, talk: 0, ride: 0, tune: 0 } };
+    }
+    g.state = 'playing'; g.cine = false; g.input.enabled = true; g.input.puppet = pu;
+    const save = g.save; g.save = () => {};                       // a bot run never touches the player's save
+    const until = b.t + seconds, Q = g.quests;
+    const go = (x, z, stop, sprint = true) => {
+      // Straight at it; when something is in the way, sidestep for a moment.
+      const there = d.walkTo(x, z, { sprint, stop });
+      if (b.sideT > 0) { pu.move.x = b.sideDir; pu.move.y = 0.4; }
+      return there;
+    };
+    while (b.t < until && b.stuck < 14) {
+      pu.pressed.clear(); pu.held.clear(); pu.move.x = pu.move.y = 0;
+      b.sideT -= dt;
+      if (g.trials.run) b.trialOn = g.trials.run.t;
+      else if (b.trialOn) { b.log.push(`${Math.round(b.t)}s ${b.trialOn.def.name} ${b.trialOn.done ? 'won' : 'lost'}`); if (!b.trialOn.done) (b.failed ??= []).push(b.trialOn.def.id); b.trialOn = null; }
+      if (g.state === 'menu') { if (g.menu === 'bench') { let k; while ((k = ['blade', 'health', 'stamina'].find((u) => p.up[u] < 6)) && g.buy(k)) b.log.push(`${Math.round(b.t)}s bought ${k}`); } g.closeMenu(); g.input.enabled = true; g.input.puppet = pu; }
+      const foe = g.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.pos.distanceTo(p.pos) < 26);
+      const T = g.tuning;
+      let mode = 'story';
+      if (g.objective !== b.obj) { b.obj = g.objective; b.log.push(`${Math.round(b.t)}s ${b.obj}`); }
+      if (p.state === 'dead') { if (!b.dead) { b.dead = true; b.deaths++; b.leg = null; b.log.push(`${Math.round(b.t)}s died at ${p.pos.toArray().map(Math.round)}`); } }
+      else {
+        b.dead = false;
+        const tr = side ? g.tracker() : null;
+        const trial = side && !foe && !g.trials.run ? g.trials.list.find((t) => !t.done && !b.failed?.includes(t.def.id) && Math.hypot(t.x - p.pos.x, t.z - p.pos.z) < 300) : null;
+        // Someone awake nearby with something new to say, or a side quest close at hand.
+        const who = side && !foe ? g.people.list.find((n) => n.awake && n.k >= 0.9 && Math.hypot(n.x - p.pos.x, n.z - p.pos.z) < 70 && (!g.metPeople?.includes(n.def.id) || Q.active.some((q) => q.giver === n.def.id && Q.state[q.id].s === 'ready'))) : null;
+        const near = tr?.mark && Math.hypot(tr.mark.x - p.pos.x, tr.mark.z - p.pos.z) < 330 ? tr.mark : null;
+        if (g.people.talk) { mode = 'talk'; b.talkT += dt; if (b.talkT > 3.2) { b.talkT = 0; pu.pressed.add('interact'); } }         // a reader's pace
+        else if (T.active) { mode = 'tune'; if (T.phase === 'beats' && T.ring && Math.abs(T.bt - T.period) < 0.04) pu.pressed.add('interact'); }
+        else if (p.state === 'ride') mode = 'ride';
+        else if (foe) { mode = 'fight'; const hp = p.health, st = p.stamina; d.fight(dt); if (!cheat) { p.health = hp; p.stamina = st; } }
+        else if (g.prompt && (/^(Tune|Take|Open|Begin)/.test(g.prompt.text) || (who && /^Speak/.test(g.prompt.text)) || (g.marker?.ride && !near && /^Ride/.test(g.prompt.text)))) pu.pressed.add('interact');
+        else if (who) { mode = 'side'; go(who.x, who.z, 2.3); }
+        else if (near) { mode = 'side'; go(near.x, near.z, 0.6); }
+        else if (trial) { mode = 'side'; go(trial.x, trial.z, 2.6); }
+        else if (g.marker) {
+          const m = g.marker, next = g.spires.find((q) => !q.tuned);
+          // Whoever still sleeps at the court has to be woken before the spire will answer.
+          const guard = next && !m.way && !m.ride ? g.enemies.list.find((e) => e.alive && e.group === next.id) : null;
+          if (guard) go(guard.pos.x, guard.pos.z, 3, false);
+          else if (m.way && LEGS[g.story.leg]) {
+            // Keep to the path itself: the marker may already point a bend ahead.
+            const leg = LEGS[g.story.leg];
+            if (b.leg !== g.story.leg) { b.leg = g.story.leg; let bd = 1e9; leg.forEach(([x, z], i) => { const dd = Math.hypot(x - p.pos.x, z - p.pos.z); if (dd < bd) { bd = dd; b.wi = i; } }); }
+            if (b.wi < leg.length) { if (d.walkTo(leg[b.wi][0], leg[b.wi][1], { sprint: true, stop: 2.2 })) b.wi++; }
+            else d.walkTo(m.x, m.z, { sprint: true, stop: 2.2 });
+          } else go(m.x, m.z, m.ride ? 2.6 : 1.5);
+        } else if (g.ended && tr?.mark) { mode = 'side'; go(tr.mark.x, tr.mark.z, 0.6); }
+        else if (g.ended) break;
+      }
+      b.time[mode] += dt;
+      g.update(dt); story.update(dt); b.t += dt;
+      if (Math.round(b.t / dt) % 120 === 0) {
+        if (p.pos.distanceTo(b.last) < 0.6 && !foe && p.state === 'move' && !T.active && !g.people.talk) { b.stuck++; b.sideT = 1.3; b.sideDir = b.stuck % 2 ? 1 : -1; if (b.stuck % 3 === 0) b.log.push(`${Math.round(b.t)}s stuck at ${p.pos.toArray().map(Math.round)} (${g.objective})`); pu.pressed.add('jump'); g.update(dt); } else b.stuck = Math.max(0, b.stuck - 1);
+        b.last.copy(p.pos);
+      }
+    }
+    g.save = save; g.input.puppet = null; g.input.enabled = false;
+    const tr = g.tracker();
+    return { trials: g.trials.list.filter((t) => t.done).map((t) => t.def.id), seconds: Math.round(b.t), done: (!!g.ended && !Q.active.length) || b.stuck >= 14, ended: !!g.ended, tuned: g.spires.filter((q) => q.tuned).map((q) => q.id), pos: p.pos.toArray().map(Math.round), health: Math.round(p.health), deaths: b.deaths, xp: g.xp, up: { ...p.up },
+      quests: Object.fromEntries(Object.entries(Q.state).map(([k, v]) => [k, v.s])), side: tr ? `${tr.title}: ${tr.text} ${tr.count ?? ''}` : null, notes: g.notes.count, time: Object.fromEntries(Object.entries(b.time).map(([k, v]) => [k, Math.round(v)])), objective: g.objective, log: b.log.slice(-12) };
   },
   // A contact sheet of the film: one pass through the timeline, a still at each given time.
   reel(times = [3, 9, 14.5, 19.5, 25, 32, 38, 43.5], cols = 4) {

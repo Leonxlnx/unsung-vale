@@ -4,6 +4,7 @@ import './ui.css';
 import * as THREE from 'three';
 import { TUNE } from '../game/player.js';
 import creditsText from '../../CREDITS.md?raw';
+import { NAMES } from '../game/story.js';
 
 const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
 
@@ -138,6 +139,7 @@ export class UI {
       else this.el.caption.classList.remove('on');
     }
     if (type === 'fade') this.el.fade.classList.toggle('on', !!d.on);
+    if (type === 'wave') this.toast(d.text);
     if (type === 'tuning') {
       const el = this.el;
       if (d.phase === 'begin') { el.beat.classList.add('on'); el.beatPips.innerHTML = '<i></i>'.repeat(d.total); el.hud.classList.add('quiet'); }
@@ -154,7 +156,7 @@ export class UI {
       this.el.hints.classList.add('on'); setTimeout(() => this.el.hints.classList.remove('on'), 12000);
     }
     if (type === 'boss') { this.el.boss.classList.toggle('on', !!d.enemy); if (d.enemy) this.el.bossName.textContent = d.enemy.def.name; }
-    if (type === 'tuned') this.toast({ petal: 'The Petal Court sings', cantor: "Cantor's Rise sings", choir: 'The Choir sings' }[d.spire.id]);
+    if (type === 'tuned') this.toast(`${(NAMES[d.spire.id] ?? 'The spire').replace(/^the /, 'The ')} sings`);
     if (type === 'player' && d.type === 'hurt') { this.el.hurt.style.transition = 'none'; this.el.hurt.style.opacity = '1'; requestAnimationFrame(() => { this.el.hurt.style.transition = ''; this.el.hurt.style.opacity = '0'; }); }
     if (type === 'ending') setTimeout(() => { this.game.state = 'ending'; this.game.input.enabled = false; this.game.input.unlockPointer(); this.el.ending.classList.add('on'); }, 6500);
   }
@@ -168,8 +170,8 @@ export class UI {
   update(dt) {
     const g = this.game, p = g.player, el = this.el;
     if (g.state !== 'playing') return;
-    el.health.style.transform = `scaleX(${p.health / TUNE.healthMax})`;
-    el.stamina.style.transform = `scaleX(${p.stamina / TUNE.staminaMax})`;
+    el.health.style.transform = `scaleX(${p.health / p.healthMax})`;
+    el.stamina.style.transform = `scaleX(${p.stamina / p.staminaMax})`;
     const pr = 1 - p.pulseTimer / TUNE.pulseCooldown;
     el.pulse.style.setProperty('--p', pr.toFixed(3)); el.pulse.classList.toggle('ready', pr >= 1);
     // Without the pointer captured the mouse cannot turn the view: say how to get it back.

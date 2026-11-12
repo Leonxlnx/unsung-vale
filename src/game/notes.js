@@ -36,7 +36,8 @@ const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Eule
 
 export class Notes {
   // legs: { name: [[x, z], ...] } polylines; a note is set down every `gap` metres along them.
-  constructor(game, pipe, legs, { gap = 46, avoid = [], extra = [] } = {}) {
+  // more: further places off the paths (appended, so earlier notes keep their numbers).
+  constructor(game, pipe, legs, { gap = 46, avoid = [], extra = [], more = [] } = {}) {
     this.game = game; this.pipe = pipe;
     const W = game.world, list = [];
     for (const pts of Object.values(legs)) {
@@ -59,6 +60,7 @@ export class Notes {
       }
     }
     for (const [x, z] of extra) list.unshift({ x, y: W.floorBelow(x, W.groundHeight(x, z) + 40, z, 60) + 1.15, z, taken: false, phase: 0.6, k: 1 });
+    for (const [x, z] of more) list.push({ x, y: W.floorBelow(x, W.groundHeight(x, z) + 6, z, 12) + 1.15, z, taken: false, phase: list.length * 1.7, k: 1 });
     this.list = list;
     for (const i of game.notesTaken ?? []) if (list[i]) { list[i].taken = true; list[i].k = 0; }
     const geo = new THREE.OctahedronGeometry(1, 0).scale(0.15, 0.28, 0.15);
@@ -82,7 +84,7 @@ export class Notes {
         // Notes gathered in quick succession climb the scale; a pause starts the tune again.
         const step = this.streak++ % SCALE.length; this.streakT = 14;
         g.notesTaken = this.list.map((q, k) => (q.taken ? k : -1)).filter((k) => k >= 0); g.save();
-        g.player.health = Math.min(100, g.player.health + 8);
+        g.player.health = Math.min(g.player.healthMax, g.player.health + 8);
         // A note is also a place to return to, unless something hostile is close.
         if (!g.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.pos.distanceTo(g.player.pos) < 30)) g.checkpoint = { x: n.x, y: n.y - 1.05, z: n.z, yaw: g.player.yaw };
         P.burst(n.x, n.y, n.z, 16, { speed: 3.2, life: 0.7, size: 0.05, color: [3.2, 2.4, 1.1], gravity: -1.5, drag: 1.6, up: 1 });

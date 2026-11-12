@@ -20,6 +20,8 @@ export const TUNE = {
   // Falling strike: a turn in the air, then straight down blade first.
   plunge: { cost: 16, hang: 0.26, dive: 30, radius: 3.8, dmg: 34, recover: 0.5 },
   swim: 2.7, swimFast: 4.0, swimCost: 5, swimDepth: 1.18,      // he floats with the water this far up his body
+  // Sprinting strike: the run carried into a full turn of the blade.
+  dash: { t: 0.7, hit: [0.2, 0.42], dmg: 46, lunge: 13, cost: 18, arc: 6.3, reach: 3.0 },
 };
 
 const _v = new THREE.Vector3();
@@ -27,14 +29,17 @@ const _v = new THREE.Vector3();
 export class Player {
   constructor(world) {
     this.world = world;
+    // What he has been given along the way: more life, more breath, a keener edge, and the
+    // things each spire teaches (see Game._skills).
+    this.up = { health: 0, stamina: 0, blade: 0 }; this.skills = new Set();
     this.pos = new THREE.Vector3();
     this.vel = new THREE.Vector3();
     this.yaw = 0;                   // facing: (sin yaw, 0, cos yaw)
     this.grounded = false;
     this.state = 'move';            // move | roll | attack | hurt | dead
     this.stateTime = 0;
-    this.health = TUNE.healthMax;
-    this.stamina = TUNE.staminaMax;
+    this.health = this.healthMax;
+    this.stamina = this.staminaMax;
     this.staminaWait = 0;
     this.comboStep = -1;
     this.attack = null;             // current attack descriptor
@@ -57,8 +62,12 @@ export class Player {
   spawn(x, y, z, yaw = 0) {
     this.pos.set(x, y, z); this.vel.set(0, 0, 0); this.yaw = yaw; this.viewY = this._viewY1 = y;
     this.lastSafe.copy(this.pos);
-    this.state = 'move'; this.health = TUNE.healthMax; this.stamina = TUNE.staminaMax;
+    this.state = 'move'; this.health = this.healthMax; this.stamina = this.staminaMax; this.windUsed = false;
   }
+
+  get healthMax() { return TUNE.healthMax + 20 * this.up.health + (this.skills.has('gift') ? 20 : 0); }
+  get staminaMax() { return TUNE.staminaMax + 15 * this.up.stamina + (this.skills.has('gift') ? 15 : 0); }
+  get power() { return 1 + 0.12 * this.up.blade; }
 
   get facing() { return _v.set(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
   emit(type, data) { this.events.push({ type, ...data }); }
@@ -69,6 +78,8 @@ export class Player {
     if (this.state === 'dead' || this.invulnerable > 0) return false;
     if (this.state === 'roll' && this.stateTime > TUNE.rollIFrames[0] && this.stateTime < TUNE.rollIFrames[1]) { this.emit('evade'); return false; }
     this.health = Math.max(0, this.health - amount);
+    // Second wind: once in a life, a blow that should have ended him does not.
+    if (this.health <= 0 && this.skills.has('wind') && !this.windUsed) { this.windUsed = true; this.health = Math.round(this.healthMax * 0.3); this.invulnerable = 1.6; this.sinceHurt = 0; this.emit('wind'); return true; }
     this.invulnerable = 0.55; this.sinceHurt = 0;
     const heavy = amount >= 22 && this.state !== 'swim';
     if (from) { _v.copy(this.pos).sub(from).setY(0).normalize(); const sp = heavy ? 9 : 6.5; this.vel.x = _v.x * sp; this.vel.z = _v.z * sp; this.hurtDir = Math.atan2(_v.x, _v.z); }
@@ -113,7 +124,7 @@ export class Player {
     this.invulnerable = Math.max(0, this.invulnerable - dt);
     this.pulseTimer = Math.max(0, this.pulseTimer - dt);
     this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
-    if (this.staminaWait > 0) this.staminaWait -= dt; else this.stamina = Math.min(T.staminaMax, this.stamina + T.staminaRegen * dt);
+    if (this.staminaWait > 0) this.staminaWait -= dt; else this.stamina = Math.min(this.staminaMax, this.stamina + T.staminaRegen * dt);
 
     // Movement wish in world space, relative to the camera.
     const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
@@ -123,6 +134,8 @@ export class Player {
     if (wishLen > 1e-3) wish.multiplyScalar(1 / wish.length());
 
     if (this.state === 'dead') { this.vel.x *= Math.exp(-6 * dt); this.vel.z *= Math.exp(-6 * dt); this._integrate(dt); return; }
+    // Carried along a string of light: the string moves him (see strings.js).
+    if (this.state === 'ride') return;
     // Water deep enough to float in: swim. Shallow water is waded through like ground.
     const surface = this.world.waterLevel(this.pos.x, this.pos.z);
     this.water = surface;
@@ -135,7 +148,7 @@ export class Player {
 
     if (input.pressed.has('walk')) this.walking = !this.walking;
     this.sinceHurt = (this.sinceHurt ?? 99) + dt;
-    if (this.sinceHurt > 7 && this.health < T.healthMax) this.health = Math.min(T.healthMax, this.health + 3 * dt);
+    if (this.sinceHurt > 7 && this.health < this.healthMax) this.health = Math.min(this.healthMax, this.health + 3 * dt);
     if (this.state === 'move') {
       this.sprinting = input.held.has('sprint') && wishLen > 0.5 && this.stamina > 1 && this.grounded;
       if (this.sprinting) this.walking = false;
@@ -163,16 +176,17 @@ export class Player {
         this.rollDir = new THREE.Vector3(d.x, 0, d.z).normalize();
         this.yaw = Math.atan2(this.rollDir.x, this.rollDir.z);
         this.emit('roll');
-      } else if (input.pressed.has('attack') && !this.grounded && this.airTime > 0.08 && this.spend(T.plunge.cost)) {
+      } else if (input.pressed.has('attack') && !this.grounded && this.airTime > 0.08 && this.skills.has('plunge') && this.spend(T.plunge.cost)) {
         this.setState('plunge'); this.plungeHit = false; this.plungeTop = this.pos.y;
         // Lean the fall toward a foe below, if there is one.
         const foe = this.lockTarget ?? this.aimAssist?.(this.facing.x, this.facing.z, 9) ?? null;
         this.plungeAim = foe ? foe.pos.clone() : null;
         if (foe) this.yaw = Math.atan2(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z);
         this.emit('plungeStart');
-      } else if (input.pressed.has('attack') && this.grounded) this.startAttack(T.combo[0], 0);
+      } else if (input.pressed.has('attack') && this.grounded && this.sprinting && this.skills.has('dash')) { if (this.startAttack(T.dash, 2)) this.emit('dash'); }
+      else if (input.pressed.has('attack') && this.grounded) this.startAttack(T.combo[0], 0);
       else if (input.pressed.has('heavy') && this.grounded) this.startAttack(T.heavy, 3);
-      else if (input.pressed.has('pulse') && this.pulseTimer <= 0 && this.grounded) { this.pulseTimer = T.pulseCooldown; this.emit('pulse'); }
+      else if (input.pressed.has('pulse') && this.pulseTimer <= 0 && this.grounded && this.skills.has('pulse')) { this.pulseTimer = this.skills.has('surge') ? 6 : T.pulseCooldown; this.emit('pulse'); }
     } else if (this.state === 'roll') {
       const t = this.stateTime / T.rollTime;
       const sp = T.rollSpeed * (1 - 0.62 * t * t);

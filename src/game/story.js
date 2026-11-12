@@ -10,11 +10,11 @@ export const LEGS = {
   cantor: [[-358, -402], [-300, -424], [-232, -449], [-180, -459], [-118, -459], [-60, -470], [8, -488], [46, -496]],
   choir: [[72, -478], [85, -420], [96, -362], [98, -344], [98, -330], [150, -84], [150, -40]],
 };
-const NAMES = { petal: 'the Petal Court', cantor: "Cantor's Rise", choir: 'the Choir' };
+export const NAMES = { dawn: 'the Dawn Terrace', petal: 'the Petal Court', cantor: "Cantor's Rise", choir: 'the Choir', east: 'the Lantern Court', south3: 'the Reed Court', aurel: 'the Aurel Court', south1: 'the Orchard Court', crown: 'the Crown' };
 
 const INTRO = 21;        // seconds
 const LINES = [
-  [1.2, 6.2, 'The Vale once sang. Three spires carried one chord from the mountains to the sea.'],
+  [1.2, 6.2, 'The Vale once sang. Its spires carried one chord from the mountains to the sea.'],
   [7.4, 12.6, 'Then the Mute came, and the song went out, one voice at a time.'],
   [14.2, 19.2, 'You kept the last note. Carry it back to them.'],
 ];
@@ -121,17 +121,26 @@ export class Story {
   _onGame(type, d) {
     const g = this.game;
     if (type === 'enemy' && d.type === 'wake') {
-      if (d.enemy.def.boss) this.say('boss', 'The Unsung: the first silence, and the deepest.');
+      if (d.enemy.kind === 'sovereign') this.say('stillness', 'The Stillness. Where it stands, no note has sounded since the fall.', 7);
+      else if (d.enemy.def.boss) this.say('boss', 'The Unsung: a silence as old as the Choir itself.');
+      else if (d.enemy.elite) this.say('elite', 'Some of the Mute have stood in the silence so long that they have names.');
       else this.say('mute', 'The Mute. Shards of the silence, drawn to anything that still sings.');
     }
     if (type === 'tuned') {
       const id = d.spire.id;
       if (id === 'petal') this.say('petal', 'The Petal Court answers. Far to the east, a second voice stirs.', 7);
       if (id === 'cantor') this.say('cantor', 'Two voices now. Across the water the old bridge remembers its shape.', 7);
-      if (id === 'choir') this.say('choir', 'Three voices, one chord. The Vale remembers its song.', 8);
+      if (id === 'choir') { this.say('choir', 'Three voices, one chord. The inner Vale remembers its song.', 7); this.say('roads', 'And the old roads wake: strings of light, out over the water, to five courts that are silent still.', 8); }
+      if (id === 'east') this.say('east', 'The Lantern Court burns again. The string runs on, south across the lake.', 7);
+      if (id === 'south3') this.say('south3', 'Reeds and water, and a voice among them. Five now.', 7);
+      if (id === 'aurel') this.say('aurel', 'The Aurel Court gives back its gold. Two remain, and the silence knows it.', 7);
+      if (id === 'south1') this.say('south1', 'The orchard wakes. Only the Crown is left, where the Mute first fell.', 7);
+      if (id === 'crown') this.say('crown', 'Eight voices. The whole Vale sings, from the mountains to the sea.', 9);
       this.leg = null; this._goal();
     }
     if (type === 'enemy' && d.type === 'death') this._goal();
+    if (type === 'enemy' && d.type === 'phase') this.say(`phase${d.enemy.kind}${d.phase}`, d.phase > 1 ? 'It is breaking. So is its patience.' : 'It gathers itself, and calls the others to it.', 5);
+    if (type === 'wave') this._goal();
     if (type === 'note') {
       if (d.count === 1) this.say('note', 'A lost note of the old song. There are more along the paths.', 6);
       else if (d.line) { this.queue = (this.queue ?? []); this.queue.push([d.line, 7]); }
@@ -149,10 +158,16 @@ export class Story {
     if (!next) text = 'The Vale sings again';
     else if (!this.said.has('lookout') && next.id === 'petal') { text = 'Walk to the lookout'; const v = g.sites.vista; mark = { x: v.x - 3, y: v.y - 0.4, z: v.z, name: 'Lookout', arrive: 5 }; }
     else {
-      if (this.leg !== next.id) { this.leg = next.id; this.wp = this._nearestWp(next.id); }
-      const leg = LEGS[next.id], alive = g.enemies.aliveIn(next.id) > 0;
+      const leg = LEGS[next.id] ?? [], alive = !g.encounters.cleared(next.id);
+      if (this.leg !== next.id) { this.leg = next.id; this.wp = leg.length ? this._nearestWp(next.id) : 0; }
       const near = Math.hypot(g.player.pos.x - next.x, g.player.pos.z - next.z) < 60;
-      if (this.wp < leg.length && !near) {
+      const pylon = !near && !leg.length ? g.strings?.nearest(g.player.pos.x, g.player.pos.z, next.id) : null;
+      if (g.strings) g.strings.goal = leg.length ? null : next.id;
+      if (pylon && pylon.id !== next.id) {
+        // Beyond the inner Vale the way is over the strings of light.
+        text = `Ride the strings to ${NAMES[next.id]}`;
+        mark = { x: pylon.x, y: pylon.y + 8.5, z: pylon.z, name: 'String of light', ride: true };
+      } else if (this.wp < leg.length && !near) {
         const [x, z] = leg[this.wp];
         text = `Follow the path to ${NAMES[next.id]}`;
         mark = { x, y: g.world.floorBelow(x, this.terrain.heightAt(x, z) + 60, z, 90) + 1.6, z, name: NAMES[next.id].replace(/^the /, 'The '), way: true };
@@ -189,6 +204,10 @@ export class Story {
     } else if (m?.arrive && Math.hypot(p.pos.x - m.x, p.pos.z - m.z) > 70) {
       // Wandered off without visiting the lookout: let it go and point down the path.
       this.said.add('lookout'); g.storySaid = [...this.said]; this._goal();
+    } else if (m?.ride || (g.strings?.goal && !m?.ride && (this.goalT = (this.goalT ?? 0) + dt) > 1)) {
+      // Off across the strings: look again now and then, the hero may be a mesa further on.
+      this.goalT = (this.goalT ?? 0) + dt;
+      if (this.goalT > 1) { this.goalT = 0; this._goal(); }
     } else if (m?.way) {
       const leg = LEGS[this.leg];
       // Pass a breadcrumb by reaching it, or by being nearer to a later one.

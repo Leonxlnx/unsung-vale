@@ -13,6 +13,23 @@ import { spireRadius } from '../world/arch/kit.js';
 import { Notes } from './notes.js';
 import { Tuning } from './tuning.js';
 import { LEGS } from './story.js';
+import { Strings } from './strings.js';
+import { Encounters } from './encounters.js';
+import { People } from './people.js';
+import { Quests } from './quests.js';
+import { Trials } from './trials.js';
+import { POOLS } from '../world/layout.js';
+
+// What each spire teaches when it is tuned.
+export const SKILLS = {
+  petal: { id: 'pulse', name: 'Resonance pulse', how: 'F sends a ring of the song through everything near you.' },
+  cantor: { id: 'plunge', name: 'Falling strike', how: 'Strike while in the air to turn and come down blade first.' },
+  choir: { id: 'dash', name: 'Running cut', how: 'Strike at a sprint to carry the run into a full turn of the blade.' },
+  east: { id: 'echo', name: 'Echo step', how: 'Roll through a blow at the last moment and the world slows for a breath.' },
+  south3: { id: 'surge', name: 'Long pulse', how: 'The resonance pulse reaches further, hits harder and returns sooner.' },
+  aurel: { id: 'wind', name: 'Second wind', how: 'Once in a life, a blow that would end you leaves you standing.' },
+  south1: { id: 'gift', name: "The orchard's gift", how: 'More life and more breath, for good.' },
+};
 
 const SAVE_KEY = 'unsung-vale-save-v1';
 
@@ -161,13 +178,56 @@ export class Game {
 
     this._buildSpires();
     this._buildBridge();
+    this.encounters = new Encounters(this);
+    this.xp = 0; this.wildDone = []; this.bought = 0; this.slow = 0; this.slowCd = 0; this.menu = null;
     this.load();
     // Lost notes along the paths, kept clear of the courts where the fighting is.
-    this.notes = new Notes(this, pipe, LEGS, { avoid: sites.spires.map((s) => [s.x, s.z, 26]), extra: [[sites.spawn.x + 10, sites.spawn.z + 1.5]] });
+    // More of them lie off the paths: round the outer courts and on the shores of the pools.
+    const more = [], level = (x, z, y) => Math.abs(this.world.groundHeight(x, z) - y) < 5 && !Number.isFinite(this.world.waterLevel(x, z));
+    for (const c of sites.outer ?? []) for (let k = 0; k < 7; k++) { const a = k * 0.8976 + c.x * 0.01, r = k % 2 ? 58 : 36, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r; if (level(x, z, c.y)) more.push([x, z]); }
+    for (const pl of POOLS) for (let k = 0; k < 3; k++) { const a = k * 2.094 + pl.x * 0.013, x = pl.x + Math.cos(a) * (pl.r + 7), z = pl.z + Math.sin(a) * (pl.r + 7); if (level(x, z, pl.level + 1)) more.push([x, z]); }
+    this.notes = new Notes(this, pipe, LEGS, { avoid: sites.spires.map((s) => [s.x, s.z, 26]), extra: [[sites.spawn.x + 10, sites.spawn.z + 1.5]], more });
     this._spawnEncounters();
+    // The strings of light between the courts. A string wakes when the spires it needs sing.
+    this.strings = new Strings(this, pipe, { dawn: [-512, -81], petal: [-385, -392], cantor: [53, -490.5], choir: [171.2, -36.2], east: [568.8, -427.8], south3: [517, 424], aurel: [148.6, 542.6], south1: [-392.4, 438.4], crown: [-978.7, -92.7] },
+      [['dawn', 'petal', ['petal']], ['petal', 'cantor', ['petal', 'cantor']], ['cantor', 'choir', ['cantor', 'choir']], ['choir', 'east', ['choir']], ['east', 'south3', ['east']], ['south3', 'aurel', ['south3']], ['aurel', 'south1', ['aurel']], ['south1', 'crown', ['south1']], ['crown', 'dawn', ['crown']]]);
+    this.people = new People(this, pipe);
+    this.quests = new Quests(this, pipe);
+    this.trials = new Trials(this, pipe);
+    this._skills();
     this.respawnAtCheckpoint();
     this._refreshObjective();
   }
+
+  // The hero knows what the tuned spires have taught him.
+  _skills() { const p = this.player; p.skills.clear(); for (const s of this.spires) if ((s.tuned || this.cine) && SKILLS[s.id]) p.skills.add(SKILLS[s.id].id); }
+
+  // The side goal the interface shows: a trial under way, else the nearest quest.
+  tracker() { return this.trials.tracker() ?? this.quests.tracker(); }
+
+  // A gift: one step of life, breath or edge, and some of the song (resonance).
+  grant({ up = null, xp = 0 } = {}) {
+    const p = this.player;
+    if (up) p.up[up] = Math.min(6, p.up[up] + 1);
+    this.xp += xp; p.health = p.healthMax; p.stamina = p.staminaMax;
+    this.emit('grant', { up, xp });
+    this.save();
+  }
+  // The luthier's bench: resonance for a step of the hero's choosing, dearer each time.
+  get benchCost() { return 100 + 60 * this.bought; }
+  buy(kind) {
+    const p = this.player;
+    if (this.xp < this.benchCost || p.up[kind] >= 6) return false;
+    this.xp -= this.benchCost; this.bought++; p.up[kind]++;
+    p.health = p.healthMax; p.stamina = p.staminaMax;
+    this.emit('grant', { up: kind, xp: 0, bought: true });
+    this.save();
+    return true;
+  }
+
+  // A screen over the game (the map, the luthier's bench): the world waits behind it.
+  openMenu(name) { if (this.state !== 'playing') return; this.state = 'menu'; this.menu = name; this.input.enabled = false; this.input.unlockPointer(); this.emit('state', { state: 'menu', menu: name }); }
+  closeMenu() { if (this.state !== 'menu') return; this.menu = null; this.start(); }
 
   // Swaps the stand-in body for the real animated hero.
   attachHero(hero) { this.hero = hero; this.standIn.visible = false; this.player.autoSteps = false; hero.update(0.016, this.player, this); }
@@ -252,22 +312,13 @@ export class Game {
     this.bridgeSlab = slab; this.bridgeProgress = 0; this.bridgeOpen = false; this.bridgeSolid = false;
   }
 
-  _spawnEncounters() {
-    const E = this.enemies, tuned = (id) => this.spires.find((s) => s.id === id)?.tuned;
-    const ring = (kind, cx, cz, r, n, group, a0 = 0) => { for (let i = 0; i < n; i++) { const a = a0 + (i / n) * 6.283; E.spawn(kind, cx + Math.cos(a) * r, cz + Math.sin(a) * r, group); } };
-    if (!tuned('petal')) { ring('thrall', -372, -392, 8.5, 3, 'petal', 0.4); E.spawn('hound', -384, -404, 'petal'); }
-    if (!tuned('cantor')) {
-      E.spawn('thrall', -100, -455, 'stair'); E.spawn('thrall', -96, -465, 'stair'); E.spawn('lancer', -84, -459, 'stair');
-      ring('thrall', 66, -498, 10, 2, 'cantor', 1.2); E.spawn('warden', 58, -508, 'cantor'); E.spawn('lancer', 92, -520, 'cantor'); E.spawn('hound', 40, -476, 'cantor'); E.spawn('hound', 80, -482, 'cantor');
-    }
-    if (!tuned('choir')) { E.spawn('colossus', 156, -4, 'choir'); E.spawn('chorister', 130, -32, 'choir'); E.spawn('lancer', 167, 6, 'choir'); }
-  }
+  _spawnEncounters(inner = false) { this.encounters.reset(inner); }
 
   // --- progress ------------------------------------------------------------------------
 
   save() {
     if (this.cine) return;        // the film must never overwrite a player's progress
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [] })); } catch { /* storage may be unavailable */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [] })); } catch { /* storage may be unavailable */ }
   }
   load() {
     this.checkpoint = { ...this.sites.spawn };
@@ -276,6 +327,8 @@ export class Game {
       if (!d) return;
       for (const s of this.spires) if (d.tuned?.includes(s.id)) { s.tuned = true; s.power = 1; s.zoneR = 0; s.zone.w = 0; s.crystal.material.uniforms.uPower.value = 1; s.beam.material.uniforms.uPower.value = 1; }
       if (d.checkpoint) this.checkpoint = d.checkpoint;
+      this.xp = d.xp ?? 0; this.wildDone = d.wild ?? []; this.bought = d.bought ?? 0;
+      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? [];
       this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? []; this.notesTaken = d.notes ?? [];
       if (this.spires[1].tuned) { this.bridgeOpen = true; this.bridgeProgress = 1; }
     } catch { /* ignore a corrupt save */ }
@@ -304,8 +357,9 @@ export class Game {
   // Puts the world into a chosen story state. Used by the cinematic director so each shot
   // starts from known conditions; never called during normal play.
   cineSetup({ tuned = [], player = null, bridge = null } = {}) {
+    this.cine = true; this._skills(); this.cine = false;      // the film's hero knows it all
     for (const s of this.spires) {
-      const on = tuned.includes(s.id);
+      const on = tuned.includes(s.id) || s.index > 2;
       s.tuned = on; s.tuning = 0; s.power = on ? 1 : 0;
       s.zoneR = on ? 0 : s.zoneR0; s.zone.z = s.zoneR; s.zone.w = on ? 0 : 1;
     }
@@ -314,8 +368,8 @@ export class Game {
     this.bridgeProgress = bridge ?? (this.bridgeOpen ? 1 : 0);
     this.bridge.visible = this.bridgeOpen;
     this.bridgeMat.uniforms.uProgress.value = this.bridgeProgress;
-    this.enemies.list.length = 0; this.enemies.projectiles.length = 0;
-    this._spawnEncounters();
+    this.enemies.list.length = 0; this.enemies.projectiles.length = 0; this.enemies.blasts.length = 0;
+    this._spawnEncounters(true);
     this.boss = null; this.hitStop = 0;
     const p = this.player;
     if (player) {
@@ -335,11 +389,15 @@ export class Game {
 
   update(realDt) {
     this.input.update();
-    if (!this.cine && this.input.pressed.has('pause')) { if (this.state === 'playing') this.pause(); else if (this.state === 'paused') this.resume(); }
+    if (!this.cine && this.input.pressed.has('pause')) { if (this.state === 'playing') this.pause(); else if (this.state === 'paused') this.resume(); else if (this.state === 'menu') this.closeMenu(); }
+    if (!this.cine && this.input.pressed.has('map')) { if (this.state === 'playing' && !this.tuning.active && !this.people.talk) this.openMenu('map'); else if (this.menu === 'map') this.closeMenu(); }
+    if (!this.cine && this.input.pressed.has('journal')) { if (this.state === 'playing' && !this.tuning.active && !this.people.talk) this.openMenu('journal'); else if (this.menu === 'journal') this.closeMenu(); }
     if (this.state !== 'playing' && this.state !== 'ending') {
       // The world keeps breathing behind the menus.
       this.particles.update(realDt); this.vfx.update(realDt);
       this.notes.update(realDt, false);
+      this.strings.update(realDt, false);
+      this.quests.update(realDt, false); this.people.update(realDt, false); this.trials.update(realDt, false);
       this._animateWorld(realDt);
       this.enemies.update(0, this.player, this.time);
       this.hero?.update(realDt, this.player, this);
@@ -353,22 +411,30 @@ export class Game {
 
     this.world.stream(p.pos.x, p.pos.z);
     // While a spire is being tuned the hero stands to it and the camera belongs to the moment.
-    const busy = this.tuning.active;
+    const busy = this.tuning.active || !!this.people.talk;
+    // Echo step: for a breath the Mute move as if through water.
+    this.slow = Math.max(0, this.slow - realDt); this.slowCd = Math.max(0, this.slowCd - realDt);
+    const edt = this.slow > 0 ? dt * (0.22 + 0.78 * Math.max(0, 1 - this.slow / 0.35)) : dt;
     p.update(dt, busy ? this._idle : this.input, this.rig.yaw);
     this._bodies();
-    if (!busy) { this._lockOn(); this._combat(); }
-    this.enemies.update(dt, p, this.time);
+    if (!busy && p.state !== 'ride') { this._lockOn(); this._combat(); }
+    this.enemies.update(edt, p, this.time);
+    if (!this.cine) this.encounters.update(dt);
     for (const e of this.enemies.events) this._onEnemyEvent(e);
     this.enemies.events.length = 0;
     for (const e of p.events) this._onPlayerEvent(e);
     p.events.length = 0;
     this._spireLogic(dt);
+    this.strings.update(dt, !this.cine && !busy);
+    this.quests.update(dt, !this.cine && !busy);
+    this.trials.update(dt, !this.cine && !busy);
     this.notes.update(dt, !this.cine);
     this._animateWorld(dt);
     this.particles.update(dt); this.vfx.update(dt);
     // In a cinematic the director owns the camera; the rig only tracks yaw for movement.
-    if (busy) this.tuning.update(realDt);
-    else if (!this.cine) this.rig.update(realDt, p, this.input);
+    if (this.tuning.active) this.tuning.update(realDt);
+    else if (!this.people.talk && !this.cine) this.rig.update(realDt, p, this.input);
+    this.people.update(realDt, !this.cine);
 
     if (this.hero) this.hero.update(dt, p, this);
     else { this.standIn.position.copy(p.pos); this.standIn.rotation.y = p.yaw; this.standIn.updateMatrixWorld(); }
@@ -441,7 +507,7 @@ export class Game {
       if (dist > 0.6 && d.normalize().dot(f) < Math.cos(a.arc / 2 + 0.25)) continue;
       p.hitDone.add(e);
       const heavy = p.comboStep >= 2;
-      if (this.enemies.hit(e, a.dmg, p.pos, heavy)) {
+      if (this.enemies.hit(e, a.dmg * p.power, p.pos, heavy)) {
         this.hitStop = heavy ? 0.11 : 0.06;
         this.rig.addShake(heavy ? 0.5 : 0.28);
         const c = e.center ?? e.pos, hy = c.y + (e.center ? 0 : 1.2);
@@ -466,7 +532,7 @@ export class Game {
       for (const en of this.enemies.list) {
         if (!en.alive || en.state === 'dormant' || Math.abs(en.pos.y - p.pos.y) > 3) continue;
         const d = en.pos.distanceTo(p.pos) - en.def.radius;
-        if (d < P.radius) this.enemies.hit(en, Math.round((P.dmg + Math.min(40, e.height * 3)) * (1 - 0.5 * Math.max(0, d) / P.radius)), p.pos, true);
+        if (d < P.radius) this.enemies.hit(en, Math.round((P.dmg + Math.min(40, e.height * 3)) * p.power * (1 - 0.5 * Math.max(0, d) / P.radius)), p.pos, true);
       }
       this.vfx.wave(x, y, z, { r0: 0.4, r1: P.radius * 1.5, life: 0.6, strength: 1.6 * power, width: 0.08, color: [3.2, 2.3, 1.0] });
       this.vfx.wave(x, y, z, { r0: 0.4, r1: P.radius * 1.05, life: 0.7, strength: 1.0 * power, width: 0.1, color: [2.0, 1.5, 0.7], delay: 0.1 });
@@ -487,15 +553,30 @@ export class Game {
       this.vfx.wave(p.pos.x, p.pos.y + 1.1, p.pos.z, { kind: 1, r0: 0.2, r1: e.heavy ? 2.6 : 1.5, life: 0.25, strength: e.heavy ? 1.3 : 0.7, width: 0.16, color: [1.6, 0.7, 0.5] });
       if (e.heavy) this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.3, r1: 3.4, life: 0.5, strength: 0.8, width: 0.1, color: [1.2, 0.5, 0.4] });
     }
+    if (e.type === 'evade' && p.skills.has('echo') && this.slowCd <= 0) {
+      // Echo step: the blow passes through where he was, and the moment stretches.
+      this.slow = 1.5; this.slowCd = 3.5; p.stamina = Math.min(p.staminaMax, p.stamina + 45);
+      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.4, r1: 7, life: 0.7, strength: 0.9, width: 0.06, color: [2.2, 2.0, 1.6] });
+      this.vfx.wave(p.pos.x, p.pos.y + 1.0, p.pos.z, { kind: 1, r0: 0.3, r1: 3.4, life: 0.4, strength: 0.9, width: 0.1, color: [2.0, 1.8, 1.4] });
+      this.flash = Math.max(this.flash, 0.22);
+      this.emit('echo', {});
+    }
+    if (e.type === 'wind') {
+      for (const en of this.enemies.list) if (en.alive && en.state !== 'dormant' && en.pos.distanceTo(p.pos) < 7) this.enemies.hit(en, 8, p.pos, true);
+      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.5, r1: 9, life: 0.8, strength: 1.4, width: 0.07, color: [3.2, 2.3, 1.0] });
+      this.vfx.wave(p.pos.x, p.pos.y + 1.0, p.pos.z, { kind: 1, r0: 0.4, r1: 5, life: 0.5, strength: 1.4, width: 0.1, color: [3.2, 2.3, 1.0] });
+      this.flash = Math.max(this.flash, 0.5); this.rig.addShake(0.6); this.hitStop = 0.14;
+    }
     if (e.type === 'pulse') {
       // Resonance pulse: a ring of force that staggers everything nearby.
+      const surge = p.skills.has('surge'), PR = TUNE.pulseRadius * (surge ? 1.4 : 1);
       for (let k = 0; k < 56; k++) { const a = (k / 56) * 6.283; this.particles.spawn(p.pos.x, p.pos.y + 1, p.pos.z, { vel: [Math.cos(a) * 15, 0.4, Math.sin(a) * 15], life: 0.55, size: 0.2, color: [3, 2.2, 1.1], drag: 2.5 }); }
       this.particles.spawn(p.pos.x, p.pos.y + 1, p.pos.z, { life: 0.35, size: 3.4, color: [1.3, 1.0, 0.5], grow: 1.4, alpha: 0.5 });
-      this.vfx.wave(p.pos.x, p.pos.y + 1.0, p.pos.z, { kind: 1, r0: 0.5, r1: TUNE.pulseRadius * 0.9, life: 0.55, strength: 1.5, width: 0.1, color: [3.2, 2.3, 1.0] });
-      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.5, r1: TUNE.pulseRadius * 1.25, life: 0.75, strength: 1.2, width: 0.07, color: [3.2, 2.3, 1.0] });
-      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.5, r1: TUNE.pulseRadius * 0.9, life: 0.7, strength: 0.7, width: 0.09, color: [2.5, 1.8, 0.8], delay: 0.14 });
+      this.vfx.wave(p.pos.x, p.pos.y + 1.0, p.pos.z, { kind: 1, r0: 0.5, r1: PR * 0.9, life: 0.55, strength: 1.5, width: 0.1, color: [3.2, 2.3, 1.0] });
+      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.5, r1: PR * 1.25, life: 0.75, strength: 1.2, width: 0.07, color: [3.2, 2.3, 1.0] });
+      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.5, r1: PR * 0.9, life: 0.7, strength: 0.7, width: 0.09, color: [2.5, 1.8, 0.8], delay: 0.14 });
       this.flash = Math.max(this.flash, 0.35);
-      for (const en of this.enemies.list) if (en.alive && en.state !== 'dormant' && en.pos.distanceTo(p.pos) < TUNE.pulseRadius) { this.enemies.hit(en, 12, p.pos, true); }
+      for (const en of this.enemies.list) if (en.alive && en.state !== 'dormant' && en.pos.distanceTo(p.pos) < PR) { this.enemies.hit(en, Math.round((surge ? 30 : 12) * p.power), p.pos, true); }
       this.rig.addShake(0.4);
     }
     this.emit('player', e);
@@ -525,7 +606,24 @@ export class Game {
       const c = e.enemy.center;
       this.particles.burst(c.x, c.y, c.z, 12, { speed: 8, life: 0.3, size: 0.05, color: [3, 2.6, 4], gravity: 12, drag: 1.5, streak: 0.14 });
     }
-    if (e.type === 'wake' && e.enemy.def.boss) { this.boss = e.enemy; this.emit('boss', { enemy: e.enemy }); }
+    if (e.type === 'wake' && (e.enemy.def.boss || e.enemy.elite)) { this.boss = e.enemy; this.emit('boss', { enemy: e.enemy }); }
+    if (e.type === 'phase') {
+      // The giant falters, and gathers itself: everything near is thrown back by its voice.
+      const q = e.enemy.pos, c = e.enemy.center;
+      this.flash = Math.max(this.flash, 0.6); this.rig.addShake(0.8); this.hitStop = Math.max(this.hitStop, 0.12);
+      for (const [dl, r] of [[0, 16], [0.25, 24]]) this.vfx.wave(q.x, q.y + 0.1, q.z, { r0: 1, r1: r, life: 1.1, strength: 1.4, width: 0.07, color: [2.4, 1.15, 4.6], delay: dl });
+      this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 1, r1: 12, life: 0.7, strength: 1.5, width: 0.1, color: [2.4, 1.15, 4.6] });
+    }
+    if (e.type === 'summon') {
+      const q = e.enemy.pos, n = 1 + e.phase;
+      for (let i = 0; i < n; i++) {
+        const a = e.enemy.yaw + Math.PI + (i - (n - 1) / 2) * 0.9, x = q.x + Math.sin(a) * 6, z = q.z + Math.cos(a) * 6;
+        const add = this.enemies.spawn(e.enemy.kind === 'sovereign' && i === 0 ? 'thrall' : 'hound', x, z, e.enemy.group, e.enemy.kind === 'sovereign' ? { scale: 1.12, hp: 1.4, dmg: 1.15, tint: 0.6 } : null, q.y);
+        add.state = 'rise'; add.t = 0;
+        this.vfx.wave(add.pos.x, add.pos.y + 0.08, add.pos.z, { r0: 3, r1: 0.4, life: 0.8, strength: 0.9, width: 0.08, color: [2.4, 1.15, 4.6] });
+      }
+      this.rig.addShake(0.5);
+    }
     if (e.type === 'death') {
       // The construct comes apart: a bubble of force, a ring over the ground, and its light
       // rising out of it as slow embers.
@@ -541,6 +639,13 @@ export class Game {
       }
       if (e.enemy === this.boss) { this.boss = null; this.emit('boss', { enemy: null }); }
       if (e.enemy === this.player.lockTarget) { this.player.lockTarget = null; this.emit('lock', { target: null }); }
+      // What it held of the song comes back to him.
+      if (!this.cine) {
+        this.xp += en.def.xp ?? 10; this.emit('xp', { amount: en.def.xp ?? 10, total: this.xp });
+        const m = /^wild(\d+)$/.exec(en.group ?? '');
+        if (m && this.enemies.aliveIn(en.group) === 0) { this.wildDone.push(+m[1]); this.emit('pack', { index: +m[1] }); }
+        this.save();
+      }
       this._refreshObjective();
     }
     this.emit('enemy', e);
@@ -551,7 +656,7 @@ export class Game {
     this.prompt = null;
     for (const s of this.spires) {
       if (s.tuned) continue;
-      const ready = this.enemies.aliveIn(s.id) === 0;
+      const ready = this.encounters.cleared(s.id);
       s.power += ((ready ? 0.22 : 0) - s.power) * Math.min(1, 2 * dt);
       const near = Math.hypot(p.pos.x - s.x, p.pos.z - s.z) < 6.5 && Math.abs(p.pos.y - s.base) < 4;
       if (ready && near && p.state === 'move') {
@@ -577,7 +682,9 @@ export class Game {
   _tune(s) {
     s.tuned = true; s.tuning = 0; s.releasing = 0.001;
     const p = this.player;
-    p.health = TUNE.healthMax; p.stamina = TUNE.staminaMax;
+    this._skills();
+    p.health = p.healthMax; p.stamina = p.staminaMax; p.windUsed = false;
+    if (SKILLS[s.id] && !this.cine) this.emit('skill', { ...SKILLS[s.id] });
     this.checkpoint = { x: p.pos.x, y: p.pos.y + 0.1, z: p.pos.z, yaw: p.yaw };
     for (let k = 0; k < 120; k++) { const a = Math.random() * 6.283, r = Math.random() * 3; this.particles.spawn(s.x + Math.cos(a) * r, s.base + 1 + Math.random() * 18, s.z + Math.sin(a) * r, { vel: [Math.cos(a) * 3, 6 + Math.random() * 10, Math.sin(a) * 3], life: 1.8, size: 0.14, color: [3.2, 2.3, 1.0], drag: 0.8 }); }
     this.rig.addShake(0.6);
@@ -618,7 +725,7 @@ export class Game {
       s.strings.material.uniforms.uPower.value = s.power;
       s.strings.material.uniforms.uTune.value = s.tuning / 1.5;
       s.beam.material.uniforms.uPower.value = Math.max(0, (s.power - 0.3) / 0.7) * (s.tuned ? 1 : 0);
-      s.beam.visible = s.tuned;
+      s.beam.visible = s.tuned && !(this.cine && s.index > 2);      // the film keeps to the inner three
       s.crystal.rotation.y = t * (0.25 + s.power * 0.8) + s.index;
       s.crystal.position.y = s.y + Math.sin(t * 1.3 + s.index) * 0.18 * (0.3 + s.power);
       s.crystal.updateMatrixWorld();

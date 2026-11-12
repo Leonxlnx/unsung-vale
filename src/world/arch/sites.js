@@ -293,6 +293,36 @@ export class Architecture {
       finish(b);
     }
 
+    // --- The outer courts: five more spires on the mesas round the lake, reached by the
+    // strings of light. Each is a ring of columns round its spire, a little different from
+    // the last, the Crown the grandest. ---
+    out.outer = [];
+    for (const [id, sx, sz, h, style] of [['east', 578, -437, 24, 0], ['south3', 517, 437, 26, 1], ['aurel', 136, 546, 28, 2], ['south1', -405, 435, 26, 3], ['crown', -990, -104, 34, 4]]) {
+      const b = new MeshBuilder(), y = H(sx, sz) + 0.5, R = style === 4 ? 25 : 21;
+      b.at(sx, y, sz, 0, (q) => {
+        q.mat_(M.PAVING).lathe([[R, -9], [R, 0.12], [0, 0.12]], 44);
+        q.mat_(M.GOLD).lathe([[R * 0.64, 0.13], [R * 0.62, 0.135]], 44);
+        const cyl = tuningSpire(q, h);
+        out.spires.push({ id, x: sx, y: y + cyl, z: sz, base: y, h });
+        out.floors.push({ x: sx, y: y + 0.12, z: sz, r: R });
+        const n = 10 + style * 2;
+        for (let k = 0; k < n; k++) {
+          if ((k * 7 + style) % 5 === 0) continue;                    // a few have fallen
+          const a0 = (k / n) * Math.PI * 2 + style * 0.7;
+          q.at(Math.cos(a0) * (R - 2.8), 0.12, Math.sin(a0) * (R - 2.8), 0, (g) => column(g, 0.45, 5.4 + ((k + style) % 3) * 1.3 + (style === 4 ? 2 : 0), { sides: 12 }));
+        }
+        for (let k = 0; k < 5; k++) {
+          const a0 = k * 1.2566 + 0.4 + style, px = Math.cos(a0) * (R - 1.3), pz = Math.sin(a0) * (R - 1.3);
+          let top = 0;
+          q.at(px, 0.12, pz, 0, (g) => { top = planter(g, 0.8); });
+          out.planters.push([sx + px, y + 0.12 + top, sz + pz]);
+        }
+      });
+      for (const a0 of [0.6, 2.2, 3.8, 5.4]) { const lx = sx + Math.cos(a0) * (R + 1.6), lz = sz + Math.sin(a0) * (R + 1.6); lamp(b, lx, H(lx, lz), lz); }
+      finish(b);
+      out.outer.push({ id, x: sx, z: sz, y, r: R });
+    }
+
     // --- The Choir: a ring of tall arches around the last spire ---
     {
       const b = new MeshBuilder(), cx = 150, cz = -15, y = H(cx, cz);
@@ -322,6 +352,9 @@ export class Architecture {
       finish(b);
       out.arena = { x: cx, y, z: cz, r: 31 };
     }
+    // The order of the journey: the three of the inner Vale, then round the lake to the Crown.
+    const ORDER = ['petal', 'cantor', 'choir', 'east', 'south3', 'aurel', 'south1', 'crown'];
+    out.spires.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
     return out;
   }
 }

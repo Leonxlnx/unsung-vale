@@ -17,8 +17,8 @@ export class Tuning {
   begin(s) {
     const g = this.g, p = g.player, cam = g.pipe.camera;
     this.s = s; this.active = true; this.phase = 'approach'; this.t = 0; this.beat = 0; this.bt = -0.4; this.ring = false;
-    this.total = 4 + Math.min(2, s.index);              // four notes at the first spire, six at the last
-    this.period = 1.25 - 0.1 * s.index;
+    this.total = 4 + Math.min(4, Math.ceil(s.index / 2));  // four notes at the first spire, eight at the last
+    this.period = Math.max(0.82, 1.25 - 0.06 * s.index);
     this.h = s.h ?? 24;
     p.invulnerable = 1e6; p.vel.x = p.vel.z = 0; p.lockTarget = null;
     p.yaw = Math.atan2(s.x - p.pos.x, s.z - p.pos.z);

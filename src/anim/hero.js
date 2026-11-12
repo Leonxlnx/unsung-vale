@@ -40,7 +40,7 @@ void main() {
   #include <skinning_vertex>
   gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(transformed, 1.0);
 }`;
-const HERO_FRAG = /* glsl */ `
+export const HERO_FRAG = /* glsl */ `
 ${COMMON}
 ${SKYMAP}
 ${SKY_SAMPLE}
@@ -143,6 +143,8 @@ const SW = {
   plant: { g: [-0.03, -0.04, 0.34], d: [0.0, -1, 0.07] },
   dive: { g: [-0.04, 0.16, 0.22], d: [0.0, -0.98, 0.2] },
   coil: { g: [-0.08, 0.5, -0.06], d: [-0.05, 0.7, -0.7] },
+  // Riding a string: the blade laid across it overhead, one hand on the grip, one on the flat.
+  ride: { g: [-0.31, 0.7, 0.1], d: [1, 0.02, 0] },
 };
 // The scabbard hangs from the belt on the left hip, pointing down, back and a little out.
 const SCAB_DIR = new THREE.Vector3(0.22, -0.78, -0.58).normalize();
@@ -368,13 +370,16 @@ export class Hero {
     let threat = !!p.lockTarget;
     if (!threat) for (const e of game.enemies.list) if (e.alive && e.state !== 'dormant' && e.pos.distanceToSquared(p.pos) < 196) { threat = true; break; }
     if (p.state === 'attack') this.combatHold = 1.6;
-    const swimming = p.state === 'swim';
+    const swimming = p.state === 'swim', riding = p.state === 'ride';
+    this.rideK = (this.rideK ?? 0) + ((riding ? 1 : 0) - (this.rideK ?? 0)) * Math.min(1, (riding ? 7 : 5) * dt);
+    const ride = ease(clamp01(this.rideK));
     this.swimK += ((swimming ? 1 : 0) - this.swimK) * Math.min(1, 6 * dt);
     // Drawn while there is something to fight (and for a few breaths after), or a use for it.
     const plunging = p.state === 'plunge';
     this.plungeK = (this.plungeK ?? 0) + ((plunging ? 1 : 0) - (this.plungeK ?? 0)) * Math.min(1, 14 * dt);
     this.impactK = (this.impactK ?? 0) + ((plunging && p.plungeHit ? 1 : 0) - (this.impactK ?? 0)) * Math.min(1, (plunging && p.plungeHit ? 30 : 7) * dt);
     if (threat || p.state === 'attack' || plunging) this.drawnHold = 4;
+    if (riding) this.drawnHold = Math.max(this.drawnHold, 1.2);
     this.drawnHold = Math.max(0, this.drawnHold - dt);
     const wantDrawn = !swimming && (this.drawnHold > 0 || (this.kneel ?? 0) > 0.3 || tuning > 0);
     if (wantDrawn && this.sheathed && this.uInit) this._draw();
@@ -519,6 +524,11 @@ export class Hero {
       pelY += 0.03 * Math.sin(ph2) * sw;
     }
 
+    if (ride > 0.001) {
+      const swingR = 0.05 * Math.sin(t * 2.1), v = clamp01((game.strings?.speed ?? 0) / 30);
+      R.rot('Hips', (0.1 + 0.3 * v) * ride, 0, swingR * ride); R.rot('Spine', -0.1 * v * ride); R.rot('Chest', -0.12 * v * ride);
+      R.rot('Neck', -0.14 * v * ride); R.rot('Head', -0.16 * v * ride);
+    }
     // --- airborne, landing, hurt ---
     if (this.airBlend > 0.01) {
       this.fallK = (this.fallK ?? 0) + (clamp01(-p.vel.y / 9) - (this.fallK ?? 0)) * Math.min(1, 9 * dt);
@@ -623,6 +633,12 @@ if (this.hurtK > 0.01) {
         toWorld(f.side * 0.11, ANKLE[1] + lerp(L ? 0.1 : 0.05, L ? 0.36 : 0.12, rising), lerp(L ? 0.1 : -0.1, L ? 0.2 : -0.3, rising), _v1);
         a.pos.lerp(_v1, air); a.yaw = lerp(a.yaw, 0, air); a.pitch = lerp(a.pitch, 0.5, air); a.abs = lerp(a.abs, 0.3, air);
       }
+      if (ride > 0.001) {
+        // Hanging: one knee a little drawn up, both legs trailing with the speed.
+        const L = s === 'L', v = clamp01((game.strings?.speed ?? 0) / 30), sw2 = 0.04 * Math.sin(t * 2.1 + (L ? 0 : 1.3));
+        toWorld(f.side * 0.1, ANKLE[1] + (L ? 0.3 : 0.1) + 0.12 * v, (L ? -0.05 : -0.3) - 0.3 * v + sw2, _v1);
+        a.pos.lerp(_v1, ride); a.yaw = lerp(a.yaw, 0, ride); a.pitch = lerp(a.pitch, 0.75, ride); a.abs = lerp(a.abs, 0.4, ride);
+      }
     }
     // A wide stance, or ground that falls away under one foot, lowers the pelvis so both
     // legs can reach.
@@ -683,6 +699,7 @@ if (this.hurtK > 0.01) {
         if (this.tuneK > 0.001) { tg.lerp(SW.tune.gv, this.tuneK); tq.slerp(SW.tune.q, this.tuneK); }
         if (kn > 0.001) { tg.lerp(SW.plant.gv, kn); tq.slerp(SW.plant.q, kn); }
         if (plunging && !p.plungeHit) { const pose = p.stateTime < TUNE.plunge.hang * 0.7 ? SW.coil : SW.dive; tg.copy(pose.gv); tq.copy(pose.q); }
+        if (ride > 0.001) { tg.lerp(SW.ride.gv, ride); tq.slerp(SW.ride.q, ride); }
         tg.z += armSwing * lerp(0.05, 0.1, runK); tg.y += 0.02 * Math.abs(armSwing) * runK + 0.004 * br;
         if (!wantDrawn && !this.sheathed) {
           // Putting it away: the point finds the scabbard's mouth and the blade slides home.
@@ -697,10 +714,11 @@ if (this.hurtK > 0.01) {
       const armW = clamp01(1 - this.rollK * 1.5) * (1 - this.deadK) * (1 - this.armFree) * (1 - sw) * (1 - 0.85 * ease(clamp01(this.downK)));
       this._placeSword(this.swG, this.swQ, this.uPos, this.uQ, armW);
       // Second hand on the grip for the heavy strike.
-      const two = Math.max(A.two, kn, this.plungeK ?? 0);
+      const two = Math.max(A.two, kn, this.plungeK ?? 0, ride);
       if (two > 0.01) {
         const d = _v0.set(0, 1, 0).applyQuaternion(this.sword.getWorldQuaternion(_q0));
-        const gp = this.sword.localToWorld(_v1.set(0, -0.11, 0));
+        // On the grip below the right hand; riding a string, out along the flat of the blade.
+        const gp = this.sword.localToWorld(_v1.set(0, lerp(-0.11, 0.6, ride), 0));
         const pole = _v2.set(0.6, -0.7, -0.3).applyQuaternion(this.uQ);
         R.ik('UpperArm.L', 'LowerArm.L', 'Hand.L', gp.addScaledVector(d, -0.02), pole, two * armW);
       }

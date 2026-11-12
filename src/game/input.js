@@ -4,7 +4,7 @@
 const DEFAULT_KEYS = {
   forward: ['KeyW', 'ArrowUp'], back: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   sprint: ['ShiftLeft', 'ShiftRight'], jump: ['Space'], dodge: ['ControlLeft', 'AltLeft', 'KeyC'],
-  interact: ['KeyE'], lock: ['KeyQ', 'Tab'], walk: ['KeyX'], pulse: ['KeyF'], pause: ['Escape', 'KeyP'], photo: ['KeyH'],
+  interact: ['KeyE'], lock: ['KeyQ', 'Tab'], walk: ['KeyX'], pulse: ['KeyF'], pause: ['Escape', 'KeyP'], photo: ['KeyH'], map: ['KeyM'], journal: ['KeyJ'],
 };
 
 export class Input {
@@ -104,6 +104,6 @@ export class Input {
     if (l > 1) { mx /= l; my /= l; }
     this.move.x = mx; this.move.y = my;
     this.look.x = lx; this.look.y = ly;
-    if (!this.enabled) { this.pressed = new Set([...this.pressed].filter((a) => a === 'pause')); this.move.x = this.move.y = 0; this.look.x = this.look.y = 0; this.held.clear(); }
+    if (!this.enabled) { this.pressed = new Set([...this.pressed].filter((a) => a === 'pause' || a === 'map' || a === 'journal')); this.move.x = this.move.y = 0; this.look.x = this.look.y = 0; this.held.clear(); }
   }
 }

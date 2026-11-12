@@ -60,7 +60,7 @@ uniform sampler2D uVol;
 uniform sampler2D uAo;
 uniform float uAoStrength;
 uniform vec3 uVolInfo;     // x: enabled, y: march distance, z: unused
-uniform vec4 uMute[3];     // xz centre, radius, strength: where the land has fallen silent
+uniform vec4 uMute[8];     // xz centre, radius, strength: where the land has fallen silent
 uniform float uTimeF;
 uniform vec2 uVolSize;
 uniform vec3 uSunDir;
@@ -102,7 +102,7 @@ void main() {
   if (!sky) {
     // Silence drains the colour out of the world; a thin warm rim marks its edge.
     vec3 wp = uCamPos + rd * dist;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 8; i++) {
       if (uMute[i].w <= 0.001) continue;
       float d = distance(wp.xz, uMute[i].xy) + (vnoise(wp.xz * 0.21) - 0.5) * 7.0 + sin(uTimeF * 0.7 + wp.x * 0.05) * 0.8;
       float m = (1.0 - smoothstep(uMute[i].z - 5.0, uMute[i].z, d)) * uMute[i].w;
@@ -318,7 +318,7 @@ export class FogPass {
     const g = pipe.globals;
     this.haze = new THREE.Vector4(4.0e-5, 900, 0.025, 0);
     this.mist = new THREE.Vector4(2.0e-4, 60, 2, 0);
-    this.mute = [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()];
+    this.mute = Array.from({ length: 8 }, () => new THREE.Vector4());
     this.uniforms = { uHaze: { value: this.haze }, uMist: { value: this.mist } };
     this.pass = new FullscreenPass({
       fragment: FOG_PASS,
