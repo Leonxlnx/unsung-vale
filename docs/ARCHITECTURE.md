@@ -213,6 +213,26 @@ the opaque scene at the far plane with the depth test on, so it is only shaded w
   The map is drawn once from `terrain.heightAt` into a canvas (`_bakeMap`) and overlaid
   every frame while open (`_drawMap`).
 - `main.js`: boot sequence with staged loading, the title camera drift, and `window.__dbg`.
+### Later additions to the rules
+
+- `reliquaries.js`: eight caskets (`PLACES`), each settled on the most level free spot near
+  its mark (`settle`), with a lid on a hinge and a guard spawned by `encounters.reset`.
+  `CHARMS` names the eight keepsakes; what each does is written where it acts
+  (`player.charms` in player.js, game.js and enemies.js; `enemies.anvil`). `game._charms()`
+  hands the worn set over; found and worn charms are saved.
+- Cadence (`game._cadence`, `_cadenceTick`, `_cadenceBreak`): a counter of blows landed
+  since the last one taken, three to a step, four steps; it scales melee damage, and the
+  interface shows it as four strings by the refrain pips.
+- The refrain (`player.refrains`, state `heal`): charges that mend, given back by
+  `game.rest()`.
+- In `enemies.js`: a struck bolt turns back (`p.back`), choristers ward an ally (`e.ward`,
+  `e.warder`), brutes rush (`attackKind` 5, event `rushMark`), seekers burst.
+- `world/wildlife.js`: birds moved wholly in the vertex shader from the clock (one
+  instanced draw), butterflies set each frame over the ground round the hero. Not in the film.
+- `world/layout.js` `PADS`: the ground is brought down to just under the paving round every
+  court and eased back beyond, so no cut bank shows at a court's edge. Changing them means
+  re-baking the heights with `node tools/build-world.mjs`.
+
 ## Hero, audio and film
 
 - `anim/rig.js`: `Rig` (poses as character-space rotations relative to rest; bone names are
@@ -258,6 +278,13 @@ strikes of a combo land from a given distance, and a fuzz run of random input at
 looking for stuck spots, falls through the world and NaNs. `__dbg.bot()` plays the whole game.
 
 ## Development helpers
+
+- `__dbg.audit(step)` goes over every walkable surface on a grid and lists ground that
+  comes up through a floor and floors with open air under them; `__dbg.holes(step)` checks
+  every place where the ground is cut away for paving for holes and exposed banks.
+- `node tools/tour.mjs --only none --at "x,z,yaw,pitch,dist,over;..."` stands the hero at
+  given places and photographs them; scenes `relic` and `foes` show the reliquaries, the
+  charms and what the Mute have learnt.
 
 `window.__dbg` in the page: `step(n)`, `pos/look` (free camera), `play(frames, moveY, moveX,
 { tp, press, hold })` (scripted play), `sheet()` (four test views in one image), `crop(x, y,

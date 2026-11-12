@@ -457,8 +457,49 @@ export class Game {
   resume() { if (this.state !== 'paused') return; this.start(); }
   toHome() { this.state = 'home'; this.input.enabled = false; this.input.unlockPointer(); this.emit('state', { state: 'home' }); }
 
+  // --- photo mode: the world holds its breath and the view goes where it likes ---
+  photo(on) {
+    const cam = this.pipe.camera;
+    if (on) {
+      if (this.state !== 'playing' || this.cine || this.tuning.active || this.people.talk || this.player.state === 'dead' || this.player.state === 'ride') return;
+      const d = cam.getWorldDirection(new THREE.Vector3());
+      this._photo = { fov0: cam.fov, fov: cam.fov, yaw: Math.atan2(d.x, d.z), pitch: Math.asin(Math.max(-1, Math.min(1, d.y))), pos: cam.position.clone() };
+      this.state = 'photo'; this.emit('state', { state: 'photo' });
+    } else if (this.state === 'photo') {
+      cam.fov = this._photo.fov0; cam.updateProjectionMatrix(); this._photo = null;
+      this.state = 'playing'; this.emit('state', { state: 'playing' });
+    }
+  }
+  _photoTick(dt) {
+    const ph = this._photo, cam = this.pipe.camera, inp = this.input, p = this.player.pos;
+    ph.yaw -= inp.look.x; ph.pitch = Math.max(-1.45, Math.min(1.45, ph.pitch - inp.look.y));
+    const cp = Math.cos(ph.pitch), fx = Math.sin(ph.yaw) * cp, fy = Math.sin(ph.pitch), fz = Math.cos(ph.yaw) * cp;
+    const sp = (inp.held.has('sprint') ? 16 : inp.held.has('walk') ? 1.2 : 5) * Math.min(dt, 0.05);
+    const up = (inp.held.has('jump') ? 1 : 0) - (inp.held.has('dodge') ? 1 : 0);
+    ph.pos.x += (fx * inp.move.y - Math.cos(ph.yaw) * inp.move.x) * sp; ph.pos.y += (fy * inp.move.y + up) * sp; ph.pos.z += (fz * inp.move.y + Math.sin(ph.yaw) * inp.move.x) * sp;
+    // It stays within a stone's throw of him and never goes under the ground or a floor.
+    const dx = ph.pos.x - p.x, dy = ph.pos.y - (p.y + 1.2), dz = ph.pos.z - p.z, d = Math.hypot(dx, dy, dz), far = 45;
+    if (d > far) { ph.pos.x = p.x + dx / d * far; ph.pos.y = p.y + 1.2 + dy / d * far; ph.pos.z = p.z + dz / d * far; }
+    const fl = this.world.floorBelow(ph.pos.x, ph.pos.y + 1.2, ph.pos.z, 80) + 0.3; if (ph.pos.y < fl) ph.pos.y = fl;
+    if (inp.zoom) ph.fov = Math.max(14, Math.min(95, ph.fov + inp.zoom * 4));
+    cam.fov += (ph.fov - cam.fov) * Math.min(1, dt * 10); cam.updateProjectionMatrix();
+    cam.position.copy(ph.pos); cam.lookAt(ph.pos.x + fx, ph.pos.y + fy, ph.pos.z + fz);
+    if (inp.pressed.has('attack') || inp.pressed.has('interact')) this._photoSave();
+  }
+  // The picture as it stands on the canvas, saved as a PNG.
+  _photoSave() {
+    try {
+      const c = this.pipe.renderer.domElement;
+      this.pipe.render(1 / 240);
+      c.toBlob((b) => { if (!b) return; const a = document.createElement('a'), t = new Date(), z = (n) => String(n).padStart(2, '0'); a.href = URL.createObjectURL(b); a.download = `unsung-vale-${t.getFullYear()}${z(t.getMonth() + 1)}${z(t.getDate())}-${z(t.getHours())}${z(t.getMinutes())}${z(t.getSeconds())}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }, 'image/png');
+      this.emit('photo', { saved: true });
+    } catch { /* a picture is not worth a crash */ }
+  }
+
   update(realDt) {
     this.input.update();
+    if (!this.cine && this.input.pressed.has('photo')) { this.photo(this.state !== 'photo'); return; }
+    if (this.state === 'photo') { if (this.input.pressed.has('pause')) this.photo(false); else this._photoTick(realDt); return; }
     if (!this.cine && this.input.pressed.has('pause')) { if (this.state === 'playing') this.pause(); else if (this.state === 'paused') this.resume(); else if (this.state === 'menu') this.closeMenu(); }
     if (!this.cine && this.input.pressed.has('map')) { if (this.state === 'playing' && !this.tuning.active && !this.people.talk) this.openMenu(this.hasMap ? 'map' : 'journal'); else if (this.menu === 'map' || (this.menu === 'journal' && !this.hasMap)) this.closeMenu(); }
     if (!this.cine && this.input.pressed.has('journal')) { if (this.state === 'playing' && !this.tuning.active && !this.people.talk) this.openMenu('journal'); else if (this.menu === 'journal') this.closeMenu(); }

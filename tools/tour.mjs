@@ -205,6 +205,16 @@ if (want('tuning')) {
   await sleep(3200); await shot('finale');
   await sleep(6500); await shot('woken');
 }
+if (want('photo')) {
+  // Photo mode: the world held still, the camera flown up and back, the interface gone.
+  await ev(() => { window.__dbg.ui(true); window.__tour.tp(-512, 210.5, -66, 1.57, -0.12, 5.5); });
+  await sleep(700); await page.keyboard.press('KeyH'); await sleep(500); await shot('photo_start');
+  await page.keyboard.down('Space'); await page.keyboard.down('KeyS'); await sleep(900); await page.keyboard.up('KeyS'); await page.keyboard.up('Space');
+  await page.keyboard.down('KeyD'); await sleep(500); await page.keyboard.up('KeyD'); await sleep(300); await shot('photo_moved');
+  const st = await ev(() => window.__game.state);
+  await page.keyboard.press('KeyH'); await sleep(500);
+  console.log('photo state was', st, 'and is now', await ev(() => window.__game.state));
+}
 if (want('relic')) {
   // Every reliquary where it stands, one being opened, and the charms on the Hero screen.
   const n = await ev(() => window.__game.reliquaries.list.length);

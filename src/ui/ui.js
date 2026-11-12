@@ -19,7 +19,7 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const KEYS = [
   ['Move', 'W A S D'], ['Look', 'Mouse'], ['Sprint', 'Shift'], ['Jump', 'Space'], ['Dodge roll', 'Ctrl or C'], ['Walk or run', 'X'],
   ['Strike', 'Left mouse'], ['Heavy strike', 'Right mouse'], ['Falling strike', 'Strike in the air'], ['Lock on', 'Q'], ['Refrain (mend yourself)', 'R'], ['Resonance pulse', 'F'],
-  ['Speak, tune, ride', 'E'], ['Map', 'M'], ['Journal', 'J'], ['Zoom', 'Mouse wheel'], ['Pause', 'Esc'],
+  ['Speak, tune, ride', 'E'], ['Map', 'M'], ['Journal', 'J'], ['Zoom', 'Mouse wheel'], ['Photo mode', 'H'], ['Pause', 'Esc'],
 ];
 const EMBLEM = '<svg class="emblem" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true"><path d="M11.2 50 A24 24 0 1 1 52.8 50"/><path d="M17.7 46.25 A16.5 16.5 0 1 1 46.3 46.25" opacity="0.75"/><path d="M24.2 42.5 A9 9 0 1 1 39.8 42.5" opacity="0.5"/><path d="M32 5 V59"/><path d="M32 33.4 L36.6 38 L32 42.6 L27.4 38 Z" fill="currentColor" stroke="none"/></svg>';
 const UPS = { health: ['Life', 'How much he can take', '+20'], stamina: ['Breath', 'Running, rolling and striking', '+15'], blade: ['Edge', 'How hard the blade bites', '+12%'] };
@@ -91,6 +91,7 @@ export class UI {
       <div id="ending" class="screen"><div>${EMBLEM}<h2>The Vale sings again</h2><div class="rule"><i></i></div><p>Every spire is tuned.</p><div class="stats"></div>
         <div class="menu"><button class="primary" data-act="continue">Keep exploring</button><button data-act="title">Return to title</button></div></div></div>
       <div id="story"><div class="bar top"></div><div class="bar bottom"></div><div class="caption"></div><div class="skip">Space to skip</div></div>
+      <div id="photo"><b>Photo</b><span>W A S D</span>move<span>Space / Ctrl</span>up and down<span>Shift</span>faster<span>Wheel</span>field of view<span>Click</span>save<span>H</span>back</div>
       <div id="fade"></div>
     </div>`);
     document.body.appendChild(this.root);
@@ -183,7 +184,9 @@ export class UI {
   _onGame(type, d) {
     const el = this.el, g = this.game;
     if (type === 'state') {
-      if (d.state === 'playing') this.show('hud'); else if (d.state === 'paused') this.show('pause'); else if (d.state === 'home') this.show('home'); else if (d.state === 'intro') this.show('none');
+      this.root.querySelector('#photo').classList.toggle('on', d.state === 'photo');
+      if (d.state === 'photo') { this.show('none'); const ph = this.root.querySelector('#photo'); ph.classList.remove('dim'); clearTimeout(this._phT); this._phT = setTimeout(() => ph.classList.add('dim'), 6000); }
+      else if (d.state === 'playing') this.show('hud'); else if (d.state === 'paused') this.show('pause'); else if (d.state === 'home') this.show('home'); else if (d.state === 'intro') this.show('none');
       else if (d.state === 'ending') { this.show('none'); g.input.enabled = false; g.input.unlockPointer(); this._renderEnding(); el.ending.classList.add('on'); }
       else if (d.state === 'menu') { this.show('journey'); this.atBench = d.menu === 'bench'; this.bench = this.atBench || !!g.metPeople?.includes('odo'); this._journey(d.menu === 'map' ? 'map' : d.menu === 'journal' ? 'journal' : 'hero'); this.onSound?.(d.menu === 'map' ? 'map_open' : 'ui_open'); }
       el.story.classList.toggle('cine', d.state === 'intro');
@@ -245,6 +248,7 @@ export class UI {
     if (type === 'people' && d.type === 'wake') { clearTimeout(this._wakeT); const n = (this._wakeN = (this._wakeN ?? 0) + 1); this._wakeT = setTimeout(() => { this._wakeN = 0; this.card(n > 1 ? 'The court wakes' : `${d.name} wakes`, n > 1 ? `${n} people here can speak again.` : 'Someone at this court can speak again.'); }, 9500); }
     if (type === 'hit' && d.enemy) (this._hit ??= new Map()).set(d.enemy, performance.now());
     if (type === 'hint') this.card(d.title, d.text);
+    if (type === 'photo') { const f = this.el.fade; f.classList.add('flash'); setTimeout(() => f.classList.remove('flash'), 90); this.onSound?.('ui_click'); }
     if (type === 'cadence') {
       const c = el.cadence;
       c.dataset.lv = d.level; c.classList.toggle('on', d.level > 0); c.classList.toggle('full', d.level === 4);

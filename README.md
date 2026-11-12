@@ -54,10 +54,12 @@ load takes a little while because the world is baked on your GPU.
 | Heavy strike | Right mouse | Y or right trigger |
 | Falling strike | Strike while in the air | Same |
 | Resonance pulse (once learned) | F | Left bumper |
+| The refrain (mends you; a few to a journey) | R | D-pad up |
 | Lock on | Q | Right stick click |
-| Speak, tune a spire, ride a string | E | D-pad |
-| Map / journal | M / J | |
+| Speak, tune a spire, ride a string, open a reliquary | E | D-pad down or left |
+| Map / journal | M / J | Back / D-pad right |
 | Zoom the camera | Mouse wheel | |
+| Photo mode (free camera; click saves a PNG) | H | |
 | Pause | Esc | Start |
 
 A spire is tuned by striking its notes: rings of light close on the shaft one after another,
@@ -74,7 +76,7 @@ turns exactly as far as the hand moves, whatever the system's pointer settings.
   Elder tree.
 - Cliffs of jointed, faceted rock whose relief shadows itself, hung with vines and wisteria
   along their rims; karst pillars in the lake; talus, shrubs, flowers, butterflies, falling
-  petals and sunlit dust up close.
+  petals and sunlit dust up close; flocks of birds turning over the spires and the pools.
 - Trees whose crowns shade as billowed masses and whose leaves each catch the light and
   glow when the sun is behind them; meadows that stay varied from your feet to the far mesas.
 - Physically based sky and volumetric clouds with the sun breaking through a gap, light
@@ -87,14 +89,25 @@ turns exactly as far as the hand moves, whatever the system's pointer settings.
   a named elite. The Crown ends with a boss in three phases.
 - Strings of light between the courts: hook the blade over one and ride it across the lake.
   From any pylon the map can send you along several strings to a court already restored.
-- Seven kinds of construct (thrall, lancer, hound, shield-bearing warden, spell-casting
-  chorister, brute, colossus), tougher veterans and elites of each, and packs that roam the
-  mesas.
+- Eight kinds of construct (thrall, lancer, hound, shield-bearing warden, spell-casting
+  chorister, brute, seeker, colossus), tougher veterans and elites of each, and packs that
+  roam the mesas. They work together: a chorister throws a ward of light over one of its
+  own until the singer is broken, a brute that cannot reach you rushes along a line marked
+  on the ground, seekers fly at you and burst, thralls cut twice.
+- A fight with some depth to it: a bolt met with the blade goes back at whoever is nearest,
+  a heavy blow on a staggered construct rings it like a bell, and blows landed without one
+  taken build cadence in four steps, each putting more weight in the blade, until every cut
+  rings. One hit taken and it is lost. Wounds are mended with the refrain, a note the hero
+  hums: a few to a journey, given back at spires, bells, pylons and with lost notes.
 - The people of the Vale: masked, robed figures who stand as grey statues until their spire
   is tuned, then wake and ask for something. Nine side quests, seven trials (wave rings and
   timed runs through gates of light), seventy lost notes.
 - Growth: each spire teaches an ability (resonance pulse, running cut, echo step, and more),
   and gifts and the luthier's bench raise life, breath and the blade's edge.
+- Reliquaries: a stone casket on every mesa, off the paths and under guard, each holding a
+  charm. Two are worn at a time (three once five spires sing), chosen on the Hero screen:
+  a stronger refrain, faster breath, longer cadence, guard-breaking heavy blows, mending on
+  a slipped blow, thorns, more resonance, bolts that burst when struck back.
 - Swimming, a sword that is sheathed when there is nothing to fight, a falling strike with
   a somersault and a shockwave, being thrown off your feet by heavy blows.
 - A short opening and a light thread of story: a few lines at the stations of the journey,
