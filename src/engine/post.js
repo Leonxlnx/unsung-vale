@@ -107,7 +107,9 @@ void main() {
       float d = distance(wp.xz, uMute[i].xy) + (vnoise(wp.xz * 0.21) - 0.5) * 7.0 + sin(uTimeF * 0.7 + wp.x * 0.05) * 0.8;
       float m = (1.0 - smoothstep(uMute[i].z - 5.0, uMute[i].z, d)) * uMute[i].w;
       float g = luma(col);
-      col = mix(col, vec3(g) * vec3(0.86, 0.9, 1.0) * 0.94, m * 0.9);
+      // Not plain grey: a cold duotone, indigo in the shade and silver where light still falls.
+      vec3 duo = mix(vec3(0.6, 0.67, 0.96), vec3(0.95, 0.97, 1.0), smoothstep(0.0, 1.4, g)) * g * 1.12;
+      col = mix(col, duo, m * 0.92);
       float rim = exp(-sq((d - uMute[i].z) / 1.6)) * uMute[i].w;
       col += vec3(1.0, 0.72, 0.35) * rim * (0.05 + g * 0.5);
     }
