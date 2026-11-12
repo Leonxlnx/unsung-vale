@@ -50,7 +50,7 @@ export const SPECIES = {
   great: {       // the Elder: a tree the size of a mountain, crowned in pale blossom
     height: [470, 470], trunkR: 30, lean: 0.05, branchStart: 0.34, n1: [26, 26], n2: [9, 10], n3: [4, 5],
     spread: 0.7, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.86 + 0.14)), 0.5), tropism: 0.1, droop: 0.1,
-    wiggle: 0.3, cardSize: [30, 48], cardsPerTwig: 5, leaf: 2,
+    wiggle: 0.3, cardSize: [30, 48], cardsPerTwig: 5, leaf: 1,
   },
   shrub: {       // a low, many-stemmed bush; the forest picks its leaves (green or in flower)
     height: [1.3, 2.2], trunkR: 0.055, lean: 0.25, branchStart: 0.04, n1: [8, 10], n2: [3, 4], n3: [0, 0],
