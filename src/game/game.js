@@ -24,6 +24,17 @@ import { Wildlife } from '../world/wildlife.js';
 import { POOLS } from '../world/layout.js';
 
 // What each spire teaches when it is tuned.
+// Dyes for the cape. Each is earned by seeing one thing through to its end; red is his own.
+// [name, colour of the cloth, what earns it, the test]
+export const DYES = {
+  red: ['Dawn red', [0.3, 0.028, 0.04], 'His own', () => true],
+  teal: ['Lake teal', [0.02, 0.15, 0.17], 'Win every trial', (g) => g.trials.doneCount >= g.trials.list.length],
+  gold: ['Aurel gold', [0.36, 0.2, 0.03], 'Open every reliquary', (g) => g.reliquaries.openCount >= g.reliquaries.list.length],
+  white: ['Choir white', [0.56, 0.54, 0.5], 'Find sixty lost notes', (g) => g.notes.count >= 60],
+  green: ['Orchard green', [0.06, 0.17, 0.05], 'Do everything asked of you', (g) => g.quests.doneCount >= g.quests.total],
+  violet: ['Echo violet', [0.13, 0.05, 0.26], 'Answer an echo at every court', (g) => (g.echoes ?? []).length >= g.spires.length],
+};
+
 export const SKILLS = {
   petal: { id: 'pulse', name: 'Resonance pulse', how: 'F sends a ring of the song through everything near you.' },
   cantor: { id: 'dash', name: 'Running cut', how: 'Strike at a sprint to carry the run into a full turn of the blade.' },
@@ -208,6 +219,9 @@ export class Game {
     this._refreshObjective();
   }
 
+  dyeOpen(id) { return !!DYES[id] && DYES[id][3](this); }
+  setDye(id) { if (!this.dyeOpen(id)) return false; this.cape = id; this.save(); return true; }
+
   // The charms he wears (see reliquaries.js), handed to whoever acts on them.
   _charms() { const p = this.player, max = this.reliquaries?.slots() ?? 2; this.charmsWorn = (this.charmsWorn ?? []).filter((c) => (this.charmsFound ?? []).includes(c)).slice(-max); p.charms = new Set(this.charmsWorn); this.enemies.anvil = p.charms.has('anvil'); }
 
@@ -387,7 +401,7 @@ export class Game {
 
   save() {
     if (this.cine) return;        // the film must never overwrite a player's progress
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, outro: !!this.outroSeen, elites: this.elitesDown ?? [], charms: this.charmsFound ?? [], worn: this.charmsWorn ?? [], slain: this.slain ?? {}, echoes: this.echoes ?? [], time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, outro: !!this.outroSeen, elites: this.elitesDown ?? [], charms: this.charmsFound ?? [], worn: this.charmsWorn ?? [], slain: this.slain ?? {}, echoes: this.echoes ?? [], cape: this.cape ?? 'red', time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
   }
   load() {
     this.checkpoint = { ...this.sites.spawn };
@@ -397,7 +411,7 @@ export class Game {
       for (const s of this.spires) if (d.tuned?.includes(s.id)) { s.tuned = true; s.power = 1; s.zoneR = 0; s.zone.w = 0; s.crystal.material.uniforms.uPower.value = 1; s.beam.material.uniforms.uPower.value = 1; }
       if (d.checkpoint) this.checkpoint = d.checkpoint;
       this.xp = d.xp ?? 0; this.wildDone = d.wild ?? []; this.bought = d.bought ?? 0;
-      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {}; this.outroSeen = !!d.outro; this.elitesDown = d.elites ?? []; this.charmsFound = d.charms ?? []; this.charmsWorn = d.worn ?? []; this.slain = d.slain ?? {}; this.echoes = d.echoes ?? [];
+      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {}; this.outroSeen = !!d.outro; this.elitesDown = d.elites ?? []; this.charmsFound = d.charms ?? []; this.charmsWorn = d.worn ?? []; this.slain = d.slain ?? {}; this.echoes = d.echoes ?? []; this.cape = d.cape ?? 'red';
       this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? []; this.notesTaken = d.notes ?? [];
       if (this.spires[1].tuned) { this.bridgeOpen = true; this.bridgeProgress = 1; }
       // A journey that ended when the Vale had three spires goes on now that it has eight.
@@ -1024,6 +1038,8 @@ export class Game {
         this.particles.spawn(x, (s.base ?? p.y) + 0.3 + Math.random() * 2.5, z, { vel: [(Math.random() - 0.5) * 0.3, 0.25 + Math.random() * 0.35, (Math.random() - 0.5) * 0.3], life: 3.5 + Math.random() * 2.5, size: 0.035 + Math.random() * 0.03, color: [3.4, 2.6, 1.2], alpha: 0.75, drag: 0.2 });
       }
     }
+    // The cape takes the dye he has chosen; in the film it is always his own red.
+    { const m = this.hero?.mats?.cape, c = DYES[this.cine ? 'red' : this.cape ?? 'red']?.[1] ?? DYES.red[1]; if (m) { const a = m.uniforms.uAlbedo.value, k = Math.min(1, dt * 4); a.x += (c[0] - a.x) * k; a.y += (c[1] - a.y) * k; a.z += (c[2] - a.z) * k; } }
     this.flash *= Math.exp(-dt * 3.2);
     this.pipe.exposure = this.baseExposure * (1 + 0.16 * this.flash * (this.flashScale ?? 1));
     for (const s of this.spires) {

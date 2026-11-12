@@ -111,6 +111,8 @@ turns exactly as far as the hand moves, whatever the system's pointer settings.
   charm. Two are worn at a time (three once five spires sing), chosen on the Hero screen:
   a stronger refrain, faster breath, longer cadence, guard-breaking heavy blows, mending on
   a slipped blow, thorns, more resonance, bolts that burst when struck back.
+- Dyes for the cape, each earned by seeing one thing through: every trial, every reliquary,
+  sixty notes, every request, an echo at every court.
 - Swimming, a sword that is sheathed when there is nothing to fight, a falling strike with
   a somersault and a shockwave, being thrown off your feet by heavy blows.
 - A short opening and a light thread of story: a few lines at the stations of the journey,

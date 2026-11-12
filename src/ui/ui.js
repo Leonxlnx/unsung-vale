@@ -8,6 +8,7 @@ import { TUNE } from '../game/player.js';
 import creditsText from '../../CREDITS.md?raw';
 import { NAMES, LEGS } from '../game/story.js';
 import { CHARMS } from '../game/reliquaries.js';
+import { DYES } from '../game/game.js';
 import { QUESTS } from '../game/quests.js';
 import { SKILLS } from '../game/game.js';
 import { POOLS } from '../world/layout.js';
@@ -138,6 +139,7 @@ export class UI {
       if (tab) { this.tab = tab; this._renderSettings(); return; }
       if (b.dataset.jtab) { this._journey(b.dataset.jtab); return; }
       if (b.dataset.set) { this._set(b.dataset.set, b.dataset.val); return; }
+      if (b.dataset.dye) { if (game.setDye(b.dataset.dye)) this.onSound?.('item'); this._renderHero(); return; }
       if (b.dataset.charm) { if (game.reliquaries.toggle(b.dataset.charm)) this.onSound?.('item'); this._renderHero(); return; }
       if (b.dataset.buy) { if (game.buy(b.dataset.buy)) this.onSound?.('upgrade'); this._renderHero(); return; }
       if (act === 'play') this._begin();
@@ -563,7 +565,8 @@ export class UI {
     const left = R.list.length - found.length;
     this.el.hero.innerHTML = `<div class="col"><h3>${this.atBench ? "The luthier's bench" : 'What you carry'}</h3>
         <p class="lead">${lead}</p>
-        <div class="resline"><i></i><b>${g.xp}</b><span>resonance</span></div>${rows}</div>
+        <div class="resline"><i></i><b>${g.xp}</b><span>resonance</span></div>${rows}
+        <h3 class="gap">The cape</h3><div class="dyes">${Object.entries(DYES).map(([id, [name, c, how]]) => { const open = g.dyeOpen(id), on = (g.cape ?? 'red') === id; return `<button class="dye ${on ? 'on' : ''}" data-dye="${id}" ${open ? '' : 'disabled'}><i style="background: rgb(${c.map((v) => Math.round(255 * Math.pow(v, 0.45))).join(',')})"></i><b>${name}</b><span>${open ? (on ? 'Worn' : 'Wear') : how}</span></button>`; }).join('')}</div></div>
       <div class="col"><h3>Charms<small>${worn.length} of ${R.slots()} worn</small></h3>${charms || '<p class="lead">The singers kept their keepsakes in reliquaries, one on every mesa, off the paths.</p>'}${found.length && left ? `<p class="more">${left} more ${left === 1 ? 'lies' : 'lie'} unopened in the Vale.</p>` : ''}</div>
       <div class="col"><h3>What the spires taught</h3>${skills}</div>`;
   }

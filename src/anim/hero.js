@@ -248,7 +248,7 @@ export class Hero {
   constructor(pipe, scene) {
     this.pipe = pipe; this.root = scene;
     this.flash = { value: 0 }; this.rim = { value: 0 };
-    const mats = {};
+    const mats = (this.mats = {});
     const D = pipe.depthDefines;
     const mat = (name) => {
       const k = Object.keys(LOOKS).find((x) => name.toLowerCase().includes(x)) ?? 'armor';

@@ -343,6 +343,17 @@ input[type='range']::-moz-range-thumb { width: 11px; height: 11px; background: v
 #journey .charm:not(.on) b { color: var(--ink); font-weight: 500; }
 #journey .charm:not(.on) span { color: var(--ink-2); }
 #journey .q.mute b { color: var(--ink); font-weight: 500; } #journey .q.mute span { color: var(--ink-2); } #journey .q.mute em { color: var(--ink-3); font-style: normal; font-variant-numeric: tabular-nums; }
+#journey h3.gap { margin-top: 30px; }
+#journey .dyes { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 18px; }
+#ui #journey button.dye { display: grid; grid-template-columns: 18px 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center; text-align: left; padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.07); cursor: pointer; }
+#ui #journey button.dye:disabled { cursor: default; }
+#journey .dye i { grid-row: 1 / 3; width: 11px; height: 11px; margin-left: 3px; transform: rotate(45deg); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35); }
+#journey .dye:disabled i { opacity: 0.35; }
+#journey .dye.on i { box-shadow: 0 0 0 1.5px var(--gold); }
+#journey .dye b { font-weight: 500; font-size: 15px; }
+#journey .dye span { font-size: 13px; color: var(--ink-3); }
+#journey .dye:disabled b { color: var(--ink-3); font-weight: 400; }
+#journey .dye.on span { color: var(--gold); }
 #journey h3 small { font-size: 13.5px; font-weight: 400; color: var(--ink-3); margin-left: 14px; letter-spacing: 0; }
 #journey .pane.hero .col:first-child { flex: 1.2; }
 @media (max-width: 1180px) { #journey .pane.hero { flex-wrap: wrap; overflow: auto; } #journey .pane.hero .col { flex: 1 1 320px; overflow: visible; } }

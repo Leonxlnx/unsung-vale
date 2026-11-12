@@ -173,6 +173,7 @@ export class Quests {
   dump() { return this.state; }
   get active() { return QUESTS.filter((q) => this.state[q.id]?.s === 'active' || this.state[q.id]?.s === 'ready'); }
   get doneCount() { return QUESTS.filter((q) => this.state[q.id]?.s === 'done').length; }
+  get total() { return QUESTS.length; }
 
   // Sets the things of a gathering quest down in the world.
   _place(q) {
