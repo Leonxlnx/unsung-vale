@@ -46,7 +46,7 @@ export class Notes {
         if (len > 200) { carry = gap * 0.5; continue; }             // a leap between mesas, not a path
         for (let d = carry; d < len; d += gap) {
           const t = d / len, nx = -(bz - az) / len, nz = (bx - ax) / len;
-          const x = ax + (bx - ax) * t + nx * 1.6 * side, z = az + (bz - az) * t + nz * 1.6 * side;
+          const x = ax + (bx - ax) * t + nx * 1.1 * side, z = az + (bz - az) * t + nz * 1.1 * side;
           side = -side;
           if (avoid.some(([cx, cz, r]) => Math.hypot(x - cx, z - cz) < r)) continue;
           const y = W.floorBelow(x, W.groundHeight(x, z) + 40, z, 60);
@@ -74,7 +74,7 @@ export class Notes {
     if (g.cine) return;
     this.streakT -= dt; if (this.streakT <= 0) this.streak = 0;
     this.list.forEach((n, i) => {
-      if (playing && !n.taken && Math.abs(p.y + 1 - n.y) < 2.2 && Math.hypot(p.x - n.x, p.z - n.z) < 1.5) {
+      if (playing && !n.taken && Math.abs(p.y + 1 - n.y) < 2.2 && Math.hypot(p.x - n.x, p.z - n.z) < 2.3) {
         n.taken = true; this.count++;
         // Notes gathered in quick succession climb the scale; a pause starts the tune again.
         const step = this.streak++ % SCALE.length; this.streakT = 14;

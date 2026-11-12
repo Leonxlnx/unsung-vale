@@ -133,9 +133,9 @@ idle machine only: other GPU work makes the numbers meaningless. `node tools/fps
 the page run freely in a window and counts presented frames (the rate a player sees).
 
 `engine/governor.js` holds the frame rate chosen in the settings (`targetFps`, 50 by
-default, 0 = off): it reads the GPU time of each frame from timer queries (or the frame
-interval where they are missing) and moves the render scale in steps of 0.05 between 0.55
-and the preset's own scale. A change of scale keeps the anti-aliasing history and the bloom
+default, 0 = off): it counts the frames actually shown over short windows and moves the
+render scale in steps of 0.05 between 0.55 and the preset's own scale, looking for the
+highest scale that still holds the target (it remembers for a while where it had to back off). A change of scale keeps the anti-aliasing history and the bloom
 chain (`pipe.setSize(w, h, true)`), so it passes without a flicker. The sky is drawn after
 the opaque scene at the far plane with the depth test on, so it is only shaded where it shows.
 
