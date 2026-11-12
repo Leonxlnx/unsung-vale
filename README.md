@@ -43,18 +43,23 @@ load takes a little while because the world is baked on your GPU.
 | Tune a spire | Hold E | D-pad |
 | Pause | Esc | Start |
 
-Graphics quality, render scale, field of view, sensitivity and volumes are in Settings.
+Graphics quality, render scale, floor reflections, field of view, sensitivity and volumes
+are in Settings.
 
 ## What is in the demo
 
 - A 2 km playable core inside a 16 km region, with detail carried to the horizon:
   far cities, cliff-side quarters, viaducts, waterfalls, forests, the Lattice rings and the
   Elder tree.
-- Cliffs of jointed, faceted rock whose relief shadows itself; karst pillars in the lake;
-  talus, shrubs, flowers, butterflies and falling petals up close.
-- Physically based sky and volumetric clouds, light shafts through valley mist, baked
-  terrain shadows, soft cascaded shadows that sharpen at the caster's foot, warm light
-  bounced into the shade, lantern light, screen-space reflections on the water.
+- Cliffs of jointed, faceted rock whose relief shadows itself, hung with vines and wisteria
+  along their rims; karst pillars in the lake; talus, shrubs, flowers, butterflies, falling
+  petals and sunlit dust up close.
+- Trees whose crowns shade as billowed masses and whose leaves each catch the light and
+  glow when the sun is behind them; meadows that stay varied from your feet to the far mesas.
+- Physically based sky and volumetric clouds with the sun breaking through a gap, light
+  shafts through valley mist, baked terrain shadows, soft cascaded shadows that sharpen at
+  the caster's foot, warm light bounced into the shade, lantern light, screen-space
+  reflections on the water and in the polished, inlaid floors of the courts.
 - Three sites to restore (the Petal Court, Cantor's Rise, the Choir), three kinds of enemy
   including a boss, a light bridge that forms once the second spire is tuned.
 - A title screen, HUD, pause menu and settings; progress is saved in the browser.
@@ -86,8 +91,12 @@ node tools/render-film.mjs --w 3840 --h 2160 --fps 60 --out renders/unsung-vale
 ```
 
 This plays the in-game cinematic at a fixed time step, renders every frame offline with
-motion blur and depth of field, and writes an HDR10 master (HEVC Main10, PQ, BT.2020) and an SDR companion
-(H.264). It needs `ffmpeg` on the PATH and Chrome or Edge installed.
+motion blur and depth of field, and writes an HDR10 master (HEVC Main10, PQ, BT.2020) and an
+SDR companion (H.264). It needs `ffmpeg` on the PATH and Chrome or Edge installed.
+
+Captures run in a film detail mode that would be too heavy for play: full-detail trees and
+grass several times further out, sharper shadows and foliage textures. To look at it without
+rendering, open the game with `?film=1` added to the address.
 
 ## Performance
 
