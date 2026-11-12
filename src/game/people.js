@@ -77,7 +77,7 @@ export class People {
 
   _mat(n, look) {
     const m = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: HERO_FRAG, defines: this.pipe.depthDefines, side: THREE.DoubleSide,
-      uniforms: { ...this.pipe.lit(), uAlbedo: { value: new THREE.Vector3() }, uSurf: { value: new THREE.Vector4() }, uFlash: { value: 0 } } });
+      uniforms: { ...this.pipe.lit(), uAlbedo: { value: new THREE.Vector3() }, uSurf: { value: new THREE.Vector4() }, uFlash: { value: 0 }, uRim: { value: 0 } } });
     n.mats.push({ m, look });
     return m;
   }

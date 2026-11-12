@@ -185,7 +185,7 @@ export class Game {
     this.load();
     // Lost notes along the paths, kept clear of the courts where the fighting is.
     // More of them lie off the paths: round the outer courts and on the shores of the pools.
-    const more = [], level = (x, z, y) => Math.abs(this.world.groundHeight(x, z) - y) < 5 && !Number.isFinite(this.world.waterLevel(x, z));
+    const more = [], level = (x, z, y) => { const gh = this.world.groundHeight(x, z); return Math.abs(gh - y) < 5 && !Number.isFinite(this.world.waterLevel(x, z)) && Math.abs(this.world.floorBelow(x, gh + 16, z, 20) - gh) < 0.7 && [[1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]].every(([dx, dz]) => Math.abs(this.world.floorBelow(x + dx, gh + 16, z + dz, 20) - this.world.groundHeight(x + dx, z + dz)) < 0.7); };
     for (const c of sites.outer ?? []) for (let k = 0; k < 7; k++) { const a = k * 0.8976 + c.x * 0.01, r = k % 2 ? 58 : 36, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r; if (level(x, z, c.y)) more.push([x, z]); }
     for (const pl of POOLS) for (let k = 0; k < 3; k++) { const a = k * 2.094 + pl.x * 0.013, x = pl.x + Math.cos(a) * (pl.r + 7), z = pl.z + Math.sin(a) * (pl.r + 7); if (level(x, z, pl.level + 1)) more.push([x, z]); }
     this.notes = new Notes(this, pipe, LEGS, { avoid: sites.spires.map((s) => [s.x, s.z, 26]), extra: [[sites.spawn.x + 10, sites.spawn.z + 1.5]], more });
@@ -726,6 +726,8 @@ export class Game {
     // The great rings glow a little more for every spire restored, and blaze when one is tuned.
     const lat = this.arch?.material?.uniforms?.uLattice?.value;
     if (lat) { this.ringPulse = (this.ringPulse ?? 0) * Math.exp(-dt * 0.45); const lit = this.spires.filter((s) => s.tuned).length / this.spires.length; lat.w += (0.28 * lit + this.ringPulse - lat.w) * Math.min(1, dt * 1.5); }
+    // The island of colour the hero carries through a silence (not in the film).
+    { const p = this.player.pos; this.pipe.fog.hero.set(p.x, p.y + 1.0, p.z, this.cine || this.state === 'home' ? 0 : 3.2); }
     this.flash *= Math.exp(-dt * 3.2);
     this.pipe.exposure = this.baseExposure * (1 + 0.16 * this.flash);
     for (const s of this.spires) {

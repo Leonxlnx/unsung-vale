@@ -67,7 +67,7 @@ terrain.bakePaths(routes, [
   // The long stair between the Petal mesa and Cantor's Rise, and its upper landing.
   [-172, -459, -119, -459, 5.4], [-178.5, -459, -178.5, -459, 6.6],
   // The five courts beyond the water.
-  [578, -437, 578, -437, 23.6], [517, 437, 517, 437, 23.6], [136, 546, 136, 546, 23.6], [-405, 435, -405, 435, 23.6], [-1005, -168, -1005, -168, 35.6], [540, 416.4, 540, 416.4, 5.6],
+  [578, -437, 578, -437, 23.6], [517, 437, 517, 437, 23.6], [136, 546, 136, 546, 23.6], [-405, 435, -405, 435, 23.6], [-1005, -168, -1005, -168, 35.6], [540, 416.4, 540, 416.4, 5.6], [602, -461, 602, -461, 4.6], [93.6, 541, 100.8, 570.2, 8.5],
 ]);
 await stage(0.3, 'Building the cities');
 const arch = new Architecture(pipe, terrain, buildMesas());
@@ -94,7 +94,9 @@ await stage(0.64, 'Growing the forest');
 const forest = new Forest(pipe, terrain);
 window.__forest = forest;
 // Keep trees off the paved sites and the routes between them.
-const clear = [...POOLS.map((p) => [p.x, p.z, p.r + 5]), [-512, -70, 34], [-540, -22, 9], [-372, -392, 24], [66, -498, 27], [96, -590, 34], [98, -336, 13], [150, -15, 44], [-146, -459, 34], [578, -437, 27], [517, 437, 27], [136, 546, 27], [-405, 435, 27], [-1005, -168, 38], [540, 416.4, 9]];
+const clear = [...POOLS.map((p) => [p.x, p.z, p.r + 5]), [-512, -70, 34], [-540, -22, 9], [-372, -392, 24], [66, -498, 27], [96, -590, 34], [98, -336, 13], [150, -15, 44], [-146, -459, 34], [578, -437, 27], [517, 437, 27], [136, 546, 27], [-405, 435, 33], [-1005, -168, 47], [540, 416.4, 9],
+  // ...and what stands behind them: the light-tower, the Reed arcade, the Aurel archive.
+  [602, -461, 8], [517, 466.5, 12], [97, 556, 25]];
 // ...and off the walking routes: a trunk in the middle of a path is in the way.
 const onRoute = (x, z) => routes.some((r) => r.some((a, i) => {
   if (i === 0) return false;
@@ -110,8 +112,15 @@ forest.populate((x, z) => onRoute(x, z) || clear.some(([cx, cz, r]) => (x - cx) 
   { x: 192, z: 22, species: 'blossom', scale: 1.8 }, { x: 100, z: -30, species: 'elder', scale: 1.7 },
   { x: 40, z: 600, species: 'elder', scale: 2.4 }, { x: -420, z: 360, species: 'blossom', scale: 2.6 }, { x: -330, z: 470, species: 'elder', scale: 2.3 },
   { x: 600, z: -400, species: 'elder', scale: 2.4 }, { x: 600, z: 470, species: 'blossom', scale: 2.6 }, { x: -900, z: -160, species: 'elder', scale: 2.6 },
-  // The Orchard Court stands in a ring of fruit trees.
-  ...Array.from({ length: 9 }, (_, k) => ({ x: -405 + Math.cos(k * 0.698 + 0.2) * (33 + (k % 2) * 5), z: 435 + Math.sin(k * 0.698 + 0.2) * (33 + (k % 2) * 5), species: k % 3 ? 'blossom' : 'ember', scale: 1.05 + 0.12 * (k % 3) })),
+  // Each outer court stands among trees of its own: embers round the Lantern Court, a green
+  // grove at the Reed Court, pale elders at the Aurel Court, fruit blossom at the Orchard
+  // Court and the Crown. None on the side where its buildings stand.
+  ...sites.outer.flatMap((c) => Array.from({ length: 11 }, (_, k) => {
+    const a = k * 0.571 + 0.3 + c.style, r = c.r + (c.style === 4 ? 21 : 13) + (k % 3) * 3.5;
+    if (Math.abs(Math.atan2(Math.sin(a - c.away), Math.cos(a - c.away))) < (c.style === 2 ? 1.0 : 0.6)) return null;
+    const sp = [['ember', 'ember', 'blossom'], ['green', 'cypress', 'green'], ['elder', 'elder', 'blossom'], ['blossom', 'ember', 'blossom'], ['blossom', 'elder', 'blossom']][c.style][k % 3];
+    return { x: c.x + Math.cos(a) * r, z: c.z + Math.sin(a) * r, species: sp, scale: 1.0 + 0.14 * (k % 3) + (c.style === 4 ? 0.25 : 0) };
+  }).filter(Boolean)),
 ]);
 forest.addGreatTree(2750, terrain.heightAt(2750, 1480) - 6, 1480);
 pipe.scene.add(forest.group);
@@ -140,6 +149,9 @@ for (const [z, face] of [[-87.5, 1], [-52.5, -1]]) {
 }
 // Long banners down both faces of the Choir Gate.
 for (const sx of [-1, 1]) for (const [dz, yaw] of [[1.3, 0], [-1.3, Math.PI]]) dressing.banner(sites.gate.x + sx * 5.9, sites.gate.y + 14.6, sites.gate.z + dz, yaw, 1.5, 7.2);
+// Wisteria on the pergolas of the outer courts, banners in the arches of the Crown.
+for (const [a, b, o] of sites.vines ?? []) for (const off of [-0.45, 0.45]) dressing.vines([a[0], a[1], a[2] + off], [b[0], b[1], b[2] + off], o);
+for (const bn of sites.banners ?? []) dressing.banner(...bn);
 dressing.finish();
 pipe.scene.add(dressing.group);
 pipe.sceneT.add(dressing.groupT);

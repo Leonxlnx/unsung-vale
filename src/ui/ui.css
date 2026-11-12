@@ -52,7 +52,7 @@
 
 /* --- HUD --- */
 #hud, #hud.on { pointer-events: none; }
-#hud > * { text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55); }
+#hud > * { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 14px rgba(0, 0, 0, 0.5); }
 
 /* compass: a strip of ticks, the four winds, and a diamond for each goal */
 #hud .compass { position: absolute; left: 50%; top: 22px; width: 420px; height: 30px; margin-left: -210px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent); mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent); transition: opacity 0.4s; }

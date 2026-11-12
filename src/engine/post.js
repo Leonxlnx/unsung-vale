@@ -61,6 +61,7 @@ uniform sampler2D uAo;
 uniform float uAoStrength;
 uniform vec3 uVolInfo;     // x: enabled, y: march distance, z: unused
 uniform vec4 uMute[8];     // xz centre, radius, strength: where the land has fallen silent
+uniform vec4 uHero;        // xyz, radius: the hero keeps a small island of colour about him (radius 0: off)
 uniform float uTimeF;
 uniform vec2 uVolSize;
 uniform vec3 uSunDir;
@@ -102,10 +103,13 @@ void main() {
   if (!sky) {
     // Silence drains the colour out of the world; a thin warm rim marks its edge.
     vec3 wp = uCamPos + rd * dist;
+    // Whoever carries the last note is never quite inside the silence: colour holds within
+    // a few steps of him, on his clothes, on the paving at his feet, on whatever closes in.
+    float hd = distance(wp, uHero.xyz), keep = uHero.w > 0.0 ? 1.0 - smoothstep(uHero.w * 0.4, uHero.w, hd + (vnoise(wp.xz * 1.7 + uTimeF * 0.3) - 0.5) * 0.5) : 0.0;
     for (int i = 0; i < 8; i++) {
       if (uMute[i].w <= 0.001) continue;
       float d = distance(wp.xz, uMute[i].xy) + (vnoise(wp.xz * 0.21) - 0.5) * 7.0 + sin(uTimeF * 0.7 + wp.x * 0.05) * 0.8;
-      float m = (1.0 - smoothstep(uMute[i].z - 5.0, uMute[i].z, d)) * uMute[i].w;
+      float m = (1.0 - smoothstep(uMute[i].z - 5.0, uMute[i].z, d)) * uMute[i].w * (1.0 - keep);
       float g = luma(col);
       // Not plain grey: a cold duotone, indigo in the shade and silver where light still falls.
       vec3 duo = mix(vec3(0.6, 0.67, 0.96), vec3(0.95, 0.97, 1.0), smoothstep(0.0, 1.4, g)) * g * 1.12;
@@ -319,13 +323,14 @@ export class FogPass {
     this.haze = new THREE.Vector4(4.0e-5, 900, 0.025, 0);
     this.mist = new THREE.Vector4(2.0e-4, 60, 2, 0);
     this.mute = Array.from({ length: 8 }, () => new THREE.Vector4());
+    this.hero = new THREE.Vector4();
     this.uniforms = { uHaze: { value: this.haze }, uMist: { value: this.mist } };
     this.pass = new FullscreenPass({
       fragment: FOG_PASS,
       defines: pipe.depthDefines,
       uniforms: {
         uColor: { value: null }, uDepth: { value: null }, uVol: { value: null }, uVolInfo: { value: new THREE.Vector3() }, uVolSize: { value: new THREE.Vector2(1, 1) },
-        uMute: { value: this.mute }, uTimeF: g.uTime, uAo: { value: null }, uAoStrength: { value: 0 },
+        uMute: { value: this.mute }, uHero: { value: this.hero }, uTimeF: g.uTime, uAo: { value: null }, uAoStrength: { value: 0 },
         ...pipe.camUniforms, ...pipe.sky.uniforms, ...this.uniforms, uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH,
       },
     });

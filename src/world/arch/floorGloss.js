@@ -23,7 +23,7 @@ uniform sampler2D uLinDepth;
 uniform mat4 uProjJ;
 uniform vec2 uResolution;
 uniform float uFrame;
-uniform vec4 uPlazas[6];
+uniform vec4 uPlazas[12];
 in vec3 vWorld;
 void main() {
   vec2 suv = gl_FragCoord.xy / uResolution;
@@ -35,7 +35,7 @@ void main() {
 
   // The inlaid marble is polished; the flagstones around it are only worn smooth.
   float polished = 0.0;
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < 12; i++) {
     float R = uPlazas[i].z;
     vec2 d = vWorld.xz - uPlazas[i].xy;
     float r = length(d) / max(R, 1e-3);

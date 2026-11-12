@@ -48,7 +48,7 @@ ${SH_GLSL}
 ${TERRAIN_SAMPLING}
 ${LIGHTING}
 uniform vec3 uAlbedo; uniform vec4 uSurf;   // rough, metal, sheen, emissive
-uniform float uTime; uniform float uFlash;
+uniform float uTime; uniform float uFlash; uniform float uRim;
 in vec3 vWorld; in vec3 vNormal; in vec3 vRest;
 void main() {
   vec3 N = normalize(vNormal);
@@ -71,6 +71,8 @@ void main() {
   // The blade carries its own light.
   col += uAlbedo * uSurf.w * (0.5 + 1.6 * fres + 0.15 * sin(uTime * 3.0 + vRest.y * 14.0));
   col += vec3(1.0, 0.9, 0.8) * uFlash;
+  // Inside a silence his edges catch a little of the gold of the note he carries.
+  col += vec3(1.0, 0.78, 0.42) * (pow(1.0 - saturate(dot(N, V)), 3.0) * uRim * 1.4);
   gl_FragColor = vec4(col, 1.0);
 }`;
 
@@ -245,7 +247,7 @@ export class Hero {
 
   constructor(pipe, scene) {
     this.pipe = pipe; this.root = scene;
-    this.flash = { value: 0 };
+    this.flash = { value: 0 }; this.rim = { value: 0 };
     const mats = {};
     const D = pipe.depthDefines;
     const mat = (name) => {
@@ -253,7 +255,7 @@ export class Hero {
       const [alb, rough, metal, sheen, em] = LOOKS[k];
       return (mats[k] ??= new THREE.ShaderMaterial({
         vertexShader: HERO_VERT, fragmentShader: HERO_FRAG, defines: D, side: THREE.DoubleSide,
-        uniforms: { ...pipe.lit(), uAlbedo: { value: new THREE.Vector3(...alb) }, uSurf: { value: new THREE.Vector4(rough, metal, sheen, em) }, uFlash: this.flash },
+        uniforms: { ...pipe.lit(), uAlbedo: { value: new THREE.Vector3(...alb) }, uSurf: { value: new THREE.Vector4(rough, metal, sheen, em) }, uFlash: this.flash, uRim: this.rim },
       }));
     };
     const depth = new THREE.ShaderMaterial({ vertexShader: HERO_DEPTH_VERT, fragmentShader: 'void main() {}', colorWrite: false, side: THREE.DoubleSide });
@@ -348,6 +350,7 @@ export class Hero {
     this.time += dt;
     const t = this.time;
     this.flash.value = Math.max(0, this.flash.value - dt * 4);
+    { let mute = 0; for (const s of game.spires) if (s.zone.w > 0) mute = Math.max(mute, s.zone.w * Math.min(1, Math.max(0, (s.zone.z - Math.hypot(p.pos.x - s.x, p.pos.z - s.z)) / 10))); this.rim.value += (mute - this.rim.value) * Math.min(1, dt * 3); }
     const cy = Math.cos(p.yaw), sy = Math.sin(p.yaw);
     const speed = p.speed, grounded = p.grounded;
     const PY = (this.visY = p.viewY ?? p.pos.y);       // smoothed over steps (see Player)

@@ -106,6 +106,15 @@ if (want('swim')) {
   await ev(() => window.__tour.tp(-300, 174.5, -330, 0.6, -0.25, 6));
   await page.keyboard.down('KeyW'); await sleep(2600); await shot('swim'); await page.keyboard.up('KeyW');
 }
+if (want('courts')) {
+  // Each of the outer courts, restored, seen from where the string sets the hero down.
+  await ev(() => { window.__tour.tune(['petal', 'cantor', 'choir', 'east', 'south3', 'aurel', 'south1', 'crown']); window.__dbg.ui(false); });
+  for (const id of ['east', 'south3', 'aurel', 'south1', 'crown']) {
+    await ev((id) => { const g = window.__game, c = g.sites.outer.find((o) => o.id === id), a = c.away + Math.PI + 0.4, r = c.r + (c.style === 4 ? 27 : 17), x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r; window.__tour.tp(x, g.world.floorBelow(x, c.y + 6, z, 14) + 0.1, z, Math.atan2(c.x - x, c.z - z), 0.08, 13); }, id);
+    await sleep(3200); await shot('court_' + id);
+  }
+  await ev(() => window.__dbg.ui(true));
+}
 if (want('bell')) {
   await ev(() => { const g = window.__game, b = g.bells.list.find((q) => !q.rung) ?? g.bells.list[0]; b.rung = false; window.__tour.clear(b.group); window.__tour.tp(b.x + 2.6, b.y + 0.1, b.z + 2.0, Math.atan2(-2.6, -2.0), -0.02, 6.5); });
   await sleep(1100); await shot('bell');

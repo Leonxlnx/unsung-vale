@@ -297,55 +297,116 @@ export class Architecture {
     // --- The outer courts: five more spires on the mesas round the lake, reached by the
     // strings of light. Each is a ring of columns round its spire, a little different from
     // the last, the Crown the grandest. ---
-    out.outer = [];
-    for (const [id, sx, sz, h, style] of [['east', 578, -437, 24, 0], ['south3', 517, 437, 26, 1], ['aurel', 136, 546, 28, 2], ['south1', -405, 435, 26, 3], ['crown', -1005, -168, 34, 4]]) {
-      const b = new MeshBuilder(), y = H(sx, sz) + 0.5, R = style === 4 ? 25 : 21;
+    out.outer = []; out.vines = []; out.banners = [];
+    // A span of ring beam resting on two neighbouring columns: architrave, frieze, cornice.
+    const beamSpan = (q, r, yTop, a0, a1) => {
+      const x0 = Math.cos(a0) * r, z0 = Math.sin(a0) * r, x1 = Math.cos(a1) * r, z1 = Math.sin(a1) * r, len = Math.hypot(x1 - x0, z1 - z0);
+      q.at(x0, yTop, z0, Math.atan2(-(z1 - z0), x1 - x0), (g) => {
+        g.mat_(M.MARBLE).box(-0.7, 0, -0.5, len + 1.4, 0.55, 1.0);
+        g.mat_(M.FRIEZE).box(-0.6, 0.55, -0.44, len + 1.2, 0.5, 0.88, '-y');
+        g.mat_(M.MARBLE).box(-0.8, 1.05, -0.58, len + 1.6, 0.22, 1.16);
+        g.mat_(M.GOLD).box(-0.8, 1.27, -0.6, len + 1.6, 0.05, 1.2, '-y');
+      });
+    };
+    // away: the side of each court that faces away from where the string comes in; what is
+    // particular to the court stands there.
+    for (const [id, sx, sz, h, style, away] of [['east', 578, -437, 24, 0, 5.5], ['south3', 517, 437, 26, 1, 1.57], ['aurel', 136, 546, 28, 2, 2.9], ['south1', -405, 435, 26, 3, 3.4], ['crown', -1005, -168, 34, 4, 3.93]]) {
+      const b = new MeshBuilder(), y = H(sx, sz) + 0.5, R = style === 4 ? 25 : 21, colH = style === 4 ? 8.4 : 6.4, n = style === 4 ? 16 : 12, TAU = Math.PI * 2;
+      const near = (a, w, tol) => Math.abs(Math.atan2(Math.sin(a - w), Math.cos(a - w))) < tol;
+      const way = (a, tol = Math.PI / n + 0.02) => near(a, away, tol) || near(a, away + Math.PI, tol);       // the two ways in
+      const tangent = (a) => Math.atan2(-Math.cos(a), -Math.sin(a));      // yaw of something that faces the middle from angle a
       b.at(sx, y, sz, 0, (q) => {
-        q.mat_(M.PAVING).lathe([[R, -9], [R, 0.12], [0, 0.12]], 44);
-        // A sloping apron all round, so the court can be walked onto from the grass wherever
-        // the ground happens to lie a little lower.
-        { const r0 = style === 4 ? R + 8 : R, y0 = style === 4 ? -0.25 : 0.12; q.mat_(M.ASHLAR).lathe([[r0 + 4.2, y0 - 2.3], [r0 - 0.05, y0 - 0.02]], 44); }
-        q.mat_(M.GOLD).lathe([[R * 0.64, 0.13], [R * 0.62, 0.135]], 44);
+        q.mat_(M.PAVING).lathe([[R, -9], [R, 0.12], [0, 0.12]], 48);
+        // Three shallow steps all round, then a sloping apron, so the court can be walked onto
+        // from the grass wherever the ground happens to lie a little lower.
+        const r0 = style === 4 ? R + 8 : R, y0 = style === 4 ? -0.25 : 0.12;
+        if (style === 4) q.mat_(M.PAVING).lathe([[R + 8, -9], [R + 8, -0.25], [R - 0.2, -0.25]], 48);
+        q.mat_(M.MARBLE).lathe([[r0 + 1.5, -9], [r0 + 1.5, y0 - 0.38], [r0 + 1.0, y0 - 0.38], [r0 + 1.0, y0 - 0.2], [r0 + 0.5, y0 - 0.2], [r0 + 0.5, y0 - 0.02], [r0 - 0.05, y0 - 0.02]], 48);
+        q.mat_(M.ASHLAR).lathe([[r0 + 5.6, y0 - 2.7], [r0 + 1.45, y0 - 0.4]], 48);
+        q.mat_(M.GOLD).lathe([[R * 0.64, 0.13], [R * 0.62, 0.135]], 48);
+        q.mat_(M.GOLD).lathe([[R * 0.87, 0.13], [R * 0.862, 0.135]], 48);
         const cyl = tuningSpire(q, h);
         out.spires.push({ id, x: sx, y: y + cyl, z: sz, base: y, h });
         out.floors.push({ x: sx, y: y + 0.12, z: sz, r: R });
-        const n = 10 + style * 2;
+        // A ring of columns carrying a beam, open toward the two ways in. Here and there a
+        // span has come down.
+        const ang = (k) => ((k + 0.5) / n) * TAU, stand = [];
         for (let k = 0; k < n; k++) {
-          if ((k * 7 + style) % 5 === 0) continue;                    // a few have fallen
-          const a0 = (k / n) * Math.PI * 2 + style * 0.7;
-          q.at(Math.cos(a0) * (R - 2.8), 0.12, Math.sin(a0) * (R - 2.8), 0, (g) => column(g, 0.45, 5.4 + ((k + style) % 3) * 1.3 + (style === 4 ? 2 : 0), { sides: 12 }));
+          stand.push(!way(ang(k)));
+          if (stand[k]) q.at(Math.cos(ang(k)) * (R - 2.8), 0.12, Math.sin(ang(k)) * (R - 2.8), 0, (g) => column(g, 0.45, colH, { sides: 12 }));
         }
-        for (let k = 0; k < 5; k++) {
-          const a0 = k * 1.2566 + 0.4 + style, px = Math.cos(a0) * (R - 1.3), pz = Math.sin(a0) * (R - 1.3);
+        for (let k = 0; k < n; k++) { const k1 = (k + 1) % n; if (stand[k] && stand[k1] && (k * 5 + style * 3) % 7 !== 0) beamSpan(q, R - 2.8, 0.12 + colH, ang(k), ang(k1)); }
+        // Urns of blossom at the foot of the columns.
+        for (let k = 0; k < n; k += 2) {
+          const a0 = (k / n) * TAU;
+          if (way(a0, 0.5)) continue;
+          const px = Math.cos(a0) * (R - 1.25), pz = Math.sin(a0) * (R - 1.25);
           let top = 0;
-          q.at(px, 0.12, pz, 0, (g) => { top = planter(g, 0.8); });
+          q.at(px, 0.12, pz, 0, (g) => { top = planter(g, 0.78); });
           out.planters.push([sx + px, y + 0.12 + top, sz + pz]);
         }
         // What makes each court its own.
         if (style === 2) {
           // The Aurel Court: gold let into the floor, and two armillary spheres.
-          for (const rr of [0.3, 0.46]) q.mat_(M.GOLD).lathe([[R * rr + 0.22, 0.13], [R * rr, 0.135]], 44);
-          for (const a0 of [1.571, 4.712]) q.at(Math.cos(a0) * (R - 6), 0.12, Math.sin(a0) * (R - 6), a0, (g) => armillary(g, 1.2));
+          for (const rr of [0.3, 0.46]) q.mat_(M.GOLD).lathe([[R * rr + 0.22, 0.13], [R * rr, 0.135]], 48);
+          for (const da of [1.571, -1.571]) q.at(Math.cos(away + da) * (R - 6), 0.12, Math.sin(away + da) * (R - 6), away + da, (g) => armillary(g, 1.2));
         }
-        if (style === 3) for (let k = 0; k < 4; k++) { const a0 = k * 1.571 + 0.9; q.at(Math.cos(a0) * (R - 5.2), 0.12, Math.sin(a0) * (R - 5.2), -a0 + Math.PI / 2, (g) => bench(g, 2.4)); }
+        if (style === 3) for (const da of [0.9, 2.2, -0.9, -2.2]) q.at(Math.cos(away + da) * (R - 5.2), 0.12, Math.sin(away + da) * (R - 5.2), tangent(away + da), (g) => bench(g, 2.4));
         if (style === 4) {
-          // The Crown: a lower terrace round the court, and on it a broken ring of great arches.
-          q.mat_(M.PAVING).lathe([[R + 8, -9], [R + 8, -0.25], [R - 0.2, -0.25]], 48);
+          // The Crown: on the lower terrace, a ring of great arches, two to a span, open to
+          // the ways in.
           const n2 = 12, rr = R + 5.4;
           for (let k = 0; k < n2; k++) {
-            if (k % 3 === 2) continue;
-            const a0 = (k / n2) * Math.PI * 2, a1 = ((k + 1) / n2) * Math.PI * 2, x0 = Math.cos(a0) * rr, z0 = Math.sin(a0) * rr, x1 = Math.cos(a1) * rr, z1 = Math.sin(a1) * rr, chord = Math.hypot(x1 - x0, z1 - z0);
-            q.at(x0, -0.25, z0, Math.atan2(-(z1 - z0), x1 - x0), (g) => arcade(g, chord, { bay: chord, colH: 8, t: 1.3, top: 2.4, detail: 1, colR: 0.6, grand: true }));
+            const a0 = (k / n2) * TAU, a1 = ((k + 1) / n2) * TAU;
+            if (way((a0 + a1) / 2, 0.3)) continue;
+            const x0 = Math.cos(a0) * rr, z0 = Math.sin(a0) * rr, x1 = Math.cos(a1) * rr, z1 = Math.sin(a1) * rr, chord = Math.hypot(x1 - x0, z1 - z0);
+            q.at(x0, -0.25, z0, Math.atan2(-(z1 - z0), x1 - x0), (g) => arcade(g, chord, { bay: chord / 2, colH: 8.2, t: 1.2, top: 2.0, detail: 1, colR: 0.5, grand: true }));
           }
         }
       });
-      // The Lantern Court keeps a second ring of lamps out on the grass; the Reed Court a
-      // pavilion beside the path to its pool.
-      if (style === 0) for (let k = 0; k < 10; k++) { const a0 = k * 0.6283 + 0.31, lx = sx + Math.cos(a0) * (R + 6.5), lz = sz + Math.sin(a0) * (R + 6.5); lamp(b, lx, H(lx, lz), lz); }
-      if (style === 1) { const a0 = 5.55, px = sx + Math.cos(a0) * (R + 10), pz = sz + Math.sin(a0) * (R + 10); b.at(px, H(px, pz) + 0.05, pz, 0, (q) => pavilion(q, { r: 4.2, colH: 4.8, n: 8, detail: 1 })); }
-      for (const a0 of [0.6, 2.2, 3.8, 5.4]) { const lx = sx + Math.cos(a0) * (R + 1.6), lz = sz + Math.sin(a0) * (R + 1.6); lamp(b, lx, H(lx, lz), lz); }
+      const at = (a, r) => [sx + Math.cos(a) * r, sz + Math.sin(a) * r];
+      // Lamps on the grass at the foot of the steps, a pair to each way in.
+      for (const w of [away, away + Math.PI]) for (const da of [-0.2, 0.2]) { const [lx, lz] = at(w + da, (style === 4 ? R + 8 : R) + 2.6); lamp(b, lx, H(lx, lz), lz); }
+      if (style === 0) {
+        // The Lantern Court: a second ring of lamps out on the grass, lamps between its
+        // columns, and a light-tower behind it.
+        for (let k = 0; k < 10; k++) { const a0 = k * 0.6283 + 0.31; if (way(a0, 0.3)) continue; const [lx, lz] = at(a0, R + 8.5); lamp(b, lx, H(lx, lz), lz); }
+        for (const da of [0.75, 1.9, -0.75, -1.9]) { const [lx, lz] = at(away + da, R - 4.6); lamp(b, lx, y + 0.12, lz); }
+        const [tx, tz] = at(away, R + 13);
+        b.at(tx, H(tx, tz) - 0.3, tz, 0, (q) => tower(q, { r: 3.1, h: 23, sides: 8, stages: 3, top: 'spire', spireH: 13, detail: 1, foot: 6 }));
+      }
+      if (style === 1) {
+        // The Reed Court: a pavilion beside the path to its pool, and an arcade at its back.
+        const [px, pz] = at(5.55, R + 11);
+        b.at(px, H(px, pz) + 0.05, pz, 0, (q) => pavilion(q, { r: 4.2, colH: 4.8, n: 8, detail: 1 }));
+        const L = 18, [mx, mz] = at(away, R + 8.5), yaw = tangent(away) + Math.PI / 2, ux = Math.cos(yaw), uz = -Math.sin(yaw), by = H(mx, mz) - 0.15;
+        b.at(mx - ux * L / 2, by, mz - uz * L / 2, yaw, (q) => arcade(q, L, { bay: 3.6, colH: 4.6, detail: 1 }));
+        out.vines.push([[mx - ux * L / 2, by + 6.6, mz - uz * L / 2], [mx + ux * L / 2, by + 6.6, mz + uz * L / 2], { drop: 2.8, density: 1.4 }]);
+      }
+      if (style === 2) {
+        // The Aurel Court: its archive, a hall between two towers, facing the spire.
+        const [hx, hz] = at(away, R + 19), hy = Math.min(H(hx, hz), H(...at(away, R + 12))) - 0.2;
+        b.at(hx, hy, hz, tangent(away), (q) => {
+          hall(q, { w: 30, d: 12, h: 15, bays: 5, detail: 1, foot: 6 });
+          for (const dx of [-19, 19]) q.at(dx, 0, 1, 0, (g) => tower(g, { r: 3.3, h: 26, sides: 8, stages: 3, top: 'spire', spireH: 14, detail: 1, foot: 6 }));
+        });
+      }
+      if (style === 3) {
+        // The Orchard Court: four pergolas among the fruit trees, hung with wisteria.
+        for (const da of [0.785, 2.356, -0.785, -2.356]) {
+          const a0 = away + da, L = 14, [mx, mz] = at(a0, R + 8), yaw = tangent(a0) + Math.PI / 2, ux = Math.cos(yaw), uz = -Math.sin(yaw), by = H(mx, mz) - 0.15;
+          b.at(mx - ux * L / 2, by, mz - uz * L / 2, yaw, (q) => arcade(q, L, { bay: 3.5, colH: 4.2, detail: 1 }));
+          out.vines.push([[mx - ux * L / 2, by + 6.2, mz - uz * L / 2], [mx + ux * L / 2, by + 6.2, mz + uz * L / 2], { drop: 3.0, density: 1.6 }]);
+        }
+      }
+      if (style === 4) {
+        // The Crown: two towers stand behind the ring, and banners hang in its arches.
+        for (const da of [-0.36, 0.36]) { const [tx, tz] = at(away + da, R + 15.5); b.at(tx, H(tx, tz) - 0.3, tz, 0, (q) => tower(q, { r: 3.6, h: 30, sides: 8, stages: 4, top: 'spire', spireH: 17, detail: 1, foot: 6 })); }
+        for (let k = 0; k < 12; k++) { const a0 = ((k + 0.5) / 12) * TAU; if (way(a0, 0.3) || k % 2) continue; const [bx, bz] = at(a0, R + 4.7); out.banners.push([bx, y + 8.6, bz, tangent(a0), 1.5, 5.6]); }
+      }
       finish(b);
-      out.outer.push({ id, x: sx, z: sz, y, r: R });
+      this.material.uniforms.uPlazas.value[5 + style].set(sx, sz, R * 0.56, 8 + style * 2);
+      out.outer.push({ id, x: sx, z: sz, y, r: R, away, style });
     }
 
     // --- The Choir: a ring of tall arches around the last spire ---

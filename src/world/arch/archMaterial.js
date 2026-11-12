@@ -185,7 +185,7 @@ uniform sampler2DArray uArchB;
 uniform sampler2D uNoise;
 uniform float uGlow;
 uniform vec4 uLattice;      // xyz: centre of the great rings, w: how brightly they are lit (0 = dark)
-uniform vec4 uPlazas[6];    // xy: centre (world xz), z: radius, w: points of the rose (radius 0 = unused)
+uniform vec4 uPlazas[12];    // xy: centre (world xz), z: radius, w: points of the rose (radius 0 = unused)
 in vec3 vWorld; in vec3 vNormal; in float vMat;
 const float TILE[8] = float[8](4.2, 3.0, 1.3, 2.6, 3.4, 2.4, 1.7, 2.0);
 
@@ -249,7 +249,7 @@ void main() {
     // Inlaid floors: each court carries a rose of polished marble inside banded borders. The
     // slabs, joints and grain of the paving underneath stay visible through the pattern.
     float tone = luma(alb) / 0.5;
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 12; i++) {
       float R = uPlazas[i].z;
       vec2 d = vWorld.xz - uPlazas[i].xy;
       float r = length(d) / max(R, 1e-3);
@@ -312,7 +312,7 @@ export function createArchMaterial(pipe, terrain) {
     uniforms: {
       ...pipe.lit(), uArchA: { value: layers.a }, uArchB: { value: layers.b },
       uNoise: terrain.surfaceUniforms.uNoise, uGlow: { value: 3.2 },
-      uPlazas: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) },
+      uPlazas: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) },
       uLattice: { value: new THREE.Vector4(3700, 430, 760, 0) },
     },
   });
