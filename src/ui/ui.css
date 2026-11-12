@@ -31,11 +31,11 @@
 #home h1 { font-size: clamp(44px, 6.2vw, 92px); font-weight: 300; letter-spacing: -0.04em; line-height: 0.96; margin: 0; }
 #home .sub { margin: 18px 0 44px; font-size: 16px; line-height: 1.5; color: var(--ink-2); max-width: 34ch; }
 .menu { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
-.menu button { font-size: 19px; font-weight: 400; letter-spacing: -0.01em; padding: 9px 0; color: var(--ink-2); position: relative; transition: color 0.2s, transform 0.3s var(--ease); }
-.menu button::before { content: ''; position: absolute; left: -18px; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); transform: translateY(-50%) scale(0); transition: transform 0.25s var(--ease); }
-.menu button:hover, .menu button:focus-visible { color: var(--ink); transform: translateX(6px); outline: none; }
-.menu button:hover::before, .menu button:focus-visible::before { transform: translateY(-50%) scale(1); }
-.menu button.primary { color: var(--ink); }
+#ui .menu button { font-size: 19px; font-weight: 400; letter-spacing: -0.01em; padding: 9px 0; color: var(--ink-2); position: relative; transition: color 0.2s, transform 0.3s var(--ease); }
+#ui .menu button::before { content: ''; position: absolute; left: -18px; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); transform: translateY(-50%) scale(0); transition: transform 0.25s var(--ease); }
+#ui .menu button:hover, #ui .menu button:focus-visible { color: var(--ink); transform: translateX(6px); outline: none; }
+#ui .menu button:hover::before, #ui .menu button:focus-visible::before { transform: translateY(-50%) scale(1); }
+#ui .menu button.primary { color: var(--ink); }
 #home .foot { position: absolute; right: clamp(28px, 4vw, 60px); bottom: 28px; font-size: 12px; color: var(--ink-3); }
 
 /* --- HUD --- */
@@ -79,26 +79,26 @@
 .scrim { background: rgba(8, 10, 14, 0.62); display: grid; place-items: center; }
 .panel { width: min(560px, 88vw); max-height: 84vh; overflow: auto; padding: 8px 4px; }
 .panel h2 { font-size: 34px; font-weight: 300; letter-spacing: -0.03em; margin: 0 0 26px; }
-.panel .menu button { font-size: 20px; }
+#ui .panel .menu button { font-size: 20px; }
 .tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
-.tabs button { font-size: 15px; color: var(--ink-2); padding: 0 0 12px; position: relative; }
-.tabs button.on { color: var(--ink); }
-.tabs button.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--gold); }
+#ui .tabs button { font-size: 15px; color: var(--ink-2); padding: 0 0 12px; position: relative; }
+#ui .tabs button.on { color: var(--ink); }
+#ui .tabs button.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--gold); }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 13px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.07); font-size: 15px; }
 .row label { color: var(--ink); }
 .row small { display: block; color: var(--ink-3); font-size: 12.5px; margin-top: 3px; }
 .seg { display: flex; background: rgba(255, 255, 255, 0.07); border-radius: 9px; padding: 3px; }
-.seg button { font-size: 13.5px; padding: 6px 13px; border-radius: 7px; color: var(--ink-2); text-align: center; transition: background 0.2s, color 0.2s; }
-.seg button.on { background: rgba(255, 255, 255, 0.92); color: #14171c; }
+#ui .seg button { font-size: 13.5px; padding: 6px 13px; border-radius: 7px; color: var(--ink-2); text-align: center; transition: background 0.2s, color 0.2s; }
+#ui .seg button.on { background: rgba(255, 255, 255, 0.92); color: #14171c; }
 .slider { display: flex; align-items: center; gap: 12px; }
 .slider output { font-size: 13px; color: var(--ink-2); width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
 input[type='range'] { -webkit-appearance: none; appearance: none; width: 190px; height: 2px; background: var(--line); border-radius: 1px; outline: none; cursor: pointer; }
 input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: 0; }
 input[type='range']::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: 0; }
-.toggle { width: 40px; height: 22px; border-radius: 11px; background: rgba(255, 255, 255, 0.16); position: relative; transition: background 0.2s; }
-.toggle::after { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); transition: transform 0.2s var(--ease); }
-.toggle.on { background: var(--gold); }
-.toggle.on::after { transform: translateX(18px); background: #14171c; }
+#ui .toggle { width: 40px; height: 22px; border-radius: 11px; background: rgba(255, 255, 255, 0.16); position: relative; transition: background 0.2s; }
+#ui .toggle::after { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); transition: transform 0.2s var(--ease); }
+#ui .toggle.on { background: var(--gold); }
+#ui .toggle.on::after { transform: translateX(18px); background: #14171c; }
 .keys { display: grid; grid-template-columns: 1fr auto; gap: 10px 24px; font-size: 14.5px; padding: 6px 0; }
 .keys span:nth-child(odd) { color: var(--ink-2); }
 .back { margin-top: 26px; font-size: 15px; color: var(--ink-2); }
