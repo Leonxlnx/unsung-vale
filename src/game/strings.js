@@ -5,6 +5,7 @@
 // back to anywhere already restored.
 import * as THREE from 'three';
 import { NAMES } from './story.js';
+import { MeshBuilder, M } from '../world/arch/builder.js';
 
 const SEG = 72, SPEED = 34, HANG = 2.06;
 const STRING_VERT = /* glsl */ `
@@ -39,7 +40,7 @@ uniform float uTime; uniform float uPower; uniform float uBase;
 in vec3 vWorld;
 void main() {
   vec3 N = normalize(cross(dFdx(vWorld), dFdy(vWorld))), V = normalize(cameraPosition - vWorld);
-  float f = pow(1.0 - abs(dot(N, V)), 2.5), up = clamp((vWorld.y - uBase) / 7.0, 0.0, 1.0);
+  float f = pow(1.0 - abs(dot(N, V)), 2.5), up = clamp((vWorld.y - uBase - 1.0) / 6.6, 0.0, 1.0);
   // Facets of dark glass, each a slightly different grey; gold climbing inside toward the tip.
   vec3 glass = vec3(0.05, 0.055, 0.07) * (0.7 + 0.6 * abs(N.x + 0.4 * N.z)) + vec3(0.2, 0.2, 0.25) * f;
   float climb = 0.5 + 0.5 * sin(vWorld.y * 3.0 - uTime * 2.2);
@@ -56,16 +57,24 @@ export class Strings {
     const W = game.world, time = pipe.globals.uTime;
     this.nodes = {};
     const geo = new THREE.OctahedronGeometry(1, 0).scale(0.3, 3.3, 0.3);
+    // The crystal of each pylon floats over a faceted foot of marble banded with gold.
+    const feet = new MeshBuilder();
     for (const [id, [x, z]] of Object.entries(nodes)) {
       W.stream(x, z, 6);
       const y = W.floorBelow(x, W.groundHeight(x, z) + 14, z, 40);
       const u = { uTime: time, uPower: { value: 0 }, uBase: { value: y } };
       const m = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader: PYLON_VERT, fragmentShader: PYLON_FRAG, uniforms: u }));
-      m.position.set(x, y + 3.7, z); m.updateMatrixWorld(); m.frustumCulled = false;
+      m.position.set(x, y + 4.3, z); m.updateMatrixWorld(); m.frustumCulled = false;
       pipe.scene.add(m);
-      W.addCapsule([x, y, z], [x, y + 6, z], 0.42);
-      this.nodes[id] = { id, x, y, z, top: new THREE.Vector3(x, y + 7.1, z), u, mesh: m };
+      W.addCapsule([x, y, z], [x, y + 6.6, z], 0.42);
+      feet.at(x, y, z, 0.39, (q) => {
+        q.mat_(M.MARBLE).lathe([[0.95, -1.2], [0.95, 0.12], [0.74, 0.12], [0.62, 0.52], [0.7, 0.58], [0.7, 0.66], [0.3, 0.74], [0, 0.74]], 8, { smooth: false });
+        q.mat_(M.GOLD).lathe([[0.71, 0.58], [0.74, 0.62], [0.71, 0.66]], 8, { smooth: false });
+        q.mat_(M.GOLD).lathe([[0.2, 0.745], [0.12, 0.86], [0, 0.9]], 4, { smooth: false });
+      });
+      this.nodes[id] = { id, x, y, z, top: new THREE.Vector3(x, y + 7.7, z), u, mesh: m };
     }
+    game.addProp(feet);
     const pos = new Float32Array((SEG + 1) * 2 * 3), aT = [], aSide = [], idx = [];
     for (let i = 0; i <= SEG; i++) { aT.push(i / SEG, i / SEG); aSide.push(-1, 1); if (i < SEG) { const o = i * 2; idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2); } }
     const sgeo = new THREE.BufferGeometry();

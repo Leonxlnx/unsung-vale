@@ -205,6 +205,18 @@ export class Game {
   // The hero knows what the tuned spires have taught him.
   _skills() { const p = this.player; p.skills.clear(); for (const s of this.spires) if ((s.tuned || this.cine) && SKILLS[s.id]) p.skills.add(SKILLS[s.id].id); }
 
+  // Stonework that belongs to the rules rather than to a site (a bell's frame, a pylon's
+  // foot): built with the same kit and material as the courts, solid, and left out of the film.
+  addProp(builder) {
+    const mesh = new THREE.Mesh(builder.build(), this.arch.material);
+    mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
+    this.pipe.scene.add(mesh);
+    this.pipe.shadows.addCaster(mesh, this.arch.depthMaterial, { dynamic: true });
+    this.world.addGeometry(mesh.geometry);
+    (this.props ??= []).push(mesh);
+    return mesh;
+  }
+
   // The side goal the interface shows: a trial under way, else the nearest quest.
   tracker() { return this.trials.tracker() ?? this.quests.tracker(); }
 
@@ -726,6 +738,7 @@ export class Game {
     // The great rings glow a little more for every spire restored, and blaze when one is tuned.
     const lat = this.arch?.material?.uniforms?.uLattice?.value;
     if (lat) { this.ringPulse = (this.ringPulse ?? 0) * Math.exp(-dt * 0.45); const lit = this.spires.filter((s) => s.tuned).length / this.spires.length; lat.w += (0.28 * lit + this.ringPulse - lat.w) * Math.min(1, dt * 1.5); }
+    if (this.props) for (const m of this.props) m.visible = !this.cine;
     // The island of colour the hero carries through a silence (not in the film).
     { const p = this.player.pos; this.pipe.fog.hero.set(p.x, p.y + 1.0, p.z, this.cine || this.state === 'home' ? 0 : 3.2); }
     this.flash *= Math.exp(-dt * 3.2);

@@ -3,6 +3,7 @@
 // three waves of the Mute called up around the ring, or a run through gates of light against
 // a falling count. The first time one is won it gives a step of strength.
 import * as THREE from 'three';
+import { MeshBuilder, M } from '../world/arch/builder.js';
 
 const VERT = /* glsl */ `
 out vec3 vWorld;
@@ -52,7 +53,9 @@ export class Trials {
   constructor(game, pipe) {
     this.g = game; this.pipe = pipe; this.run = null;
     const W = game.world, time = pipe.globals.uTime;
-    const geo = new THREE.TorusGeometry(1.25, 0.075, 6, 28).translate(0, 1.55, 0);
+    const geo = new THREE.TorusGeometry(1.25, 0.075, 6, 28).translate(0, 1.85, 0);
+    // Each ring stands on a round floor of paving with four low posts at its edge.
+    const floors = new MeshBuilder();
     this.list = TRIALS.map((def) => {
       const [x, z] = flatNear(W, def.at[0], def.at[1]);
       W.stream(x, z, 6);
@@ -61,6 +64,12 @@ export class Trials {
       const mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: u }));
       mesh.position.set(x, y, z); mesh.frustumCulled = false; mesh.updateMatrixWorld();
       pipe.scene.add(mesh);
+      floors.at(x, y, z, 0, (q) => {
+        q.mat_(M.PAVING).lathe([[3.0, -1.6], [3.0, 0.1], [2.6, 0.1], [2.6, 0.2], [0, 0.2]], 28);
+        q.mat_(M.GOLD).lathe([[2.2, 0.205], [2.08, 0.21]], 28);
+        q.mat_(M.GOLD).lathe([[0.5, 0.205], [0.38, 0.21]], 16);
+        for (let k = 0; k < 4; k++) { const a = k * 1.5708 + 0.785; q.at(Math.cos(a) * 2.8, 0.1, Math.sin(a) * 2.8, 0, (g) => { g.mat_(M.MARBLE).lathe([[0.2, 0], [0.15, 0.08], [0.12, 0.62], [0.17, 0.68], [0.17, 0.76], [0, 0.8]], 8); g.mat_(M.GOLD).lathe([[0.13, 0.6], [0.15, 0.64], [0.13, 0.67]], 8); }); }
+      });
       const t = { def, x, y, z, u, mesh, done: (game.trialsDone ?? []).includes(def.id) };
       if (def.kind === 'run') {
         t.gates = def.gates.map(([dx, dz]) => { const [gx, gz] = dx || dz ? flatNear(W, x + dx, z + dz, 6) : [x, z]; return { x: gx, z: gz, y: W.groundHeight(gx, gz) + 1.3 }; });
@@ -70,6 +79,7 @@ export class Trials {
       }
       return t;
     });
+    game.addProp(floors);
   }
 
   get doneCount() { return this.list.filter((t) => t.done).length; }

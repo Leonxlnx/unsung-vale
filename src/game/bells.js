@@ -3,6 +3,7 @@
 // court does not stir: its guard stays in the ground and its spire will not answer. Ringing
 // the third calls the court's guard up, and the fight for the court begins.
 import * as THREE from 'three';
+import { MeshBuilder, M, column } from '../world/arch/builder.js';
 
 const VERT = /* glsl */ `
 out vec3 vWorld;
@@ -33,11 +34,9 @@ export class Bells {
   constructor(game, pipe) {
     this.g = game; this.pipe = pipe; this.list = [];
     const W = game.world, time = pipe.globals.uTime;
-    // A frame of two posts and a beam, and the bell hanging in it.
-    const post = (x) => new THREE.CylinderGeometry(0.09, 0.12, 3.1, 6).translate(x, 1.55, 0);
-    const frame = new THREE.BufferGeometry();
-    { const parts = [post(-0.8), post(0.8), new THREE.BoxGeometry(2.1, 0.16, 0.2).translate(0, 3.14, 0), new THREE.CylinderGeometry(0.42, 0.5, 0.16, 8).translate(-0.8, 0.08, 0), new THREE.CylinderGeometry(0.42, 0.5, 0.16, 8).translate(0.8, 0.08, 0)];
-      const pos = []; for (const p of parts) pos.push(...p.toNonIndexed().attributes.position.array); frame.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); }
+    // Each bell hangs in a frame of two small columns and a beam on a round step, built
+    // from the same stone as the courts.
+    const frames = new MeshBuilder();
     const bell = new THREE.LatheGeometry([[0.03, 0], [0.16, -0.04], [0.25, -0.26], [0.29, -0.6], [0.4, -0.86], [0.46, -0.94], [0.43, -0.96]].map(([r, y]) => new THREE.Vector2(r, y)), 14);
     for (const [id, def] of Object.entries(BELLS)) {
       const rung = game.bellsRung?.[id] ?? [];
@@ -45,13 +44,22 @@ export class Bells {
         W.stream(x, z, 6);
         const y = W.floorBelow(x, W.groundHeight(x, z) + 3, z, 8), yaw = (i * 2.1 + x * 0.01) % 6.283;
         const mk = (geo, gold) => { const u = { uTime: time, uPower: { value: 0 }, uGold: { value: gold } }; const m = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: u, side: THREE.DoubleSide })); m.frustumCulled = false; pipe.scene.add(m); return m; };
-        const fm = mk(frame, 0), bm = mk(bell, 1);
-        fm.position.set(x, y, z); fm.rotation.y = yaw; fm.updateMatrixWorld();
-        bm.position.set(x, y + 3.04, z); bm.rotation.y = yaw;
-        for (const sx of [-0.8, 0.8]) W.addCapsule([x + Math.cos(yaw) * sx, y, z - Math.sin(yaw) * sx], [x + Math.cos(yaw) * sx, y + 3, z - Math.sin(yaw) * sx], 0.16);
-        this.list.push({ id, i, x, y, z, yaw, frame: fm, bell: bm, rung: rung.includes(i), swing: 0, t: 0, group: `bell:${id}:${i}` });
+        const bm = mk(bell, 1);
+        frames.at(x, y, z, yaw, (q) => {
+          q.mat_(M.MARBLE).lathe([[1.7, -1.6], [1.7, 0.1], [1.35, 0.1], [1.35, 0.22], [0, 0.22]], 18);
+          q.mat_(M.GOLD).lathe([[1.2, 0.225], [1.12, 0.23]], 18);
+          for (const sx of [-0.85, 0.85]) q.at(sx, 0.22, 0, 0, (g) => column(g, 0.12, 3.0, { sides: 10 }));
+          q.mat_(M.MARBLE).box(-1.25, 3.22, -0.19, 2.5, 0.2, 0.38);
+          q.mat_(M.FRIEZE).box(-1.15, 3.42, -0.16, 2.3, 0.16, 0.32, '-y');
+          q.mat_(M.MARBLE).box(-1.32, 3.58, -0.23, 2.64, 0.08, 0.46);
+          q.mat_(M.GOLD).box(-1.32, 3.66, -0.23, 2.64, 0.04, 0.46, '-y');
+          q.mat_(M.GOLD).box(-0.03, 3.1, -0.03, 0.06, 0.12, 0.06);
+        });
+        bm.position.set(x, y + 3.12, z); bm.rotation.y = yaw;
+        this.list.push({ id, i, x, y, z, yaw, bell: bm, rung: rung.includes(i), swing: 0, t: 0, group: `bell:${id}:${i}` });
       });
     }
+    game.addProp(frames);
   }
 
   count(id) { return this.list.filter((b) => b.id === id && b.rung).length; }
@@ -90,7 +98,7 @@ export class Bells {
     const g = this.g, p = g.player, show = !g.cine;
     for (const b of this.list) {
       const near = Math.hypot(p.pos.x - b.x, p.pos.z - b.z) < 320;
-      b.frame.visible = b.bell.visible = show && near;
+      b.bell.visible = show && near;
       if (!near) continue;
       b.t += dt; b.swing *= Math.exp(-dt * 0.55);
       const power = b.rung ? 1 : 0, u = b.bell.material.uniforms.uPower;
