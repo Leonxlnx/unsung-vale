@@ -134,7 +134,7 @@ function footRoll(pitch) {
 // The sword is described in the upper body's own space: origin at the chest joint, axes
 // turning with the chest. g = where the hand grips, d = where the blade points.
 const SW = {
-  idle: { g: [-0.30, -0.37, 0.10], d: [-0.10, -0.66, 0.74] },
+  idle: { g: [-0.27, -0.33, 0.14], d: [-0.12, -0.5, 0.85] },
   run: { g: [-0.31, -0.24, -0.04], d: [-0.22, -0.74, -0.63] },
   sprint: { g: [-0.34, -0.2, -0.12], d: [-0.32, -0.4, -0.86] },
   guard: { g: [-0.2, -0.14, 0.32], d: [0.2, 0.62, 0.76] },
@@ -178,8 +178,8 @@ const ATTACKS = [
     { t: 0.1, sw: [-0.42, 0.2, 0.02, -0.9, 0.42, 0.05], hips: [-0.03, -0.28, 0], chest: [-0.08, -0.47, 0.1], pel: [-0.04, -0.06, -0.05], L: [0.14, 0.16, 0.1, 0], R: [-0.18, -0.2, -0.55, 0], la: [-0.1, 0.05, 0.5] },
     { t: 0.145, sw: [-0.43, 0.21, 0, -0.9, 0.4, -0.02], hips: [-0.04, -0.3, 0], chest: [-0.1, -0.52, 0.1], pel: [-0.04, -0.07, -0.06], L: [0.14, 0.16, 0.1, 0], R: [-0.18, -0.2, -0.55, 0], la: [-0.15, 0.05, 0.5] },
     { t: 0.205, sw: [-0.3, 0.06, 0.42, -0.5, 0.15, 0.85], hips: [0.06, 0.0, 0], chest: [0.1, 0.05, 0], pel: [0, -0.08, 0.08], L: [0.15, -0.08, 0.25, 0], R: [-0.13, 0.34, -0.1, 0.06], la: [0.2, 0.15, 0.55] },
-    { t: 0.265, sw: [-0.14, -0.16, 0.46, -0.15, -0.4, 0.89], hips: [0.1, 0.4, -0.02], chest: [0.22, 0.75, -0.1], pel: [0.03, -0.1, 0.13], L: [0.16, -0.24, 0.4, 0], R: [-0.12, 0.4, -0.05, 0], la: [0.55, 0.3, 0.6] },
-    { t: 0.34, sw: [-0.1, -0.2, 0.42, 0.16, -0.38, 0.91], hips: [0.1, 0.44, -0.02], chest: [0.22, 0.85, -0.1], pel: [0.03, -0.11, 0.14], L: [0.16, -0.24, 0.4, 0], R: [-0.12, 0.4, -0.05, 0], la: [0.6, 0.3, 0.6] },
+    { t: 0.265, sw: [-0.14, -0.14, 0.46, -0.15, -0.3, 0.92], hips: [0.1, 0.4, -0.02], chest: [0.22, 0.75, -0.1], pel: [0.03, -0.1, 0.13], L: [0.16, -0.24, 0.4, 0], R: [-0.12, 0.4, -0.05, 0], la: [0.55, 0.3, 0.6] },
+    { t: 0.34, sw: [-0.1, -0.18, 0.42, 0.16, -0.28, 0.93], hips: [0.1, 0.44, -0.02], chest: [0.22, 0.85, -0.1], pel: [0.03, -0.11, 0.14], L: [0.16, -0.24, 0.4, 0], R: [-0.12, 0.4, -0.05, 0], la: [0.6, 0.3, 0.6] },
     { t: 0.46, sw: [-0.16, -0.2, 0.34, 0.3, -0.1, 0.95], hips: [0.05, 0.2, 0], chest: [0.08, 0.4, -0.03], pel: [0, -0.07, 0.07], L: [0.16, -0.22, 0.4, 0], R: [-0.12, 0.34, -0.05, 0], la: [0.3, 0.2, 0.55] },
   ] },
   // 2: back the other way, rising from the left hip to high on the right, the left foot
@@ -198,34 +198,31 @@ const ATTACKS = [
     { t: 0.2, sw: [-0.43, 0.06, 0.1, -0.93, 0.1, 0.32], hips: [0.06, -0.45, 0], chest: [0.1, -0.8, 0.05], pel: [-0.02, -0.14, 0.0], L: [0.13, 0.1, 0, 0.02], R: [-0.13, -0.1, 0, 0.04], la: [0.2, 0.5, 0.6], lock: 1 },
     { t: 0.31, sw: [-0.43, 0.08, 0.14, -0.9, 0.14, 0.4], hips: [0.02, -0.1, 0], chest: [0.04, -0.2, 0], pel: [0, 0.05, 0.04], L: [0.12, 0.06, 0, 0.12], R: [-0.12, -0.08, 0, 0.18], la: [-0.2, 0.7, 0.4], lock: 1 },
     { t: 0.42, sw: [-0.24, -0.08, 0.44, -0.3, -0.2, 0.93], hips: [0.1, 0.25, 0], chest: [0.16, 0.5, -0.05], pel: [0.02, -0.12, 0.12], L: [0.17, -0.26, 0.4, 0.02], R: [-0.13, 0.42, -0.05, 0.03], la: [-0.5, 0.5, 0.5], lock: 0.5 },
-    { t: 0.5, sw: [-0.14, -0.18, 0.46, -0.1, -0.36, 0.93], hips: [0.14, 0.38, 0], chest: [0.22, 0.75, -0.06], pel: [0.02, -0.18, 0.16], L: [0.17, -0.28, 0.42, 0], R: [-0.13, 0.44, -0.05, 0], la: [-0.6, 0.4, 0.5] },
+    { t: 0.5, sw: [-0.14, -0.16, 0.46, -0.1, -0.26, 0.95], hips: [0.14, 0.38, 0], chest: [0.22, 0.75, -0.06], pel: [0.02, -0.18, 0.16], L: [0.17, -0.28, 0.42, 0], R: [-0.13, 0.44, -0.05, 0], la: [-0.6, 0.4, 0.5] },
     { t: 0.7, sw: [-0.16, -0.2, 0.34, 0.2, -0.1, 0.97], hips: [0.05, 0.18, 0], chest: [0.08, 0.34, -0.03], pel: [0, -0.08, 0.08], L: [0.16, -0.24, 0.4, 0], R: [-0.12, 0.34, -0.05, 0], la: [0.2, 0.2, 0.55] },
   ] },
   // Heavy: both hands, a leap, and the blade brought down from overhead into the ground.
   { keys: [
-    { t: 0.18, sw: [-0.08, 0.5, -0.04, -0.04, 0.6, -0.8], hips: [-0.1, 0, 0], chest: [-0.28, 0, 0], pel: [0, -0.2, -0.08], L: [0.15, 0.12, 0.1, 0], R: [-0.16, -0.2, -0.35, 0], two: 1 },
-    { t: 0.26, sw: [-0.07, 0.54, 0.02, -0.02, 0.8, -0.6], hips: [-0.12, 0, 0], chest: [-0.3, 0, 0], pel: [0, 0.06, 0.02], L: [0.13, 0.2, 0, 0.16], R: [-0.13, -0.16, -0.1, 0.24], two: 1, lock: 1 },
-    { t: 0.31, sw: [-0.07, 0.5, 0.14, 0, 0.96, -0.28], hips: [-0.06, 0, 0], chest: [-0.18, 0, 0], pel: [0, 0.14, 0.1], L: [0.13, 0.0, 0.1, 0.2], R: [-0.13, 0.26, 0, 0.26], two: 1, lock: 1 },
+    { t: 0.18, sw: [-0.1, 0.56, -0.1, -0.04, 0.6, -0.8], hips: [-0.1, 0, 0], chest: [-0.28, 0, 0], pel: [0, -0.2, -0.08], L: [0.15, 0.12, 0.1, 0], R: [-0.16, -0.2, -0.35, 0], two: 1 },
+    { t: 0.26, sw: [-0.09, 0.6, -0.04, -0.02, 0.8, -0.6], hips: [-0.12, 0, 0], chest: [-0.3, 0, 0], pel: [0, 0.06, 0.02], L: [0.13, 0.2, 0, 0.16], R: [-0.13, -0.16, -0.1, 0.24], two: 1, lock: 1 },
+    { t: 0.31, sw: [-0.08, 0.56, 0.12, 0, 0.96, -0.28], hips: [-0.06, 0, 0], chest: [-0.18, 0, 0], pel: [0, 0.14, 0.1], L: [0.13, 0.0, 0.1, 0.2], R: [-0.13, 0.26, 0, 0.26], two: 1, lock: 1 },
     { t: 0.37, sw: [-0.07, 0.14, 0.5, 0, 0.5, 0.87], hips: [0.16, 0, 0], chest: [0.3, 0, 0], pel: [0, -0.08, 0.18], L: [0.16, -0.3, 0.3, 0.05], R: [-0.13, 0.46, 0, 0.05], two: 1, lock: 0.6 },
-    { t: 0.43, sw: [-0.07, -0.15, 0.48, 0.02, 0.08, 1.0], hips: [0.3, 0, 0], chest: [0.56, 0, 0], pel: [0, -0.3, 0.24], L: [0.17, -0.4, 0.3, 0], R: [-0.13, 0.48, 0, 0], two: 1 },
-    { t: 0.6, sw: [-0.07, -0.16, 0.47, 0.02, 0.04, 1.0], hips: [0.3, 0, 0], chest: [0.54, 0, 0], pel: [0, -0.32, 0.24], L: [0.17, -0.4, 0.3, 0], R: [-0.13, 0.48, 0, 0], two: 1 },
+    { t: 0.43, sw: [-0.07, -0.12, 0.5, 0.02, 0.34, 0.94], hips: [0.3, 0, 0], chest: [0.5, 0, 0], pel: [0, -0.3, 0.24], L: [0.17, -0.4, 0.3, 0], R: [-0.13, 0.48, 0, 0], two: 1 },
+    { t: 0.6, sw: [-0.07, -0.13, 0.49, 0.02, 0.31, 0.95], hips: [0.3, 0, 0], chest: [0.48, 0, 0], pel: [0, -0.32, 0.24], L: [0.17, -0.4, 0.3, 0], R: [-0.13, 0.48, 0, 0], two: 1 },
     { t: 0.86, sw: [-0.16, -0.2, 0.34, 0.1, -0.1, 0.99], hips: [0.08, 0.1, 0], chest: [0.12, 0.2, 0], pel: [0, -0.1, 0.1], L: [0.16, -0.26, 0.4, 0], R: [-0.12, 0.36, -0.05, 0], two: 0.3 },
   ] },
 ];
-// Flat normals: the edge leads, so the flat faces square to the plane the blade sweeps.
+// The flat of the blade at each key is the one a relaxed wrist gives there (forearm along the
+// edge), kept from flipping between neighbouring keys.
 for (const { keys } of ATTACKS) {
   let prev = null;
-  keys.forEach((k, i) => {
-    const a = keys[Math.max(0, i - 1)].sw, b = keys[Math.min(keys.length - 1, i + 1)].sw;
-    const n = new THREE.Vector3(a[3], a[4], a[5]).normalize().cross(new THREE.Vector3(b[3], b[4], b[5]).normalize());
-    if (n.lengthSq() < 1e-3) n.fromArray(naturalFlat(k.sw, k.sw.slice(3))); else n.normalize();
-    // Keep to the side a relaxed wrist would choose, and never flip between keys.
-    const nat = new THREE.Vector3(...naturalFlat(k.sw, k.sw.slice(3)));
-    if (prev ? n.dot(prev) < 0 : n.dot(nat) < 0) n.negate();
+  for (const k of keys) {
+    const n = new THREE.Vector3(...naturalFlat(k.sw, k.sw.slice(3)));
+    if (prev && n.dot(prev) < -0.6) n.negate();
     prev = n.clone();
     k.g = new THREE.Vector3(k.sw[0], k.sw[1], k.sw[2]);
     k.q = swordQ(k.sw.slice(3), n.toArray(), new THREE.Quaternion());
-  });
+  }
 }
 const _v0 = new THREE.Vector3(), _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _v4 = new THREE.Vector3();
 const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e0 = new THREE.Euler();
@@ -703,6 +700,24 @@ export class Hero {
     const pole = _v3.copy(this.foreInHand).applyQuaternion(hand).multiplyScalar(-this.foreLen).add(wrist).sub(sh);
     pole.addScaledVector(_v4.set(-0.25, -0.6, -0.45).applyQuaternion(uQ), 0.12);
     R.ik('UpperArm.R', 'LowerArm.R', 'Hand.R', wrist, pole, weight);
+    // Now that the arm is placed, turn the sword about its own blade so the hand sits
+    // straight on the forearm (the edge falls in line with the arm, as a wrist allows), and
+    // place the arm once more for the hand's new position.
+    const fore = R.bones.lowerarmr.bone, hb = R.bones.handr.bone;
+    fore.updateWorldMatrix(true, false); hb.updateWorldMatrix(false, false);
+    const fa = _v2.setFromMatrixPosition(hb.matrixWorld).sub(_v3.setFromMatrixPosition(fore.matrixWorld)).normalize();
+    const d = _v4.set(0, 1, 0).applyQuaternion(_q2.copy(uQ).multiply(q));
+    const n = _v3.crossVectors(fa, d);
+    if (n.lengthSq() > 0.01) {
+      n.normalize();
+      const sq = swordQ([d.x, d.y, d.z], [n.x, n.y, n.z], _q2);
+      hand.copy(sq).multiply(_q0.copy(this.sword.quaternion).invert());
+      wrist.copy(this.gripInHand).applyQuaternion(hand).negate().add(grip);
+      const sh2 = R.bones.upperarmr.bone.getWorldPosition(_v2);
+      const pole2 = _v3.copy(this.foreInHand).applyQuaternion(hand).multiplyScalar(-this.foreLen).add(wrist).sub(sh2);
+      pole2.addScaledVector(_v4.set(-0.25, -0.6, -0.45).applyQuaternion(uQ), 0.12);
+      R.ik('UpperArm.R', 'LowerArm.R', 'Hand.R', wrist, pole2, weight);
+    }
     R.setWorldQ('Hand.R', hand, weight);
   }
 
