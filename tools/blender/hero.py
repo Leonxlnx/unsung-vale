@@ -880,7 +880,7 @@ def build_arms(g):
     shell(g, dome(1.13), 10, 9, thick=0.005, eu0='trim', eu1='trim', ev0='trim', ev1='trim',
           w='Shoulder.L', ref=ref)
     g.end()
-    for i, (s0, s1, o0, o1, A, pt) in enumerate(((0.065, 0.158, 0.022, 0.016, 106, 0.030),
+    for i, (s0, s1, o0, o1, A, pt) in enumerate(((0.035, 0.158, 0.022, 0.016, 106, 0.030),
                                                  (0.132, 0.212, 0.016, 0.012, 99, 0.027),
                                                  (0.192, 0.256, 0.012, 0.009, 92, 0.022))):
         g.begin('pauldron_L_lame%d' % i, warp=False)
@@ -892,7 +892,7 @@ def build_arms(g):
     shell(g, dome(0.95), 10, 8, thick=0.005, eu0='trim', eu1='trim', ev0='trim', ev1='trim',
           w='Shoulder.L', ref=ref)
     g.end(mirror='only')
-    for i, (s0, s1, o0, o1, A, pt) in enumerate(((0.052, 0.132, 0.018, 0.013, 102, 0.026),
+    for i, (s0, s1, o0, o1, A, pt) in enumerate(((0.030, 0.132, 0.018, 0.013, 102, 0.026),
                                                  (0.110, 0.180, 0.013, 0.009, 95, 0.022))):
         g.begin('pauldron_R_lame%d' % i, warp=False)
         shell(g, lame(s0, s1, o0, o1, A, pt), 10, 4, thick=0.0045, ev1='trim', w='UpperArm.L',
@@ -1002,6 +1002,9 @@ def build_hand(g, hp, bone, mirror, fist):
           0.185, 0.193, 0.199]
     n = 14
     rings = [[hp.pt(t, 2 * pi * k / n) for k in range(n)] for t in ts]
+    for t, sc in ((0.2015, 0.72), (0.2030, 0.36)):            # rounded finger tips
+        c = hp.frame(t)[0]
+        rings.append([c + (p - hp.frame(0.199)[0]) * sc for p in rings[len(ts) - 1]])
     g.begin(name + '_glove', warp=False)
     loft(g, rings, 'Leather', bone, sharp=50)
     g.end(mirror=mirror)
@@ -1041,18 +1044,19 @@ def build_hand(g, hp, bone, mirror, fist):
         p1 = WR + T * 0.060 + X * 0.045 - D * 0.050
         p2 = WR + T * 0.094 + X * 0.026 - D * 0.070
     else:
-        p0 = WR + T * 0.032 + X * 0.034 - D * 0.004
-        d = (T * 0.62 + X * 0.60 - D * 0.36).normalized()
-        p1 = p0 + d * 0.036 + X * 0.004
-        p2 = p0 + d * 0.070 - D * 0.004
+        p0 = WR + T * 0.026 + X * 0.027 - D * 0.007
+        d = (T * 0.66 + X * 0.56 - D * 0.34).normalized()
+        p1 = p0 + d * 0.044 + X * 0.010
+        p2 = p0 + d * 0.078 + T * 0.014 - X * 0.004 - D * 0.004
     pts, rad = [], []
-    for i in range(8):
-        k = i / 7
+    for i in range(9):
+        k = i / 8
         pts.append(p0 * (1 - k) ** 2 + p1 * (2 * k * (1 - k)) + p2 * k ** 2)
-        rad.append(lerp(0.0150, 0.0105, k) * (0.62 if i == 7 else 1.0))
+        r = lerp(0.0165, 0.0105, k ** 0.8) * (0.82 if i == 7 else 0.45 if i == 8 else 1.0)
+        rad.append((r * 0.88, r * 1.08))
     g.begin(name + '_thumb', warp=False)
-    tube_along(g, pts, rad, 8, 'Armor', bone, sharp=50,
-               mats=['Leather', 'Armor', 'Armor', 'Gold', 'Armor', 'Armor', 'Armor'])
+    tube_along(g, pts, rad, 8, 'Armor', bone, sharp=50, up=D,
+               mats=['Leather', 'Leather', 'Armor', 'Armor', 'Gold', 'Armor', 'Armor', 'Armor'])
     g.end(mirror=mirror)
 
 
@@ -1679,6 +1683,15 @@ def apply_test_pose(rig):
     bpy.context.view_layer.update()
 
 
+def apply_idle_pose(rig):
+    """arms hanging at the sides: the pose the game shows most of the time"""
+    pose_rot(rig, 'UpperArm.L', (0, 1, 0), 44)
+    pose_rot(rig, 'UpperArm.R', (0, 1, 0), -44)
+    pose_rot(rig, 'LowerArm.L', tuple(AN), -14)
+    pose_rot(rig, 'LowerArm.R', (-AN.x, 0, AN.z), 14)
+    bpy.context.view_layer.update()
+
+
 def reset_pose(rig):
     for pb in rig.pose.bones:
         pb.rotation_mode = 'QUATERNION'
@@ -1758,21 +1771,19 @@ def main():
             if nm in want:
                 render_view(os.path.join(OUT_DIR, 'hero_%s.png' % nm), rig_l=lrig, cam=cam, env_map=env,
                             **VIEWS[nm])
-        for s in shots:
-            path, az, elev, tgt, h, res, posed = s.split(';')
-            if posed != '1':
-                render_view(path, float(az), float(elev), tuple(float(x) for x in tgt.split(',')), float(h),
-                            tuple(int(x) for x in res.split('x')), lrig, cam, env)
-        if 'pose' in want or any(s.split(';')[6] == '1' for s in shots):
-            apply_test_pose(rig)
-            if 'pose' in want:
+        # pose key: 0 = rest, 1 = rig test pose, 2 = arms-down idle
+        for key, poser in (('0', None), ('1', apply_test_pose), ('2', apply_idle_pose)):
+            mine = [s.split(';') for s in shots if s.split(';')[6] == key]
+            if not mine and not (key == '1' and 'pose' in want):
+                continue
+            if poser:
+                poser(rig)
+            if key == '1' and 'pose' in want:
                 render_view(os.path.join(OUT_DIR, 'hero_pose.png'), rig_l=lrig, cam=cam, env_map=env,
                             **VIEWS['pose'])
-            for s in shots:
-                path, az, elev, tgt, h, res, posed = s.split(';')
-                if posed == '1':
-                    render_view(path, float(az), float(elev), tuple(float(x) for x in tgt.split(',')),
-                                float(h), tuple(int(x) for x in res.split('x')), lrig, cam, env)
+            for path, az, elev, tgt, h, res, _ in mine:
+                render_view(path, float(az), float(elev), tuple(float(x) for x in tgt.split(',')), float(h),
+                            tuple(int(x) for x in res.split('x')), lrig, cam, env)
             reset_pose(rig)
         for ob in list(bpy.data.objects):
             if ob.type in ('CAMERA', 'LIGHT') or ob.name == 'LightRig':

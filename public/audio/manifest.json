@@ -1,0 +1,120 @@
+{
+  "music": {
+    "home": {
+      "file": "music/home.ogg",
+      "duration": 197.9,
+      "loop": true
+    },
+    "explore": {
+      "file": "music/explore.ogg",
+      "duration": 202.75,
+      "loop": true
+    },
+    "combat": {
+      "file": "music/combat.ogg",
+      "duration": 174.04,
+      "loop": true
+    },
+    "triumph": {
+      "file": "music/triumph.ogg",
+      "duration": 17.4,
+      "loop": false
+    }
+  },
+  "amb": {
+    "wind": {
+      "file": "amb/wind.ogg",
+      "duration": 41,
+      "loop": true
+    },
+    "birds": {
+      "file": "amb/birds.ogg",
+      "duration": 61.05,
+      "loop": true
+    },
+    "waterfall": {
+      "file": "amb/waterfall.ogg",
+      "duration": 60,
+      "loop": true
+    },
+    "water_lap": {
+      "file": "amb/water_lap.ogg",
+      "duration": 54.5,
+      "loop": true
+    }
+  },
+  "sfx": {
+    "step_grass": [
+      "sfx/step_grass_1.ogg",
+      "sfx/step_grass_2.ogg",
+      "sfx/step_grass_3.ogg",
+      "sfx/step_grass_4.ogg"
+    ],
+    "step_stone": [
+      "sfx/step_stone_1.ogg",
+      "sfx/step_stone_2.ogg",
+      "sfx/step_stone_3.ogg",
+      "sfx/step_stone_4.ogg"
+    ],
+    "swing": [
+      "sfx/swing_1.ogg",
+      "sfx/swing_2.ogg",
+      "sfx/swing_3.ogg"
+    ],
+    "hit": [
+      "sfx/hit_1.ogg",
+      "sfx/hit_2.ogg",
+      "sfx/hit_3.ogg"
+    ],
+    "shatter": [
+      "sfx/shatter_1.ogg",
+      "sfx/shatter_2.ogg"
+    ],
+    "block": [
+      "sfx/block_1.ogg"
+    ],
+    "hurt": [
+      "sfx/hurt_1.ogg",
+      "sfx/hurt_2.ogg"
+    ],
+    "roll": [
+      "sfx/roll_1.ogg"
+    ],
+    "jump": [
+      "sfx/jump_1.ogg"
+    ],
+    "land": [
+      "sfx/land_1.ogg"
+    ],
+    "enemy_charge": [
+      "sfx/enemy_charge_1.ogg"
+    ],
+    "enemy_shot": [
+      "sfx/enemy_shot_1.ogg"
+    ],
+    "enemy_idle": [
+      "sfx/enemy_idle_1.ogg"
+    ],
+    "pickup": [
+      "sfx/pickup_1.ogg"
+    ],
+    "spire_tune": [
+      "sfx/spire_tune_1.ogg"
+    ],
+    "bridge": [
+      "sfx/bridge_1.ogg"
+    ],
+    "ui_hover": [
+      "sfx/ui_hover.ogg"
+    ],
+    "ui_click": [
+      "sfx/ui_click.ogg"
+    ],
+    "ui_back": [
+      "sfx/ui_back.ogg"
+    ],
+    "ui_open": [
+      "sfx/ui_open.ogg"
+    ]
+  }
+}

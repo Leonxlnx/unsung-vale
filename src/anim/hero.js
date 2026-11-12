@@ -67,8 +67,9 @@ void main() {
 const TRAIL_FRAG = /* glsl */ `
 in vec2 vUv;
 void main() {
-  float a = vUv.x * vUv.x * (1.0 - smoothstep(0.55, 1.0, abs(vUv.y - 0.55) * 1.8));
-  gl_FragColor = vec4(vec3(1.0, 0.86, 0.6) * a * 2.4, a * 0.85);
+  // Only the outer part of the blade leaves a streak, sharpest at the leading edge.
+  float a = pow(vUv.x, 3.0) * smoothstep(0.3, 0.85, vUv.y) * (1.0 - smoothstep(0.93, 1.0, vUv.y)) * 0.55;
+  gl_FragColor = vec4(vec3(0.75, 0.92, 1.0) * a * 1.6, a);
 }`;
 
 // name -> [albedo rgb, rough, metal, sheen, emissive]
@@ -113,7 +114,7 @@ export class Hero {
 
     this.rig = new Rig(scene);
     const col = (c) => [1, 2, 3, 4, 5].map((i) => `Cape.${c}.${i}`);
-    this.cloth = new SpringChains(this.rig, [col('L'), col('C'), col('R'), ['Tabard.F'], ['Tabard.B']]);
+    this.cloth = new SpringChains(this.rig, [col('L'), col('C'), col('R'), ['Tabard.F'], ['Tabard.B']], { drag: 0.2, stiffness: 1.2, gravity: 11 });
     this.sword = scene.getObjectByName('Sword');
     this.phase = 0; this.time = 0; this.moveBlend = 0; this.lean = 0; this.yawVel = 0; this.lastYaw = 0;
     this.airBlend = 0; this.landSquash = 0; this.hurtK = 0;
@@ -121,7 +122,7 @@ export class Hero {
   }
 
   _buildTrail() {
-    const N = 22;
+    const N = 12;
     this.trailN = N; this.trailPts = [];
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 2 * 3), 3));
@@ -177,6 +178,10 @@ export class Hero {
     // Arms rest lower than the modelled A-pose; the right hand carries the sword low.
     R.rot('UpperArm.L', 0.05, 0, -0.52); R.rot('UpperArm.R', 0.12, 0, 0.5);
     R.rot('LowerArm.L', -0.18, 0, 0); R.rot('LowerArm.R', -0.3, 0.1, 0);
+    // Blade carried low, tip toward the ground; it comes up into line with the arm to strike.
+    const guard = p.state === 'attack' ? 0.25 : 1;
+    this.guard = (this.guard ?? 1) + (guard - (this.guard ?? 1)) * Math.min(1, 14 * dt);
+    R.rot('Hand.R', 0.85, 0.2, 1.2, this.guard);
     let hipY = -0.012 * (1 - mb) * (1 + br * 0.4);
     if (mb > 0.01) {
       const amp = (0.42 + 0.34 * run + 0.12 * spr) * mb;
@@ -250,6 +255,7 @@ export class Hero {
     if (this.hurtK > 0.01) { const w = this.hurtK; R.rot('Spine', -0.3 * w, 0.15 * w); R.rot('Chest', -0.25 * w); R.rot('Head', -0.3 * w); R.rot('UpperArm.L', -0.4 * w, 0, 0.3 * w); }
     if (game.prompt && game.input.held.has('interact')) { const w = clamp01((game.prompt.progress ?? 0) * 3); R.rot('UpperArm.R', -2.4 * w, 0, 0.2 * w); R.rot('LowerArm.R', -0.2 * w); R.rot('Chest', -0.12 * w); R.rot('Head', -0.25 * w); }
 
+    this.debugPose?.(R, p);
     R.apply();
     const hips = R.bones.hips;
     if (hips) { hips.bone.position.copy(hips.restPos); hips.bone.position.y += hipY; }
@@ -266,14 +272,15 @@ export class Hero {
     const hp = wp('Hips', new THREE.Vector3()), cp = wp('Chest', new THREE.Vector3());
     if (hp && cp) cols.push({ a: hp.clone().add(new THREE.Vector3(0, -0.45, 0)), b: cp.clone().add(new THREE.Vector3(0, 0.25, 0)), r: 0.21 });
     for (const s of ['L', 'R']) { const a = wp(`UpperLeg.${s}`, new THREE.Vector3()), b = wp(`Foot.${s}`, new THREE.Vector3()); if (a && b) cols.push({ a, b, r: 0.12 }); }
-    this.cloth.wind.set(Math.sin(t * 0.7) * 0.6 + 0.9, 0, 0.5).multiplyScalar(0.9);
+    // A light breeze from the valley, plus the air the hero moves through.
+    this.cloth.wind.set(0.28 + Math.sin(t * 0.7) * 0.14 - p.vel.x * 0.05, 0, 0.14 - p.vel.z * 0.05);
     this.cloth.update(dt, t);
     this.root.updateMatrixWorld(true);
 
     // --- blade trail ---
     if (this.sword) {
       const active = p.state === 'attack' && p.attack && p.stateTime > p.attack.hit[0] * 0.6 && p.stateTime < p.attack.hit[1] + 0.08;
-      const base = this.sword.localToWorld(new THREE.Vector3(0, 0.2, 0)), tip = this.sword.localToWorld(new THREE.Vector3(0, 1.12, 0));
+      const base = this.sword.localToWorld(new THREE.Vector3(0, 0.1, 0)), tip = this.sword.localToWorld(new THREE.Vector3(0, 0.99, 0));
       if (active) this.trailPts.push([base, tip]); else if (this.trailPts.length) this.trailPts.shift();
       while (this.trailPts.length > this.trailN) this.trailPts.shift();
       const n = this.trailPts.length;
