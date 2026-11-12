@@ -175,10 +175,12 @@ export class Shadows {
     const camPos = _p.setFromMatrixPosition(camera.matrixWorld);
     const tanH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), tanW = tanH * camera.aspect;
     let near = camera.near;
-    r.setRenderTarget(this.csm);
-    r.clear(false, true, false);
+    this._frame = (this._frame ?? 0) + 1;
     for (let i = 0; i < 2; i++) {
       const far = this.splits[i];
+      // The far cascade changes slowly, so it is redrawn only every third frame; its matrix
+      // stays paired with the map it was drawn with.
+      if (i === 1 && this._frame % 3 !== 0 && this._frame > 3) { near = far; continue; }
       // Bounding sphere of the frustum slice: its size never changes, so the shadow edges
       // stay rock steady while the camera turns.
       const k = 1 + tanH * tanH + tanW * tanW;
@@ -190,6 +192,7 @@ export class Shadows {
       this.csm.scissor.set(i * S, 0, S, S);
       this.csm.scissorTest = true;
       r.setRenderTarget(this.csm);
+      r.clear(false, true, false);
       r.render(this.scene, this.cams[i]);
       this.uniforms.uCsmMat.value[i].multiplyMatrices(this.cams[i].projectionMatrix, this.cams[i].matrixWorldInverse);
       near = far;

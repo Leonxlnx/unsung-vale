@@ -48,9 +48,9 @@ export const SPECIES = {
     wiggle: 0.12, cardSize: [1.3, 1.9], cardsPerTwig: 3, leaf: 3,
   },
   great: {       // the Elder: a tree the size of a mountain, crowned in pale blossom
-    height: [470, 470], trunkR: 30, lean: 0.05, branchStart: 0.34, n1: [20, 20], n2: [7, 8], n3: [4, 5],
-    spread: 0.6, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.86 + 0.14)), 0.5), tropism: 0.1, droop: 0.1,
-    wiggle: 0.3, cardSize: [20, 34], cardsPerTwig: 4, leaf: 2,
+    height: [470, 470], trunkR: 30, lean: 0.05, branchStart: 0.34, n1: [26, 26], n2: [9, 10], n3: [4, 5],
+    spread: 0.7, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.86 + 0.14)), 0.5), tropism: 0.1, droop: 0.1,
+    wiggle: 0.3, cardSize: [30, 48], cardsPerTwig: 5, leaf: 2,
   },
   green: {       // generic green broadleaf for forest mass
     height: [10, 16], trunkR: 0.4, lean: 0.1, branchStart: 0.3, n1: [8, 11], n2: [4, 5], n3: [3, 4],

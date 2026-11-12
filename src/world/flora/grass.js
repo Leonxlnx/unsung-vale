@@ -29,6 +29,17 @@ vec4 groundInfo(vec2 xz) {
   grow *= step(max(abs(xz.x), abs(xz.y)), CORE_SIZE * 0.45);
   return vec4(h, grow, n1.r, n1.a);
 }
+// One unfiltered shadow lookup is plenty for a blade of grass.
+float coverShadow(vec3 p) {
+  float v = terrainSunVis(p) * cloudShadow(p);
+  for (int i = 0; i < 2; i++) {
+    vec4 c = uCsmMat[i] * vec4(p, 1.0);
+    if (max(abs(c.x), abs(c.y)) < 0.96) { vec2 uv = c.xy * 0.5 + 0.5; uv.x = (uv.x + float(i)) * 0.5; return v * shadowTap(uShadowCsm, vec3(uv, c.z + 0.002)); }
+  }
+  vec4 c = uStaticMat * vec4(p, 1.0);
+  if (max(abs(c.x), abs(c.y)) < 0.995) v *= shadowTap(uShadowStatic, vec3(c.xy * 0.5 + 0.5, c.z + 0.003));
+  return v;
+}
 vec2 windBend(vec2 xz, float stiff) {
   vec2 wd = uWind.xz;
   float wave = sin(uTime * 1.1 - dot(xz, wd) * 0.22) * 0.5 + sin(uTime * 2.3 + dot(xz, vec2(0.31, 0.17))) * 0.25;
@@ -70,7 +81,7 @@ void main() {
   // Lighting per vertex: sun through and onto the blade, sky from above, dark at the root.
   vec3 base = vec3(xz.x, gi.x + 0.15, xz.y);
   vec3 V = normalize(cameraPosition - p);
-  float vis = sunVisibility(base + uSunDir * 0.3);
+  float vis = coverShadow(base + uSunDir * 0.3);
   vec3 root = vec3(0.035, 0.07, 0.015), tip = mix(vec3(0.1, 0.21, 0.03), vec3(0.24, 0.27, 0.07), smoothstep(0.45, 0.85, gi.w + rr.x * 0.3));
   vec3 alb = mix(root, tip, t) * mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), gi.z);
   vec3 N = normalize(vec3(bend.x * 0.6, 1.0, bend.y * 0.6));
@@ -122,7 +133,7 @@ void main() {
   vUvl = vec3(position.x * 0.5 + 0.5, t, layer);
   vec3 base = vec3(xz.x, gi.x + 0.2, xz.y);
   vec3 V = normalize(cameraPosition - p);
-  float vis = sunVisibility(base + uSunDir * 0.3);
+  float vis = coverShadow(base + uSunDir * 0.3);
   vLight = uSunColor * 0.3183 * vis * 0.75 + shIrradiance(vec3(0.0, 1.0, 0.0)) * mix(0.45, 1.0, t);
   vBack = pow(saturate(dot(-V, uSunDir)), 2.0) * vis;
   gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
@@ -160,7 +171,7 @@ export class GroundCover {
       pos.push(-1, 0, b, 1, 0, b, -1, 0.5, b, 1, 0.5, b, 0, 1, b);
       idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2, o + 2, o + 3, o + 4);
     }
-    const perCell = Math.round(CELL * CELL * (opts.density ?? 10));
+    const perCell = Math.round(CELL * CELL * (opts.density ?? 8));
     const inst = new Float32Array(perCell * 4);
     for (let i = 0; i < perCell; i++) inst.set([rnd() * CELL, rnd() * CELL, rnd(), rnd()], i * 4);
     const instAttr = new THREE.InstancedBufferAttribute(inst, 4);
@@ -221,7 +232,8 @@ export class GroundCover {
       const vis = d < this.radius + CELL && y > 0.5;
       c.grass.visible = c.flowers.visible = vis;
       if (!vis) continue;
-      c.grass.geometry = this.grassGeo[d < 30 ? 0 : d < 52 ? 1 : 2];
+      const k = this.scale ?? 1;
+      c.grass.geometry = this.grassGeo[d < 30 * k ? 0 : d < 52 * k ? 1 : 2];
       for (const m of [c.grass, c.flowers]) {
         m.position.set(x, y, z);
         m.updateMatrixWorld();

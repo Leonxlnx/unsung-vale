@@ -122,7 +122,7 @@ export class Game {
       this.pipe.sceneT.add(beam);
       const zone = this.pipe.fog.mute[i];
       zone.set(s.x, s.z, i === 2 ? 60 : 78, 1);
-      return { ...s, index: i, crystal, beam, zone, tuned: false, power: 0, zoneR: zone.z, tuning: 0 };
+      return { ...s, index: i, crystal, beam, zone, tuned: false, power: 0, zoneR: zone.z, zoneR0: zone.z, tuning: 0 };
     });
   }
 
@@ -204,6 +204,27 @@ export class Game {
     else if (this.enemies.aliveIn(next.id) > 0 || (next.id === 'cantor' && this.enemies.aliveIn('stair') > 0 && false)) this.objective = `Break the silence at ${names[next.id]}`;
     else this.objective = `Tune the spire at ${names[next.id]}`;
     this.emit('objective', { text: this.objective });
+  }
+
+  // Puts the world into a chosen story state. Used by the cinematic director so each shot
+  // starts from known conditions; never called during normal play.
+  cineSetup({ tuned = [], player = null, bridge = null } = {}) {
+    for (const s of this.spires) {
+      const on = tuned.includes(s.id);
+      s.tuned = on; s.tuning = 0; s.power = on ? 1 : 0;
+      s.zoneR = on ? 0 : s.zoneR0; s.zone.z = s.zoneR; s.zone.w = on ? 0 : 1;
+    }
+    // bridge: null follows the story state; a number starts the bridge forming from there.
+    this.bridgeOpen = bridge !== null ? true : tuned.includes('cantor');
+    this.bridgeProgress = bridge ?? (this.bridgeOpen ? 1 : 0);
+    this.bridge.visible = this.bridgeOpen;
+    this.bridgeMat.uniforms.uProgress.value = this.bridgeProgress;
+    this.enemies.list.length = 0; this.enemies.projectiles.length = 0;
+    this._spawnEncounters();
+    this.boss = null; this.hitStop = 0;
+    const p = this.player;
+    if (player) { p.spawn(player[0], player[1], player[2], player[3] ?? 0); this.rig.yaw = player[3] ?? 0; }
+    p.lockTarget = null; p.events.length = 0;
   }
 
   // --- flow ----------------------------------------------------------------------------

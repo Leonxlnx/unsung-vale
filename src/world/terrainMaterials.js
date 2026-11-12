@@ -39,9 +39,9 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
   float clump = 1.0 - smoothstep(0.0, 0.7, tuft.x);
   h = 0.5 * clump + 0.35 * blades + 0.15 * mid;
   vec3 deep = srgb(0.17, 0.31, 0.08), lush = srgb(0.35, 0.51, 0.15), dry = srgb(0.56, 0.54, 0.26), dark = srgb(0.09, 0.16, 0.05);
-  col = mix(deep, lush, smoothstep(0.25, 0.75, big * 0.6 + blades * 0.4));
+  col = mix(deep, lush, smoothstep(0.25, 0.75, big * 0.8 + blades * 0.2));
   col = mix(col, dry, smoothstep(0.62, 0.85, mid) * 0.45);
-  col = mix(mix(dark, col, 0.55), col, smoothstep(0.1, 0.55, h));
+  col = mix(mix(dark, col, 0.8), col, smoothstep(0.1, 0.55, h));
   col *= 0.85 + 0.3 * tuft.z;
   rough = 0.82;
 }`;
@@ -163,7 +163,7 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
 }`;
 
 export const TERRAIN_MATERIALS = [
-  { name: 'grass', code: grass, bump: 5 },
+  { name: 'grass', code: grass, bump: 2.5 },
   { name: 'soil', code: soil, bump: 7 },
   { name: 'rock', code: rock, bump: 11 },
   { name: 'moss', code: moss, bump: 6 },

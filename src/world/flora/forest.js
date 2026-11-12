@@ -31,7 +31,7 @@ const VARIANTS = [
   ['ember', 1], ['ember', 2], ['ember', 3], ['blossom', 1], ['blossom', 2], ['elder', 1], ['elder', 2],
   ['cypress', 1], ['cypress', 2], ['green', 1], ['green', 2], ['green', 3],
 ];
-const NEAR = 58, MID = 190;      // metres: near -> mid -> billboard hand-over distances
+const NEAR = 56, MID = 160;      // metres: near -> mid -> billboard hand-over distances
 const FRAMES = 8, CELL = 256;
 
 const TREE_VERT_COMMON = /* glsl */ `
@@ -233,8 +233,12 @@ void main() { if (texture(uLeaves, vec3(vUv, uLeafLayer)).a < 0.4) discard; }`;
 const IMP_DEPTH_VERT = /* glsl */ `
 in vec4 iTree; in vec4 iParam;
 uniform vec3 uSunDir;
+uniform vec3 uCamPos;
+uniform float uSkipNear;
 out vec2 vUv; out float vRow;
 void main() {
+  // In the camera cascades, trees close enough to be real meshes are left out here.
+  if (uSkipNear > 0.0 && distance(iTree.xyz, uCamPos) < uSkipNear) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
   vec2 dir = normalize(uSunDir.xz);
   vec3 right = vec3(dir.y, 0.0, -dir.x);
   float size = iParam.w * iTree.w;
@@ -312,7 +316,9 @@ export class Forest {
           const m = new THREE.Mesh(geo, mat);
           m.frustumCulled = false; m.matrixAutoUpdate = false;
           this.group.add(m);
-          pipe.shadows.addCaster(m, k === 0 ? woodDepth : leafDepth(layer));
+          // Only the near meshes cast real shadows; everything farther is drawn into the
+          // shadow maps as a sun-facing billboard, which costs two triangles per tree.
+          if (l.max === 96) pipe.shadows.addCaster(m, k === 0 ? woodDepth : leafDepth(layer));
           return m;
         });
         return { ...l, iTree, iParam, meshes, count: 0 };
@@ -389,10 +395,12 @@ export class Forest {
       vertexShader: IMP_VERT, fragmentShader: IMP_FRAG, defines: this.pipe.depthDefines,
       uniforms: { ...this.shared, uImpA: { value: this.impA.texture }, uImpB: { value: this.impB.texture }, uRows: { value: rows } },
     });
-    this.impDepth = new THREE.ShaderMaterial({
+    const impDepth = (skipNear) => new THREE.ShaderMaterial({
       vertexShader: IMP_DEPTH_VERT, fragmentShader: IMP_DEPTH_FRAG, colorWrite: false,
-      uniforms: { uSunDir: this.pipe.globals.uSunDir, uImpA: { value: this.impA.texture }, uRows: { value: rows } },
+      uniforms: { uSunDir: this.pipe.globals.uSunDir, uImpA: { value: this.impA.texture }, uRows: { value: rows }, uCamPos: this.pipe.camUniforms.uCamPos, uSkipNear: { value: skipNear } },
     });
+    this.impDepth = impDepth(0);
+    this.impDepthCsm = impDepth(NEAR - 6);
     const q = new THREE.BufferGeometry();
     q.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, 0, 0, 1, 0, 0, 1, 1, 0, -1, 1, 0]), 3));
     q.setIndex([0, 1, 2, 0, 2, 3]);
@@ -489,7 +497,7 @@ export class Forest {
       const m = new THREE.Mesh(geo, this.impMaterial);
       m.matrixAutoUpdate = false;
       this.group.add(m);
-      this.pipe.shadows.addCaster(m, null, { dynamic: false, fixed: true, staticMat: this.impDepth });
+      this.pipe.shadows.addCaster(m, this.impDepthCsm, { dynamic: true, fixed: true, staticMat: this.impDepth });
     }
   }
 

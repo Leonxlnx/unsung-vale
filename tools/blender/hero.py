@@ -355,9 +355,16 @@ def shell(g, S, nu, nv, *, wrap=False, thick=0.005, mat='Armor', tmat='Gold',
                 hb = max(hb, bev - dk)
         return ht - hb
 
-    def in_trim(u, v):
+    def tm(k):                       # `tmat` may be one name or a dict per border
+        return tmat.get(k, 'Gold') if isinstance(tmat, dict) else tmat
+
+    def trim_mat(u, v):
         d = dists(u, v)
-        return any(e == 'trim' and d[k] < tw for k, e in edges.items())
+        best, bd = None, 1e9
+        for k, e in edges.items():
+            if e == 'trim' and d[k] < tw and d[k] < bd:
+                best, bd = k, d[k]
+        return tm(best) if best else None
 
     wf = wfun(w)
     nI, nJ = len(ul), len(vl)
@@ -385,17 +392,17 @@ def shell(g, S, nu, nv, *, wrap=False, thick=0.005, mat='Armor', tmat='Gold',
         u_mid = (ul[i] + (ul[i2] if i2 > i else 1.0)) / 2
         for j in range(nJ - 1):
             v_mid = (vl[j] + vl[j + 1]) / 2
-            m = tmat if in_trim(u_mid, v_mid) else mat
+            m = trim_mat(u_mid, v_mid) or mat
             g.face((out[i][j], out[i2][j], out[i2][j + 1], out[i][j + 1]), m, sharp)
             g.face((inn[i][j], inn[i][j + 1], inn[i2][j + 1], inn[i2][j]), inner_mat, sharp)
         J = nJ - 1
-        g.face((out[i][0], inn[i][0], inn[i2][0], out[i2][0]), tmat if ev0 == 'trim' else mat, sharp)
-        g.face((out[i][J], out[i2][J], inn[i2][J], inn[i][J]), tmat if ev1 == 'trim' else mat, sharp)
+        g.face((out[i][0], inn[i][0], inn[i2][0], out[i2][0]), tm('v0') if ev0 == 'trim' else mat, sharp)
+        g.face((out[i][J], out[i2][J], inn[i2][J], inn[i][J]), tm('v1') if ev1 == 'trim' else mat, sharp)
     if not wrap:
         I = nI - 1
         for j in range(nJ - 1):
-            g.face((out[0][j], out[0][j + 1], inn[0][j + 1], inn[0][j]), tmat if eu0 == 'trim' else mat, sharp)
-            g.face((out[I][j], inn[I][j], inn[I][j + 1], out[I][j + 1]), tmat if eu1 == 'trim' else mat, sharp)
+            g.face((out[0][j], out[0][j + 1], inn[0][j + 1], inn[0][j]), tm('u0') if eu0 == 'trim' else mat, sharp)
+            g.face((out[I][j], inn[I][j], inn[I][j + 1], out[I][j + 1]), tm('u1') if eu1 == 'trim' else mat, sharp)
 
 
 # ----------------------------------------------------------------------------
@@ -415,8 +422,17 @@ WR = EL + AD * FORE_LEN
 HIP = V(0.095, 0.0, 0.940)
 KNEE = V(0.105, -0.008, 0.500)
 ANK = V(0.112, 0.012, 0.085)
-BALL = V(0.118, -0.128, 0.024)
-TOE = V(0.121, -0.228, 0.022)
+TOE_OUT = radians(9.0)                         # feet are turned out a little
+
+
+def toe_out(p):
+    d = p - ANK
+    c, s = cos(TOE_OUT), sin(TOE_OUT)
+    return V(ANK.x + d.x * c - d.y * s, ANK.y + d.x * s + d.y * c, p.z)
+
+
+BALL = toe_out(V(0.118, -0.128, 0.024))
+TOE = toe_out(V(0.121, -0.228, 0.022))
 
 # ----------------------------------------------------------------------------
 # body envelope functions
@@ -587,7 +603,7 @@ def build_body(g):
 
     # head: plain dark ellipsoid, only ever seen as darkness inside the hood
     c = V(0.0, -0.004, 1.685)
-    rx, ry, rz = 0.080, 0.097, 0.108
+    rx, ry, rz = 0.080, 0.088, 0.108
     rings = []
     for i in range(1, 9):
         la = -pi / 2 + pi * i / 9
@@ -689,7 +705,7 @@ def build_cuirass(g):
         return skirt_pt((2 * u - 1) * 0.085, lerp(0.957, 0.925, v), 0.0435)
 
     g.begin('buckle_inlay')
-    shell(g, buckle_gem, 1, 1, thick=0.004, mat='Armor', bev=0.002, w='Hips', ref=REF_HIPS)
+    shell(g, buckle_gem, 1, 1, thick=0.004, mat='Leather', bev=0.002, w='Hips', ref=REF_HIPS)
     g.end()
 
 
@@ -739,7 +755,8 @@ def build_legs(g):
 
     kc = KNEE + V(0.0, 0.004, 0.0)
     g.begin('poleyns')
-    shell(g, cap_patch(kc, FWD, V(1, 0, 0), UP, 0.086, 0.073, 0.078, radians(88), radians(54), keel=0.07),
+    shell(g, cap_patch(kc, FWD, V(1, 0, 0), UP, 0.079, 0.068, 0.070, radians(84), radians(50), keel=0.11,
+                       pinch=0.55),
           8, 6, thick=0.0045, eu0='trim', eu1='trim', ev0='trim', ev1='trim', tw=0.009,
           w='UpperLeg.L', ref=kc)
     g.end(mirror='both')
@@ -810,11 +827,11 @@ def build_legs(g):
             else:
                 x = wd * spow(s, 0.55)
                 z = z0 + hb * (1 - abs(c) ** 0.55)
-            pts.append(V(cx + x, y, z))
+            pts.append(toe_out(V(cx + x, y, z)))
         return pts
 
-    def w_foot(p, *_):
-        t = smooth(-0.112, -0.148, p.y)
+    def w_foot(p, i, k):
+        t = smooth(-0.112, -0.148, stations[min(i, len(stations) - 1)])
         return {'Foot.L': 1 - t, 'Toe.L': t}
 
     rings = [foot_ring(y) for y in stations]
@@ -896,15 +913,16 @@ def build_arms(g):
 
     def vambrace(u, v):
         ang = 2 * pi * u
-        s = lerp(0.338 - 0.012 * cos(ang), 0.548, v)
+        s = lerp(0.338 - 0.012 * cos(ang), 0.518, v)
         off = 0.0075 + 0.006 * (1 - smooth(0.0, 0.22, v)) ** 2 + 0.004 * tent(wrap_pi(ang), 0.5, 1.4)
-        off += 0.002 * smooth(0.9, 1.0, v)
+        off -= 0.0015 * smooth(0.8, 1.0, v)
         return arm_pt(s, ang, off)
 
     g.begin('vambraces', warp=False)
     shell(g, vambrace, 14, 7, wrap=True, thick=0.004, ev0='trim', ev1='trim', tw=0.010,
           w='LowerArm.L', ref=SH + AD * 0.45)
     g.end(mirror='both')
+
 
 # ----------------------------------------------------------------------------
 # hands / gauntlets
@@ -1009,7 +1027,7 @@ def build_hand(g, hp, bone, mirror, fist):
 
     def cuff(u, v):
         t = lerp(-0.050, 0.014, v)
-        return hp.pt(t, 2 * pi * u, 0.0060 + 0.017 * (1 - v) ** 1.6)
+        return hp.pt(t, 2 * pi * u, 0.0060 + 0.011 * (1 - v) ** 1.6)
 
     g.begin(name + '_cuff', warp=False)
     shell(g, cuff, 14, 4, wrap=True, thick=0.004, ev0='trim', ev1='bevel', tw=0.008, w=bone,
@@ -1041,8 +1059,8 @@ def build_hand(g, hp, bone, mirror, fist):
 # ----------------------------------------------------------------------------
 # mask, hood + mantle
 # ----------------------------------------------------------------------------
-MASK_W = Table([(0.00, 0.0045), (0.06, 0.0165), (0.16, 0.031), (0.30, 0.046), (0.48, 0.0585),
-                (0.65, 0.0640), (0.80, 0.0610), (0.92, 0.0520), (1.00, 0.0420)])
+MASK_W = Table([(0.00, 0.0040), (0.06, 0.0145), (0.16, 0.0273), (0.30, 0.0405), (0.48, 0.0515),
+                (0.65, 0.0563), (0.80, 0.0537), (0.92, 0.0458), (1.00, 0.0370)])
 MASK_Z0, MASK_H = 1.545, 0.222
 
 
@@ -1050,22 +1068,26 @@ def mask_pt(u, v):
     a = 2 * u - 1
     wd = MASK_W(v)[0]
     z = MASK_Z0 + MASK_H * v
-    yc = -0.098 - 0.010 * v
-    depth = 0.030 * (0.40 + 0.60 * sin(pi * min(v * 1.05, 1.0)) ** 0.6)
+    yc = -0.090 - 0.010 * v
+    depth = 0.029 * (0.40 + 0.60 * sin(pi * min(v * 1.05, 1.0)) ** 0.6)
     y = yc - depth * (1 - abs(a) ** 2.2) - 0.0035 * (1 - abs(a)) ** 3
     return V(wd * a, y, z)
 
 
-#              v      Cy      Cz      tau    a_top  a_bot  b       saddle p_top p_bot
-HOOD = Table([(0.000, -0.1250, 1.6560, -15.9, 0.070, 0.066, 0.1206, 0.012, 1.45, 1.25),
-              (0.095, -0.0925, 1.6695, -5.2, 0.100, 0.085, 0.1370, 0.006, 1.10, 1.10),
-              (0.225, -0.0450, 1.6735, 9.7, 0.115, 0.090, 0.1486, 0.000, 0.90, 1.05),
-              (0.376, 0.0055, 1.6550, 27.2, 0.118, 0.092, 0.1520, 0.000, 0.88, 1.00),
-              (0.515, 0.0310, 1.6125, 43.4, 0.115, 0.100, 0.1410, 0.000, 0.88, 1.00),
-              (0.644, 0.0300, 1.5625, 57.3, 0.108, 0.110, 0.1250, 0.000, 0.90, 0.95),
-              (0.840, 0.0200, 1.4850, 82.4, 0.188, 0.188, 0.1130, 0.022, 0.82, 0.82),
-              (0.920, 0.0175, 1.4400, 85.7, 0.200, 0.200, 0.1330, 0.063, 0.80, 0.80),
-              (1.000, 0.0140, 1.3925, 87.2, 0.208, 0.208, 0.1540, 0.105, 0.80, 0.80)])
+# The hood and the shoulder mantle are one "bent tube": the first ring is the
+# face opening (a tilted pointed arch), the last ring is the mantle hem lying on
+# chest, shoulders and back.  Each key ring is an egg-shaped loop in a plane
+# through the X axis direction, tilted by tau (0 = vertical, 90 = horizontal).
+#              v      Cy       Cz      tau    a_top  a_bot  b       saddle p_top p_bot
+HOOD = Table([(0.000, -0.1360, 1.6500, -17.8, 0.080, 0.074, 0.1177, 0.012, 1.50, 1.25),
+              (0.099, -0.1015, 1.6665, -6.9, 0.112, 0.094, 0.1375, 0.006, 1.30, 1.10),
+              (0.230, -0.0520, 1.6720, 8.5, 0.150, 0.118, 0.1496, 0.000, 1.22, 1.05),
+              (0.388, 0.0035, 1.6545, 27.5, 0.150, 0.118, 0.1550, 0.000, 1.20, 1.00),
+              (0.533, 0.0340, 1.6110, 45.0, 0.142, 0.126, 0.1470, 0.000, 1.25, 1.00),
+              (0.681, 0.0390, 1.5535, 62.7, 0.128, 0.148, 0.1340, 0.000, 1.40, 0.95),
+              (0.841, 0.0260, 1.4850, 80.8, 0.195, 0.195, 0.1256, 0.022, 0.90, 0.82),
+              (0.924, 0.0225, 1.4400, 86.0, 0.205, 0.205, 0.1430, 0.063, 0.82, 0.80),
+              (1.000, 0.0180, 1.3950, 88.2, 0.212, 0.212, 0.1600, 0.105, 0.80, 0.80)])
 
 
 def hood_pt(u, v):
@@ -1073,10 +1095,47 @@ def hood_pt(u, v):
     t = 2 * pi * u                       # 0 = outer side (brow -> crown -> back), pi = throat side
     ct, st = cos(t), sin(t)
     k = (1 + ct) / 2
-    x = lerp(ab, at, k) * spow(st, lerp(pb, pt, k))
+    hem = smooth(0.80, 1.0, v)
+    pl = 1.0 + 0.028 * hem * cos(9 * t)                      # soft pleats towards the hem
+    x = lerp(ab, at, k) * spow(st, lerp(pb, pt, k)) * pl
+    e = b * ct * pl
+    n = sad * abs(st) ** 2.5
     tr = radians(tau)
-    return V(x, cy + sin(tr) * b * ct - cos(tr) * sad * abs(st) ** 2.5,
-             cz + cos(tr) * b * ct + sin(tr) * sad * abs(st) ** 2.5)
+    y = cy + sin(tr) * e - cos(tr) * n
+    z = cz + cos(tr) * e + sin(tr) * n
+    kb = max(0.0, ct) ** 3 * hem                             # pointed hems, back and front
+    kf = max(0.0, -ct) ** 3 * hem
+    return V(x, y + 0.004 * kb - 0.020 * kf, z - 0.105 * kb - 0.045 * kf)
+
+
+def _hood_n(u, v):
+    e = 2e-3
+    return (hood_pt(u + e, v) - hood_pt(u - e, v)).cross(
+        hood_pt(u, min(v + e, 1.0)) - hood_pt(u, max(v - e, 0.0)))
+
+
+HOOD_NS = 1.0 if _hood_n(0.25, 0.3).x > 0 else -1.0
+
+
+def hood_fold(u, v):
+    """cloth folds as a displacement along the surface normal"""
+    t = 2 * pi * u
+    st, ct = abs(sin(t)), cos(t)
+    # drape rolls where the hood bunches up on neck and shoulders
+    w1 = smooth(0.54, 0.65, v) * (1 - smooth(0.80, 0.90, v)) * (0.45 + 0.55 * st) * smooth(-1.0, -0.3, ct)
+    rolls = 0.0085 * w1 * sin(2 * pi * (v - 0.58) / 0.15 + 0.9 * ct)
+    # diagonal folds on the sides of the hood
+    w2 = smooth(0.16, 0.32, v) * (1 - smooth(0.54, 0.66, v)) * st ** 1.5
+    diag = 0.0045 * w2 * sin(2 * pi * (2.4 * v + 0.45 * ct))
+    return rolls + diag
+
+
+def hood_surf(u, v):
+    p = hood_pt(u, v)
+    d = hood_fold(u, v)
+    if abs(d) < 1e-6:
+        return p
+    return p + _hood_n(u, v).normalized() * (d * HOOD_NS)
 
 
 def w_hood(p, u, v):
@@ -1094,6 +1153,10 @@ def w_hood(p, u, v):
     return {'Head': head2, 'Neck': neck, 'Chest': chest}
 
 
+def w_hood_line(p, u, v):
+    return w_hood(p, 0.0, lerp(0.035, 0.970, v))
+
+
 def build_head(g):
     g.begin('mask')
     shell(g, mask_pt, 12, 14, thick=0.004, mat='Mask', bev=0.0018, w='Head', sharp=40,
@@ -1102,7 +1165,7 @@ def build_head(g):
 
     def line(u, v):
         vv = lerp(0.045, 0.975, v)
-        hw = 0.0024 * (0.55 + 0.45 * sin(pi * v) ** 0.5)
+        hw = 0.0030 * (0.55 + 0.45 * sin(pi * v) ** 0.5)
         p = mask_pt(0.5 + (u - 0.5) * 2 * hw / (2 * MASK_W(vv)[0]), vv)
         return p + V(0, -0.0012, 0)
 
@@ -1111,8 +1174,26 @@ def build_head(g):
     g.end()
 
     g.begin('hood')
-    shell(g, hood_pt, 32, 26, wrap=True, thick=0.006, mat='Cloth', ev0='trim', ev1='trim', tw=0.011,
-          th=0.0018, w=w_hood, sharp=60, ref=V(0, 0.0, 1.35))
+    shell(g, hood_surf, 40, 34, wrap=True, thick=0.006, mat='Cloth', tmat={'v0': 'Cloth', 'v1': 'Gold'},
+          inner_mat='Undersuit',
+          ev0='trim', ev1='trim', tw=0.010, th=0.0020, w=w_hood, sharp=60, ref=V(0, 0.0, 1.35))
+    g.end()
+
+    # the Cantor's line again: a thin gilded seam down the back of the hood
+    def back_line(u, v):
+        vv = lerp(0.035, 0.970, v)
+        row = HOOD(vv)
+        tt = math.asin(min(1.0, (0.0038 / row[3]) ** (1.0 / row[7])))
+        p = hood_surf((2 * u - 1) * tt / (2 * pi), vv)
+        tg = hood_surf(0.0, min(vv + 2e-3, 1.0)) - hood_surf(0.0, max(vv - 2e-3, 0.0))
+        n = V(0, -tg.z, tg.y).normalized()
+        if n.dot(p - V(0, 0, 1.45)) < 0:
+            n = -n
+        return p + n * 0.0022
+
+    g.begin('hood_line')
+    shell(g, back_line, 1, 40, thick=0.004, mat='Gold', bev=0.0008, w=w_hood_line, sharp=60,
+          ref=V(0, 0.0, 1.35))
     g.end()
 
 
@@ -1125,21 +1206,22 @@ CAPE_TOP = 1.462
 def cape_base(u, v):
     """smooth cape surface without folds; u: 0 = character's right edge, 1 = left edge"""
     a = 2 * u - 1
-    xr = lerp(-0.136, -0.275, v ** 0.9)
-    xl = lerp(0.136, 0.150, v)
+    xr = -(0.150 + 0.045 * smooth(0.02, 0.22, v) + 0.100 * v ** 1.2)
+    xl = 0.150 + 0.040 * smooth(0.02, 0.22, v) + 0.020 * v - 0.025 * smooth(0.40, 0.90, v)
     x = lerp(xr, xl, u)
-    z_hem = lerp(0.285, 0.410, smooth(0.0, 1.0, u)) + 0.02 * a * a
+    z_hem = lerp(0.255, 0.430, smooth(0.0, 1.0, u) ** 1.15) + 0.025 * a * a
     z = lerp(CAPE_TOP, z_hem, v)
-    y = 0.142 + 0.050 * v
-    y -= 0.045 * abs(a) ** 2.2 * (1 - smooth(0.0, 0.45, v)) + 0.018 * a * a * smooth(0.2, 1.0, v)
+    y = 0.142 + 0.060 * smooth(0.0, 0.45, v) + 0.030 * v
+    y -= 0.052 * abs(a) ** 2.2 * (1 - smooth(0.0, 0.30, v)) + 0.024 * a * a * smooth(0.15, 1.0, v)
     return V(x, y, z)
 
 
 def cape_pt(u, v):
     p = cape_base(u, v)
-    amp = 0.019 * smooth(0.04, 0.55, v) + 0.012 * v * v
-    p.y += amp * cos(2 * pi * (2.6 * u + 0.08)) + 0.4 * amp * cos(2 * pi * (5.3 * u + 0.3)) * v
-    p.x += 0.35 * amp * sin(2 * pi * (2.6 * u + 0.08))
+    amp = 0.004 * smooth(0.0, 0.05, v) + 0.034 * smooth(0.03, 0.75, v)
+    ph = 2 * pi * (3.6 * u + 0.12 + 0.05 * sin(3.0 * v))
+    p.y += amp * (cos(ph) + 0.28 * cos(2 * ph + 0.6))
+    p.x += 0.45 * amp * sin(ph)
     return p
 
 
@@ -1198,14 +1280,14 @@ def w_tab(bone):
     return f
 
 
-SCAB_MOUTH = V(0.192, -0.050, 0.955)
-SCAB_DIR = V(0.085, 0.60, -0.795).normalized()
+SCAB_MOUTH = V(0.192, -0.050, zw(0.955))
+SCAB_DIR = V(0.22, 0.58, -0.78).normalized()
 SCAB_LEN = 0.94
 
 
 def build_cloth(g):
     g.begin('cape')
-    shell(g, cape_pt, 16, 14, thick=0.006, mat='Cape', ev1='trim', tw=0.013, th=0.0012, bev=0.0015,
+    shell(g, cape_pt, 24, 16, thick=0.006, mat='Cape', ev1='trim', tw=0.013, th=0.0012, bev=0.0015,
           w=w_cape, sharp=65, ref=V(0, 0, 0.9))
     g.end()
     g.begin('tabard_front')
@@ -1236,7 +1318,7 @@ def build_cloth(g):
     for i, s in enumerate((0.030, 0.250)):
         a = SCAB_MOUTH + d * s + up * 0.026
         phi = radians(74 + 34 * i)
-        b = skirt_pt(phi, 0.940, 0.036)
+        b = zwp(skirt_pt(phi, 0.940, 0.036))
         mid = (a + b) / 2 + V(0.012, 0, -0.004)
         pts = [b, b.lerp(mid, 0.5), mid, mid.lerp(a, 0.5), a]
         g.begin('scabbard_strap%d' % i, warp=False)
@@ -1331,6 +1413,8 @@ def bone_table():
     B = []   # (name, head, tail, parent, z-axis hint)
 
     def add(name, head, tail, parent, zax=FWD):
+        if not name.startswith(('Shoulder', 'UpperArm', 'LowerArm', 'Hand')):
+            head, tail = zwp(head), zwp(tail)          # same proportion pass as the mesh
         B.append((name, Vector(head), Vector(tail), parent, Vector(zax)))
 
     add('Hips', V(0, 0, 0.955), V(0, 0, 1.050), None)
@@ -1386,8 +1470,8 @@ def build_rig(bones):
 #                 base colour (linear)        metallic roughness
 MATERIALS = {'Armor': ((0.800, 0.770, 0.690), 0.85, 0.34),
              'Gold': ((0.900, 0.600, 0.180), 1.00, 0.30),
-             'Cloth': ((0.016, 0.070, 0.090), 0.00, 0.85),
-             'Cape': ((0.300, 0.016, 0.028), 0.00, 0.80),
+             'Cloth': ((0.012, 0.052, 0.070), 0.00, 0.85),
+             'Cape': ((0.230, 0.012, 0.022), 0.00, 0.80),
              'Leather': ((0.075, 0.043, 0.028), 0.00, 0.55),
              'Mask': ((0.900, 0.880, 0.830), 0.00, 0.22),
              'Blade': ((0.600, 0.900, 0.960), 0.30, 0.07),
@@ -1491,13 +1575,13 @@ def setup_render(samples):
     sky = N('ShaderNodeMapRange')
     sky.inputs['From Min'].default_value = -1.0
     sky.inputs['From Max'].default_value = 1.0
-    sky.inputs['To Min'].default_value = 0.06
-    sky.inputs['To Max'].default_value = 0.75
+    sky.inputs['To Min'].default_value = 0.03
+    sky.inputs['To Max'].default_value = 0.40
     L(sep.outputs['Z'], sky.inputs['Value'])
     total = sky.outputs['Result']
-    for d, lo, hi, gain in (((-0.50, -0.68, 0.54), 0.72, 0.95, 5.0),     # key soft box
-                            ((0.80, -0.50, 0.25), 0.80, 0.97, 1.6),      # fill
-                            ((0.35, 0.80, 0.50), 0.80, 0.96, 3.0)):      # rim
+    for d, lo, hi, gain in (((-0.50, -0.68, 0.54), 0.72, 0.95, 2.0),     # key soft box
+                            ((0.80, -0.50, 0.25), 0.80, 0.97, 0.7),      # fill
+                            ((0.35, 0.80, 0.50), 0.80, 0.96, 1.3)):      # rim
         dv = Vector(d).normalized()
         dot = N('ShaderNodeVectorMath')
         dot.operation = 'DOT_PRODUCT'
@@ -1523,9 +1607,9 @@ def setup_render(samples):
 
     rigl = bpy.data.objects.new('LightRig', None)
     sc.collection.objects.link(rigl)
-    for nm, pos, power, size, col in (('Key', (-2.8, -3.6, 3.6), 900.0, 3.0, (1.0, 0.97, 0.94)),
-                                      ('Fill', (3.6, -2.6, 1.5), 260.0, 4.0, (0.92, 0.96, 1.0)),
-                                      ('Rim', (1.8, 3.8, 3.2), 650.0, 2.5, (1.0, 1.0, 1.0))):
+    for nm, pos, power, size, col in (('Key', (-2.8, -3.6, 3.6), 300.0, 3.0, (1.0, 0.97, 0.94)),
+                                      ('Fill', (3.6, -2.6, 1.5), 80.0, 4.0, (0.92, 0.96, 1.0)),
+                                      ('Rim', (1.8, 3.8, 3.2), 220.0, 2.5, (1.0, 1.0, 1.0))):
         ld = bpy.data.lights.new(nm, 'AREA')
         ld.energy, ld.size, ld.color = power, size, col
         lo = bpy.data.objects.new(nm, ld)

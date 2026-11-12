@@ -202,6 +202,15 @@ window.__dbg = {
     const p = game.player;
     return { pos: p.pos.toArray().map((v) => +v.toFixed(2)), grounded: p.grounded, state: p.state, stamina: Math.round(p.stamina), health: p.health, enemies: game.enemies.list.filter((e) => e.alive).length, objective: game.objective };
   },
+  // Jumps the cinematic to time t (seconds) by simulating up to it, then shows that frame.
+  cine(t) {
+    freeCam = true; ui.root.style.display = 'none';
+    director.begin();
+    const dt = 1 / 30;
+    while (director.time < t) { director.advance(dt); lattice.update(dt); game.update(dt); }
+    for (let i = 0; i < 6; i++) { director.advance(1 / 240); lattice.update(1 / 240); game.update(1 / 240); pipe.render(1 / 240); }
+    return { time: +director.time.toFixed(2), shot: director.index + 1, player: game.player.pos.toArray().map((v) => Math.round(v)) };
+  },
   gpuMs(n = 20) {
     const gl = pipe.renderer.getContext(), px = new Uint8Array(4);
     gl.finish();
@@ -214,6 +223,38 @@ window.__dbg = {
 };
 
 if (params.get('capture')) { await runCapture(); }
+
+// --- ?perf=1: measures each quality preset at a few viewpoints and logs the results ---
+async function runPerf() {
+  const gl = pipe.renderer.getContext(), px = new Uint8Array(4);
+  const spots = [['terrace', -519, 210.5, -70, Math.PI / 2], ['meadow', -600, 210.2, -180, 0.9], ['court', -372, 178.4, -410, 0]];
+  ui.root.style.display = 'none';
+  game.state = 'playing'; game.input.enabled = false;
+  const out = [];
+  for (const preset of ['low', 'medium', 'high', 'ultra']) {
+    settings.set('preset', preset); apply();
+    for (const [name, x, y, z, yaw] of spots) {
+      game.player.spawn(x, y, z, yaw); game.rig.snap(game.player); game.rig.yaw = yaw; game.rig.pitch = -0.08;
+      for (let i = 0; i < 40; i++) tick(1 / 60);
+      gl.finish();
+      const times = [];
+      for (let i = 0; i < 60; i++) {
+        const t0 = performance.now();
+        tick(1 / 60);
+        pipe.renderer.setRenderTarget(null);
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);   // waits for the GPU
+        times.push(performance.now() - t0);
+      }
+      times.sort((a, b) => a - b);
+      const avg = times.reduce((a, b) => a + b, 0) / times.length;
+      out.push(`${preset.padEnd(6)} ${name.padEnd(8)} ${pipe.rw}x${pipe.rh}  avg ${avg.toFixed(1)} ms  p95 ${times[56].toFixed(1)} ms  (${(1000 / avg).toFixed(0)} fps)  tris ${pipe.renderer.info.render.triangles}  calls ${pipe.renderer.info.render.calls}`);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+  console.log('[perf]\n' + out.join('\n'));
+  console.log('[perf] done');
+}
+if (params.get('perf')) { await runPerf(); }
 
 let last = performance.now();
 function frame(now) {

@@ -94,8 +94,8 @@ void main() {
   vec2 p = vUv * 2.0 - 1.0;
   float r = length(p);
   float puff = texture(uNoise, vUv * 0.42 + vSeed * 3.7).r;
-  float a = (1.0 - smoothstep(0.25, 1.0, r + (puff - 0.5) * 0.7));
-  a *= smoothstep(0.0, 0.12, vLife) * (1.0 - smoothstep(0.45, 1.0, vLife)) * 0.34;
+  float a = 1.0 - smoothstep(0.0, 1.0, r + (puff - 0.5) * 0.6);
+  a = a * a * smoothstep(0.0, 0.15, vLife) * (1.0 - smoothstep(0.4, 1.0, vLife)) * 0.2;
   float sceneZ = texture(uLinDepth, gl_FragCoord.xy / uResolution).r;
   float viewZ = -(viewMatrix * vec4(vWorld, 1.0)).z;
   a *= saturate((sceneZ - viewZ) * 0.12) * saturate(viewZ * 0.08);
@@ -104,7 +104,7 @@ void main() {
   float vis = terrainSunVis(vWorld) * cloudShadow(vWorld);
   float back = pow(saturate(dot(-V, uSunDir)), 2.0);
   vec3 light = uSunColor * 0.3183 * vis * (0.5 + 2.2 * back) + shIrradiance(vec3(0.0, 1.0, 0.0));
-  gl_FragColor = vec4(vec3(0.92, 0.95, 0.98) * light, a);
+  gl_FragColor = vec4(vec3(0.74, 0.77, 0.8) * light, a);
 }`;
 
 export class Waterfalls {
@@ -157,7 +157,7 @@ export class Waterfalls {
       const end = landed ?? pts[pts.length - 1].p;
       const drop = lip - end[1];
       // Spray where it lands, and a thinner veil drifting off the face part-way down.
-      const nMist = Math.min(26, Math.round(6 + drop / 9));
+      const nMist = Math.min(44, Math.round(10 + drop / 5));
       for (let i = 0; i < nMist; i++) mist.push([end[0] + (rnd() - 0.5) * width * 1.6, end[1] + 1 + rnd() * 3, end[2] + (rnd() - 0.5) * width * 1.6, width * (1.3 + rnd() * 1.5) + drop * 0.03, rnd(), 0.9 + rnd() * 1.6, 0.4 + rnd(), 7 + rnd() * 6]);
       const mid = pts[Math.floor(pts.length * 0.55)].p;
       for (let i = 0; i < 5; i++) mist.push([mid[0] + dx * 2, mid[1] - rnd() * drop * 0.25, mid[2] + dz * 2, width * (1 + rnd()), rnd(), -1.5 - rnd() * 2, 0.6 + rnd(), 6 + rnd() * 5]);

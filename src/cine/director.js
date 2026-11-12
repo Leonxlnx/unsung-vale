@@ -1,13 +1,14 @@
-// Cinematic director: a timeline of shots played with a fixed time step. Each shot can
-// place the camera, drive the hero through the same input the player uses, and set world
+// Cinematic director: a timeline of shots played with a fixed time step. Each shot places
+// the camera, drives the hero through the same input the player uses, and sets the story
 // state (which spires are tuned, which enemies are awake), so the film is the game itself.
 import * as THREE from 'three';
 
 const ease = (t) => t * t * (3 - 2 * t);
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
-const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
+const lerp = (a, b, t) => a + (b - a) * t;
+const mix3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 
-// Smooth path through points (Catmull-Rom), with eased time.
+// Smooth path through points (Catmull-Rom).
 function along(points, t, easing = true) {
   const k = (easing ? ease(clamp01(t)) : clamp01(t)) * (points.length - 1);
   const i = Math.min(points.length - 2, Math.floor(k)), u = k - i;
@@ -22,11 +23,11 @@ export class Director {
     this.pipe = pipe; this.game = game; this.sites = sites; this.terrain = terrain;
     this.time = 0; this.index = -1; this.shotTime = 0;
     this.puppet = { move: { x: 0, y: 0 }, look: { x: 0, y: 0 }, pressed: new Set(), held: new Set() };
+    this.focus = new THREE.Vector3();          // smoothed look-at point
     this.shots = this.buildShots();
     this.duration = this.shots.reduce((s, x) => s + x.dur, 0);
   }
 
-  // Camera helper: position, look-at target and field of view.
   cam(pos, target, fov = 40) {
     const c = this.pipe.camera;
     c.position.set(pos[0], pos[1], pos[2]);
@@ -39,10 +40,35 @@ export class Director {
     g.state = 'playing'; g.cine = true; g.input.enabled = true; g.input.puppet = this.puppet;
     this.time = 0; this.index = -1;
   }
+  end() { const g = this.game; g.cine = false; g.input.puppet = null; g.cineSetup({ tuned: [] }); g.load(); g.toHome(); }
 
-  end() { const g = this.game; g.cine = false; g.input.puppet = null; g.toHome(); }
+  // Steers the hero toward a point by setting the movement stick; the camera yaw used for
+  // movement is fixed to the travel direction so "forward" means "toward the goal".
+  walkTo(x, z, { sprint = false, stop = 0.4 } = {}) {
+    const p = this.game.player, dx = x - p.pos.x, dz = z - p.pos.z, d = Math.hypot(dx, dz);
+    if (d < stop) { this.puppet.move.y = 0; this.puppet.held.delete('sprint'); return true; }
+    this.game.rig.yaw = Math.atan2(dx, dz);
+    this.puppet.move.x = 0; this.puppet.move.y = 1;
+    if (sprint) this.puppet.held.add('sprint'); else this.puppet.held.delete('sprint');
+    return false;
+  }
 
-  // Moves the film forward by dt (called once per sub-frame by the film output).
+  // A simple duellist: close on the nearest enemy, strike in combos, roll away from wind-ups.
+  fight(dt) {
+    const g = this.game, p = g.player;
+    p.stamina = 100; p.health = Math.max(p.health, 70);
+    let best = null, bd = 1e9;
+    for (const e of g.enemies.list) { if (!e.alive || e.state === 'dormant') continue; const d = e.pos.distanceTo(p.pos); if (d < bd) { bd = d; best = e; } }
+    this.puppet.move.x = this.puppet.move.y = 0;
+    if (!best) return null;
+    g.rig.yaw = Math.atan2(best.pos.x - p.pos.x, best.pos.z - p.pos.z);
+    this._atk = (this._atk ?? 0) - dt;
+    if (best.state === 'windup' && best.t > best.def.windup * 0.55 && bd < best.def.reach + 1.5 && p.state === 'move') { this.puppet.move.x = 1; this.puppet.pressed.add('dodge'); }
+    else if (bd > 2.3 + best.def.radius) this.puppet.move.y = 1;
+    else if (this._atk <= 0) { this.puppet.pressed.add('attack'); this._atk = 0.3; }
+    return best;
+  }
+
   advance(dt) {
     let t = this.time, i = 0;
     while (i < this.shots.length - 1 && t >= this.shots[i].dur) { t -= this.shots[i].dur; i++; }
@@ -50,6 +76,7 @@ export class Director {
     if (i !== this.index) {
       this.index = i;
       this.puppet.move.x = this.puppet.move.y = 0; this.puppet.held.clear(); this.puppet.pressed.clear();
+      this._atk = 0; this._flag = {};
       shot.setup?.(this);
       this.pipe.taa.reset = true;
     }
@@ -59,23 +86,105 @@ export class Director {
   }
 
   buildShots() {
-    const v = this.sites.vista;
+    const T = this.terrain, H = (x, z) => T.heightAt(x, z);
+    const terrace = [-512, 210.4, -70];
+    const petal = this.sites.spires[0], cantor = this.sites.spires[1], choir = this.sites.spires[2];
+    const va = [-566, -161], vc = [-450, -286], vyaw = Math.atan2(vc[0] - va[0], vc[1] - va[1]);
+    const vdir = [Math.sin(vyaw), Math.cos(vyaw)];
+    const br = this.sites.bridge;
     return [
-      {
-        // Opening: a slow rise over the terrace toward the rings.
-        dur: 6,
+      { // 1. Dawn: the Cantor at the lookout, the Lattice ahead.
+        dur: 6.5,
+        setup: (d) => d.game.cineSetup({ tuned: [], player: [terrace[0] + 15.5, terrace[1] + 0.05, terrace[2] - 1.5, Math.PI / 2] }),
         update: (d, t, k) => {
-          const p = along([[v.x - 30, v.y + 0.4, v.z - 6], [v.x - 18, v.y + 1.4, v.z - 2], [v.x - 4, v.y + 3.4, v.z + 1]], k);
-          d.cam(p, [v.x + 400, v.y + 60 - 30 * k, v.z + 90], 38 + 6 * k);
+          const p = along([[terrace[0] - 9, terrace[1] + 0.75, terrace[2] + 8], [terrace[0] + 1, terrace[1] + 1.25, terrace[2] + 5.5], [terrace[0] + 8.5, terrace[1] + 1.9, terrace[2] + 2.6]], k);
+          d.cam(p, [terrace[0] + 300, terrace[1] + 34 - 10 * k, terrace[2] + 40], lerp(33, 37, k));
         },
       },
-      {
-        // Glide down the valley between the mesas.
-        dur: 6,
+      { // 2. Down the valley between the mesas.
+        dur: 5.5,
         update: (d, t, k) => {
-          const p = along([[-380, 150, 30], [-180, 112, -20], [40, 104, 60], [230, 118, 20]], k, false);
-          const q = along([[-380, 150, 30], [-180, 112, -20], [40, 104, 60], [230, 118, 20], [520, 130, 60]], Math.min(1, k * 0.75 + 0.2), false);
-          d.cam(p, [q[0] + 60, q[1] - 6, q[2] + 12], 46);
+          // Low over the lake, threading the pinnacles and passing south of the Choir.
+          const path = [[-470, 150, 20], [-262, 96, -4], [-60, 66, 62], [122, 60, 124], [322, 82, 22], [600, 112, 30]];
+          const a = along(path, k * 0.8, false), b = along(path, Math.min(1, k * 0.8 + 0.16), false);
+          d.cam(a, [b[0], b[1] - 4, b[2]], 46);
+        },
+      },
+      { // 3. Sprinting the high viaduct, backlit.
+        dur: 5,
+        setup: (d) => d.game.cineSetup({ tuned: [], player: [va[0] + vdir[0] * 14, 210.4 - 14 * 0.186, va[1] + vdir[1] * 14, vyaw] }),
+        update: (d, t, k) => {
+          const p = d.game.player.pos;
+          d.walkTo(vc[0], vc[1], { sprint: true, stop: 6 });
+          // Long lens from out over the drop, on the shaded side, looking into the sun.
+          const side = [-vdir[1], vdir[0]];
+          const lead = 9 - 6 * k;
+          d.cam([p.x - side[0] * 15 + vdir[0] * lead, p.y + 1.1 + 1.4 * k, p.z - side[1] * 15 + vdir[1] * lead], [p.x + vdir[0] * 1.5, p.y + 1.25, p.z + vdir[1] * 1.5], 27);
+        },
+      },
+      { // 4. The Petal Court lies silent; the Mute pull themselves together.
+        dur: 5,
+        setup: (d) => d.game.cineSetup({ tuned: [], player: [petal.x - 4, petal.base + 0.2, petal.z + 26, Math.PI] }),
+        update: (d, t, k) => {
+          const g = d.game, e = g.enemies.list.find((x) => x.group === 'petal');
+          d.walkTo(petal.x - 3, petal.z + 15, { stop: 0.6 });
+          if (t > 0.7 && !d._flag.woke) { d._flag.woke = true; for (const x of g.enemies.list) if (x.group === 'petal') { x.state = 'rise'; x.t = 0; } }
+          // Hold the constructs until the fight shot.
+          for (const x of g.enemies.list) if (x.group === 'petal' && x.state === 'chase') { x.t = 0; x.vel.set(0, 0, 0); x.pos.copy(x.home); }
+          const c = e ? e.home : new THREE.Vector3(petal.x, petal.base, petal.z);
+          const a = 2.2 + 0.5 * k;
+          d.cam([c.x + Math.cos(a) * (5.2 - 1.4 * k), c.y + 0.5 + 1.2 * k, c.z + Math.sin(a) * (5.2 - 1.4 * k)], [c.x, c.y + 0.5 + 1.1 * k, c.z], 36);
+        },
+      },
+      { // 5. The duel.
+        dur: 8,
+        setup: (d) => {
+          const g = d.game;
+          g.cineSetup({ tuned: [], player: [petal.x - 3, petal.base + 0.2, petal.z + 14, Math.PI] });
+          for (const x of g.enemies.list) if (x.group === 'petal') { x.state = 'chase'; x.assembled = 1; x.hp = 44; }
+          d.focus.set(petal.x, petal.base + 1.2, petal.z + 9);
+        },
+        update: (d, t, k, dt) => {
+          const g = d.game, p = g.player;
+          const e = d.fight(dt);
+          const c = e ? p.pos.clone().lerp(e.pos, 0.5) : p.pos.clone();
+          d.focus.lerp(new THREE.Vector3(c.x, c.y + 1.15, c.z), Math.min(1, 3 * dt));
+          const a = 0.5 + k * 1.9, r = 6.8 - 1.2 * Math.sin(k * Math.PI);
+          d.cam([d.focus.x + Math.cos(a) * r, d.focus.y + 0.5 + 0.6 * k, d.focus.z + Math.sin(a) * r], [d.focus.x, d.focus.y, d.focus.z], 38);
+        },
+      },
+      { // 6. Tuning the spire: light, and colour flooding back.
+        dur: 7,
+        setup: (d) => {
+          const g = d.game;
+          g.cineSetup({ tuned: [], player: [petal.x + 0.6, petal.base + 0.9, petal.z + 5.2, Math.PI] });
+          g.enemies.list = g.enemies.list.filter((x) => x.group !== 'petal');
+        },
+        update: (d, t, k) => {
+          const p = d.game.player.pos;
+          if (t > 0.6) d.puppet.held.add('interact');
+          // Start close and low on the raised blade, then crane up and back as the wave spreads.
+          const u = ease(clamp01((t - 2.0) / 5));
+          const pos = mix3([p.x + 2.6, p.y + 0.9, p.z + 3.6], [petal.x + 24, petal.base + 17, petal.z + 44], u);
+          const tgt = mix3([petal.x, petal.base + 3.5, petal.z], [petal.x, petal.base + 11, petal.z], u);
+          d.cam(pos, tgt, lerp(34, 46, u));
+        },
+      },
+      { // 7. The light bridge forms toward the Choir.
+        dur: 5,
+        setup: (d) => d.game.cineSetup({ tuned: ['petal', 'cantor'], bridge: 0.0001, player: [br.from[0], br.from[1] + 0.1, br.from[2] - 12, 0.21] }),
+        update: (d, t, k) => {
+          const p = d.game.player.pos;
+          d.walkTo(lerp(br.from[0], br.to[0], 0.25), lerp(br.from[2], br.to[2], 0.25), { stop: 1 });
+          d.cam([br.from[0] - 7 + 3 * k, br.from[1] + 5.5 + 2.5 * k, br.from[2] - 15 + 3 * k], [lerp(p.x, br.to[0], 0.35), lerp(p.y, br.to[1], 0.35) + 1, lerp(p.z, br.to[2], 0.35)], 40);
+        },
+      },
+      { // 8. The valley at day's end.
+        dur: 3,
+        setup: (d) => d.game.cineSetup({ tuned: ['petal', 'cantor', 'choir'], player: [terrace[0] + 15.5, terrace[1] + 0.05, terrace[2] - 1.5, Math.PI / 2] }),
+        update: (d, t, k) => {
+          const p = along([[terrace[0] - 4, terrace[1] + 8, terrace[2] - 16], [terrace[0] - 16, terrace[1] + 13, terrace[2] - 21], [terrace[0] - 30, terrace[1] + 19, terrace[2] - 25]], k);
+          d.cam(p, [terrace[0] + 320, terrace[1] + 26, terrace[2] + 60], 40);
         },
       },
     ];

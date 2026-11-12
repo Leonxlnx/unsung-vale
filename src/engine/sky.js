@@ -499,7 +499,15 @@ export class Sky {
     }
     this.uniforms.uCloudMix.value = this.mix;
     this.resolve.render(this.renderer, this.env);
-    if (this._needSH && this.mix >= 1) { this._computeSH(); this._needSH = false; }
+    if (this._needSH && this.mix >= 1) { this._needSH = false; this._computeSHAsync(); }
+  }
+
+  // During play the probe is read back asynchronously so the frame never waits on the GPU.
+  _computeSHAsync() {
+    const w = 32, h = 16;
+    this.resolve.render(this.renderer, this.tiny);
+    const buf = new Float32Array(w * h * 4);
+    this.renderer.readRenderTargetPixelsAsync(this.tiny, 0, 0, w, h, buf).then(() => this._projectSH(buf)).catch(() => {});
   }
 
   _computeSH() {
@@ -507,6 +515,11 @@ export class Sky {
     this.resolve.render(this.renderer, this.tiny);
     const buf = new Float32Array(w * h * 4);
     this.renderer.readRenderTargetPixels(this.tiny, 0, 0, w, h, buf);
+    this._projectSH(buf);
+  }
+
+  _projectSH(buf) {
+    const w = 32, h = 16;
     const sh = this.sh;
     for (const v of sh) v.set(0, 0, 0);
     let wsum = 0;
