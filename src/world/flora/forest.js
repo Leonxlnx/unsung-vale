@@ -155,6 +155,8 @@ void main() {
   lodFade();
   // Per-tree and per-card colour drift.
   vec3 alb = t.rgb * mix(vec3(0.78, 0.84, 0.92), vec3(1.2, 1.08, 0.94), vLeaf.z) * (0.66 + 0.6 * vLeaf.y);
+  // Some sprays of a red or pink crown turn toward orange and peach, as real crowns do.
+  alb.g += 0.3 * alb.r * step(alb.g, alb.r * 0.62) * smoothstep(0.58, 0.95, fract(vLeaf.y * 7.31 + vLeaf.z));
   vec3 N = normalize(vNormal);
 #ifdef BAKE_ALBEDO
   gl_FragColor = vec4(alb, 1.0); return;
