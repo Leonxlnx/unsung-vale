@@ -2,7 +2,7 @@
 // link them, and (in sites added below) the hand-laid places the player walks through.
 import * as THREE from 'three';
 import { MeshBuilder } from './builder.js';
-import { citadel, viaduct, terrace, arcade, pavilion, lantern, tuningSpire, tower, hall } from './kit.js';
+import { citadel, viaduct, terrace, arcade, pavilion, lantern, tuningSpire, tower, hall, cliffTiers } from './kit.js';
 import { M, column, balustrade, stairs, archWall, archRise } from './builder.js';
 import { createArchMaterial } from './archMaterial.js';
 import { Shadows } from '../../engine/shadows.js';
@@ -63,6 +63,16 @@ export class Architecture {
         t.at(m.x, y, m.z, 0, (q) => tower(q, { r: m.r * 0.22 + 1.5, h: 22 + m.r * 0.6, sides: 8, stages: 2, top: 'spire', spireH: 20 + m.r * 0.5, detail: 0, foot: 12 }));
         this.add(t);
       }
+    }
+    // Quarters that step down the cliff faces toward the lake, on the valley-facing rims.
+    for (const [x, z, yaw, w, tiers, seed] of [[150, 296, Math.PI, 96, 4, 1], [-330, 222, Math.PI, 70, 3, 2], [640, 238, Math.PI, 72, 3, 3], [260, -322, 0, 80, 3, 4], [600, -248, 0, 64, 3, 5], [-826, 30, Math.PI / 2, 80, 3, 6]]) {
+      const b = new MeshBuilder();
+      // Walk outward to the rim so the top tier sits right at the cliff edge.
+      const dx = Math.sin(yaw), dz = Math.cos(yaw);
+      let s = 0; const h0 = this.terrain.heightAt(x, z);
+      while (s < 80 && this.terrain.heightAt(x + dx * (s + 6), z + dz * (s + 6)) > h0 - 8) s += 2;
+      b.at(x + dx * s, h0 + 0.4, z + dz * s, yaw, (q) => cliffTiers(q, { w, tiers, step: 24, out: 10, detail: 0, seed }));
+      this.add(b);
     }
     // Smaller holds scattered over the outer mesas.
     const chosen = [];

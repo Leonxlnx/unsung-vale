@@ -277,3 +277,31 @@ export function tuningSpire(b, h = 22) {
   b.mat_(M.MARBLE).lathe([[0.72, h * 0.7], [0.9, h * 0.72], [0.4, h * 0.76], [0, h * 0.77]], 8);
   return cy;
 }
+// A city stepping down a cliff face: stacked terraces, each a little narrower and further
+// out than the one above, fronted by blind arcades and lit lancets. Built in a frame whose
+// +z points out from the cliff; y = 0 is the cliff top at the rim.
+export function cliffTiers(b, { w = 70, tiers = 3, step = 22, out = 9, detail = 0, seed = 1 } = {}) {
+  const rnd = mulberry32(seed * 131 + 7);
+  for (let k = 0; k < tiers; k++) {
+    const tw = w * (1 - k * 0.16), y = -k * step, z = k * out, d = 16;
+    b.at(0, y, z, 0, (q) => {
+      terrace(q, { w: tw, d, depth: step + 26, rail: 's', detail: 0 });
+      // Arcaded wall face below the deck.
+      const n = Math.max(3, Math.round(tw / 8.5)), bw = tw / n;
+      for (let i = 0; i < n; i++) {
+        const cx = -tw / 2 + (i + 0.5) * bw, lit = rnd() < 0.55;
+        q.at(cx, -step * 0.78, d / 2 + 0.03, 0, (g) => {
+          g.mat_(lit ? M.GLASS : M.DARK); archPanel(g, 0, 0, 0.02, bw * 0.5, step * 0.42, 1.05, 8);
+          if (detail) { g.mat_(M.MARBLE); archFrame(g, 0, 0, 0, bw * 0.5, step * 0.42, 1.05, 0.35, 0.3, 8); }
+        });
+        q.mat_(M.MARBLE).box(cx - bw / 2 - 0.35, -step - 4, d / 2, 0.7, step + 3.2, 0.7, '-z');
+      }
+      q.mat_(M.GOLD).box(-tw / 2, -1.1, d / 2 + 0.36, tw, 0.3, 0.12);
+      // A few small towers and needles along the deck.
+      for (let i = 0; i < 2 + (k === 0 ? 1 : 0); i++) {
+        const x = (rnd() - 0.5) * tw * 0.8, th = 12 + rnd() * 16;
+        q.at(x, 0, -d * 0.18, 0, (g) => tower(g, { r: 2.2 + rnd() * 1.4, h: th, sides: 6, stages: 2, top: rnd() < 0.7 ? 'spire' : 'dome', spireH: th * 0.8, detail: 0, foot: 1, glassEvery: 2 }));
+      }
+    });
+  }
+}
