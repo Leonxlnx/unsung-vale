@@ -117,7 +117,11 @@ export function buildMesas() {
 // Height fraction across the cliff band (0 at the foot, 1 at the rim): three near-vertical
 // faces separated by two narrow ledges whose positions wander slowly around the mesa.
 function cliffProfile(u, shift, m) {
-  if (m.pinnacle) return smoothstep(0.0, 0.85, u);
+  // Pinnacles rise in three tiers that step inward, so each pillar tapers and carries ledges.
+  if (m.pinnacle) {
+    const a = 0.3 + m.l1 + shift, b = 0.64 + m.l2 - shift;
+    return 0.46 * smoothstep(0.0, 0.17, u) + 0.3 * smoothstep(a, a + 0.15, u) + 0.24 * smoothstep(b, b + 0.2, u);
+  }
   const a = 0.3 + m.l1 + shift, b = 0.66 + m.l2 - shift;
   return 0.4 * smoothstep(0.0, a - 0.1, u) + 0.33 * smoothstep(a + 0.03, b - 0.08, u) + 0.27 * smoothstep(b + 0.03, 0.97, u);
 }
@@ -136,7 +140,7 @@ export function makeTerrain() {
   for (const m of mesas) {
     m.cos = Math.cos(m.rot); m.sin = Math.sin(m.rot);
     m.reach = m.r * Math.max(1, m.ax) * 1.45 + 110;
-    m.run = m.pinnacle ? clamp(0.05 * m.h + 3, 4, 9) : clamp(0.085 * m.h + 6, 9, 34);
+    m.run = m.pinnacle ? clamp(0.3 * m.r + 3, 7, 13) : clamp(0.085 * m.h + 6, 9, 34);
     m.ledges = m.pinnacle ? 2 : 2 + Math.floor(m.h / 85);
     m.l1 = (hash2(m.seed, 3, 1) - 0.5) * 0.14; m.l2 = (hash2(m.seed, 5, 2) - 0.5) * 0.12;
     m.run *= 1.25;
@@ -166,11 +170,12 @@ export function makeTerrain() {
     const qx = (dx * m.cos + dz * m.sin) / m.ax, qz = -dx * m.sin + dz * m.cos;
     const dist = Math.hypot(qx, qz);
     if (dist > m.r * 1.45 + 110) return 1e9;
-    const lobe = m.pinnacle ? 0.22 : 0.3;
-    const rib = 1 - Math.abs(gnoise(x / 23, z / 23, m.seed + 7));
+    const lobe = m.pinnacle ? 0.34 : 0.3;
+    const rib = 1 - Math.abs(gnoise(x / (m.pinnacle ? 11 : 23), z / (m.pinnacle ? 11 : 23), m.seed + 7));
     const n = fbm(x / (m.r * 0.6) + m.seed, z / (m.r * 0.6), 3, m.seed) * m.r * lobe
       + fbm(x / 44, z / 44, 3, m.seed + 3) * (m.pinnacle ? 4 : 13)
-      - rib * rib * (m.pinnacle ? 1.5 : 5.5)
+      + (m.pinnacle ? fbm(x / 15, z / 15, 2, m.seed + 4) * 5 - 2.5 : 0)
+      - rib * rib * (m.pinnacle ? 3.2 : 5.5)
       + gnoise(x / 8.5, z / 8.5, m.seed + 5) * 1.5;
     return dist - m.r + n;
   }
@@ -194,7 +199,7 @@ export function makeTerrain() {
           const u = saturate(-sd / m.run);
           const t = cliffProfile(u, 0.07 * fbm(x / 190, z / 190, 2, m.seed + 9), m);
           const inside = saturate(-sd / (m.r * 0.5));
-          const top = m.h + (m.pinnacle ? 5 * inside : 4.5 * fbm(x / 95, z / 95, 3, m.seed + 1) + 1.1 * fbm(x / 21, z / 21, 2, m.seed + 2) + 3 * inside);
+          const top = m.h + (m.pinnacle ? 5 * inside + 2.4 * fbm(x / 13, z / 13, 2, m.seed + 6) - 1.2 : 4.5 * fbm(x / 95, z / 95, 3, m.seed + 1) + 1.1 * fbm(x / 21, z / 21, 2, m.seed + 2) + 3 * inside);
           mh = base + (top - base) * (0.1 + 0.9 * t);
         }
         if (mh > h) h = mh;
