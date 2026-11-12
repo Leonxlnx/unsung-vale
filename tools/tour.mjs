@@ -55,6 +55,16 @@ if (want('menus')) {
   await ev(() => { document.querySelector('#settings [data-act="back"]').click(); }); await sleep(500);
   await ev(() => document.querySelector('#pause [data-act="resume"]').click()); await sleep(700); await page.mouse.click(W / 2, H / 2); await sleep(300);
 }
+if (want('stair')) {
+  // The long stair from its head and from its foot, and the terrace with its people.
+  await ev(() => { window.__dbg.ui(false); window.__tour.tp(-177, window.__game.world.floorBelow(-177, 190, -459, 30) + 0.1, -459, 1.5708, -0.42, 7); });
+  await sleep(2500); await shot('stair_top');
+  await ev(() => { window.__tour.tp(-112, window.__game.world.floorBelow(-112, 170, -459, 30) + 0.1, -459, -1.5708, 0.22, 8); });
+  await sleep(2500); await shot('stair_foot');
+  await ev(() => { window.__tour.tp(-512, 210.5, -70, 0.3, -0.3, 13); });
+  await sleep(2500); await shot('hub');
+  await ev(() => window.__dbg.ui(true));
+}
 if (want('people')) {
   // A statue in its silent court, then the same figure waking as the spire is tuned.
   await ev(() => { const g = window.__game, n = g.people.get('ilse'); window.__tour.clear('petal'); const a = n.yaw; window.__tour.tp(n.x + Math.sin(a) * 3.4 + Math.cos(a) * 1.2, n.y + 0.1, n.z + Math.cos(a) * 3.4 - Math.sin(a) * 1.2, a + Math.PI, -0.04, 3.4); window.__dbg.ui(false); });

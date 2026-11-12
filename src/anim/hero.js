@@ -367,7 +367,7 @@ export class Hero {
     this.rollK += ((p.state === 'roll' ? 1 : 0) - this.rollK) * Math.min(1, 15 * dt);
     this.deadK += ((p.state === 'dead' ? 1 : 0) - this.deadK) * Math.min(1, 9 * dt);
     this.downK = (this.downK ?? 0) + ((p.state === 'down' ? 1 : 0) - (this.downK ?? 0)) * Math.min(1, (p.state === 'down' ? 11 : 5) * dt);
-    const tuning = game.tuning?.active && game.tuning.phase !== 'return' ? 1 : game.prompt && game.input.held.has('interact') ? clamp01((game.prompt.progress ?? 0) * 3 + 0.3) : 0;
+    const tuning = p.state === 'heal' ? 1 : game.tuning?.active && game.tuning.phase !== 'return' ? 1 : game.prompt && game.input.held.has('interact') ? clamp01((game.prompt.progress ?? 0) * 3 + 0.3) : 0;
     this.tuneK += (tuning - this.tuneK) * Math.min(1, 7 * dt);
     // Ready for a fight while something is awake nearby, and for a moment after a strike.
     let threat = !!p.lockTarget;

@@ -54,7 +54,7 @@ void main() {
   vec3 N = normalize(vec3(rn.x * spread, 1.0, rn.y * spread));
   vec3 R = reflect(-V, N);
   R.y = abs(R.y);
-  float F = 0.04 + 0.96 * pow(1.0 - saturate(V.y), 5.0);
+  float F = min(0.04 + 0.96 * pow(1.0 - saturate(V.y), 5.0), 0.26) * smoothstep(0.05, 0.3, V.y);
 
   vec3 vp = (viewMatrix * vec4(vWorld, 1.0)).xyz;
   vec3 rv = normalize((viewMatrix * vec4(R, 0.0)).xyz);

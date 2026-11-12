@@ -91,7 +91,7 @@ export class Notes {
         // Notes gathered in quick succession climb the scale; a pause starts the tune again.
         const step = this.streak++ % SCALE.length; this.streakT = 14;
         g.notesTaken = this.list.map((q, k) => (q.taken ? k : -1)).filter((k) => k >= 0); g.save();
-        g.player.health = Math.min(g.player.healthMax, g.player.health + 8);
+        g.player.health = Math.min(g.player.healthMax, g.player.health + 6); if (g.player.refrains < g.player.refrainMax) { g.player.refrains++; g.emit('rest', { one: true }); }
         // A note is also a place to return to, unless something hostile is close.
         if (!g.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.pos.distanceTo(g.player.pos) < 30)) g.checkpoint = { x: n.x, y: n.y - 1.05, z: n.z, yaw: g.player.yaw };
         P.burst(n.x, n.y, n.z, 16, { speed: 3.2, life: 0.7, size: 0.05, color: [3.2, 2.4, 1.1], gravity: -1.5, drag: 1.6, up: 1 });

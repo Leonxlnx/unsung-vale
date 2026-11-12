@@ -238,8 +238,15 @@ export class Architecture {
         // Stepped flank walls and two guardian towers at the foot.
         for (let i = 0; i < 7; i++) {
           const x = (i * run) / 7, h = ((i + 1) * rise) / 7;
-          for (const sz of [-1, 1]) q.mat_(M.ASHLAR).box(x, -3, sz * 4.5 - 0.5, run / 7 + 0.1, h + 4.2, 1.0);
-          for (const sz of [-1, 1]) q.mat_(M.MARBLE).box(x - 0.1, h + 1.2, sz * 4.5 - 0.6, run / 7 + 0.3, 0.25, 1.2);
+          for (const sz of [-1, 1]) {
+            // A flank wall is also a retaining wall: where the hillside stands higher than
+            // the stair it rises with it, so no bank of bare earth shows over its top.
+            let top = h + 1.2;
+            for (let k = 0; k <= 5; k++) for (const off of [3.8, 4.5, 5.2, 6.0]) top = Math.max(top, H(bx - (x + (k / 5) * (run / 7)), bz - sz * off) - y0 + 0.6);
+            top = Math.min(top, h + 9);
+            q.mat_(M.ASHLAR).box(x, -3, sz * 4.5 - 0.5, run / 7 + 0.1, top + 3, 1.0);
+            q.mat_(M.MARBLE).box(x - 0.1, top, sz * 4.5 - 0.6, run / 7 + 0.3, 0.25, 1.2);
+          }
         }
         q.mat_(M.PAVING).box(run, rise - 0.4, -7, 9, 0.4, 14);
       });

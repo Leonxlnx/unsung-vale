@@ -38,6 +38,18 @@ export const PEOPLE = [
   { id: 'pell', name: 'Pell', role: 'Archivist of the Aurel Court', site: 'aurel', ring: [13, 10], robe: 'plum', mantle: 'ochre', prop: 'scroll', h: 1.02 },
   { id: 'hesk', name: 'Hesk', role: 'Keeper of the Orchard', site: 'south1', ring: [13, 14], robe: 'moss', mantle: 'rust', prop: 'staff', h: 0.92 },
   { id: 'first', name: 'The First Singer', role: 'of the Crown', site: 'crown', ring: [16, 14], robe: 'cream', mantle: 'wine', h: 1.1 },
+  // And the rest of the Vale: they ask for nothing, but they are glad to be spoken to.
+  { id: 'wen', name: 'Wen', role: 'a singer\'s child', site: 'dawn', at: [-503, -78], yaw: -1.2, robe: 'rose', mantle: 'cream', h: 0.7 },
+  { id: 'bram', name: 'Bram', role: 'Stonemason', site: 'dawn', at: [-522, -60], yaw: 1.9, robe: 'slate', mantle: 'rust', h: 1.06 },
+  { id: 'ode', name: 'Ode', role: 'Beekeeper', site: 'petal', ring: [13, 8], robe: 'ochre', mantle: 'moss', h: 0.98 },
+  { id: 'lio', name: 'Lio', role: 'Sweeper of the long stair', site: 'cantor', ring: [15, 13], robe: 'moss', mantle: 'slate', h: 0.96 },
+  { id: 'ansa', name: 'Ansa', role: 'Singer of the Choir', site: 'choir', ring: [22, 14], robe: 'indigo', mantle: 'cream', h: 1.0 },
+  { id: 'corr', name: 'Corr', role: 'Singer of the Choir', site: 'choir', ring: [22, 4], robe: 'plum', mantle: 'cream', h: 1.04 },
+  { id: 'imre', name: 'Imre', role: 'Lamp-trimmer', site: 'east', ring: [15.5, 15], robe: 'ochre', mantle: 'wine', h: 0.99 },
+  { id: 'tolly', name: 'Tolly', role: 'Net-mender', site: 'south3', ring: [15.5, 12], robe: 'slate', mantle: 'teal', h: 0.74 },
+  { id: 'quill', name: 'Quill', role: 'Copyist', site: 'aurel', ring: [15.5, 8], robe: 'wine', mantle: 'slate', h: 1.0 },
+  { id: 'marn', name: 'Marn', role: 'Picker', site: 'south1', ring: [15.5, 8], robe: 'rust', mantle: 'cream', h: 0.95 },
+  { id: 'sova', name: 'Sova', role: 'Keeper of the Crown', site: 'crown', ring: [19, 9], robe: 'indigo', mantle: 'ochre', prop: 'staff', h: 1.05 },
 ];
 
 const tube = (a, b, r0, r1, seg = 9) => {
@@ -67,7 +79,7 @@ export class People {
       if (def.at) [x, z] = def.at;
       else { const a = (def.ring[1] / 24) * 6.283; x = spire.x + Math.cos(a) * def.ring[0]; z = spire.z + Math.sin(a) * def.ring[0]; yaw = Math.atan2(spire.x - x, spire.z - z); }
       W.stream(x, z, 6);
-      const y = W.floorBelow(x, (spire?.base ?? W.groundHeight(x, z)) + 3, z, 12);
+      const y = W.floorBelow(x, (spire?.base ?? game.sites.spawn.y) + 1.6, z, 6);
       const n = { def, x, y, z, yaw, home: yaw, spire, awake: !spire || spire.tuned, k: !spire || spire.tuned ? 1 : 0, t: Math.random() * 10, headYaw: 0, gesture: 0, mats: [], meshes: [] };
       this._build(n, depth);
       W.addCapsule([x, y, z], [x, y + 1.7 * def.h, z], 0.34);

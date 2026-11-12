@@ -175,6 +175,7 @@ export class Enemies {
   constructor(pipe, world, particles) {
     this.pipe = pipe; this.world = world; this.particles = particles;
     this.list = []; this.projectiles = []; this.events = []; this.blasts = [];
+    this.crowd = 3; this.haste = 1;         // how many may strike at once, and how briskly (set by the challenge)
     this.max = 1400;
     const geo = shardGeometry();
     this.glowAttr = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 3), 3);
@@ -273,11 +274,11 @@ export class Enemies {
           } else if (d.circle && dist < 8.5) {
             // Round the hero at a few paces, then in.
             const s = (e.orbit ??= e.seed < 0.5 ? 1 : -1), inw = dist > 5.5 ? 0.7 : dist < 3.6 ? -0.5 : 0.05;
-            if (e.t > 1.1 + e.seed * 1.3 && dist < 6.5 && melee < 2) { melee++; e.state = 'windup'; e.t = 0; e.attackKind = 0; this.events.push({ type: 'charge', enemy: e }); }
+            if (e.t > (1.1 + e.seed * 1.3) / this.haste && dist < 6.5 && melee < this.crowd) { melee++; e.state = 'windup'; e.t = 0; e.attackKind = 0; this.events.push({ type: 'charge', enemy: e }); }
             else { const tx = -toP.z * s, tz = toP.x * s; toP.set(tx * 0.9 + toP.x * inw, 0, tz * 0.9 + toP.z * inw).normalize(); wantSpeed = d.speed * 0.8; }
           } else {
             if (dist > d.reach * 0.82) wantSpeed = d.speed * (1 + 0.16 * e.phase);
-            else if (e.t > 0.25 && (d.boss || melee < 2)) { melee++; e.state = 'windup'; e.t = 0; e.attackKind = d.boss ? (e.phase > 0 && Math.random() < 0.22 * e.phase ? 3 : Math.floor(Math.random() * 2)) : 0; this.events.push({ type: 'charge', enemy: e }); }
+            else if (e.t > 0.25 && (d.boss || melee < this.crowd)) { melee++; e.state = 'windup'; e.t = 0; e.attackKind = d.boss ? (e.phase > 0 && Math.random() < 0.22 * e.phase ? 3 : Math.floor(Math.random() * 2)) : 0; this.events.push({ type: 'charge', enemy: e }); }
             else if (!d.boss && e.t > 0.25) {
               // Waiting its turn: it prowls round him instead of standing in a queue.
               const sgn = (e.orbit ??= e.seed < 0.5 ? 1 : -1); toP.set(-toP.z * sgn, 0, toP.x * sgn); wantSpeed = d.speed * 0.45;
@@ -295,7 +296,7 @@ export class Enemies {
           if (playerAlive && dist < d.sight * 0.5 && e.pos.distanceTo(e.home) < 40) e.state = 'chase';
         } else if (e.state === 'windup') {
           if (e.t < d.windup * 0.75) faceP();
-          if (e.t >= d.windup) { e.state = 'strike'; e.t = 0; e.didHit = false; this.events.push({ type: 'attack', enemy: e }); }
+          if (e.t >= d.windup / (0.5 + 0.5 * this.haste)) { e.state = 'strike'; e.t = 0; e.didHit = false; this.events.push({ type: 'attack', enemy: e }); }
         } else if (e.state === 'strike') {
           const f = _v2.set(Math.sin(e.yaw), 0, Math.cos(e.yaw));
           if (d.caster || e.attackKind === 3) {
@@ -346,7 +347,7 @@ export class Enemies {
           }
           if (e.t >= d.strike) { e.state = 'recover'; e.t = 0; e.slamFx = false; }
         } else if (e.state === 'recover') {
-          if (e.t >= d.recover * (1 - 0.16 * e.phase)) { e.state = 'chase'; e.t = 0; }
+          if (e.t >= d.recover * (1 - 0.16 * e.phase) / this.haste) { e.state = 'chase'; e.t = 0; }
         } else if (e.state === 'stagger') {
           if (e.t >= (d.boss ? 1.4 : 0.6)) { e.state = 'chase'; e.t = 0; }
         }

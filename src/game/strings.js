@@ -222,6 +222,7 @@ export class Strings {
       p.setState('move'); p.invulnerable = 0.8; p.grounded = true; p.airTime = 0; p.fallStart = p.pos.y; p.viewY = p._viewY1 = p.pos.y;
       this.ride = null; this.speed = 0; this.cool = 1.6;        // a moment before the pylon offers the way back
       g.checkpoint = { x: p.pos.x, y: p.pos.y + 0.1, z: p.pos.z, yaw: p.yaw };
+      g.rest();
       g.emit('ride', { phase: 'end', to: node.id });
     }
   }

@@ -4,7 +4,7 @@
 const DEFAULT_KEYS = {
   forward: ['KeyW', 'ArrowUp'], back: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   sprint: ['ShiftLeft', 'ShiftRight'], jump: ['Space'], dodge: ['ControlLeft', 'AltLeft', 'KeyC'],
-  interact: ['KeyE'], lock: ['KeyQ', 'Tab'], walk: ['KeyX'], pulse: ['KeyF'], pause: ['Escape', 'KeyP'], photo: ['KeyH'], map: ['KeyM'], journal: ['KeyJ'],
+  interact: ['KeyE'], lock: ['KeyQ', 'Tab'], walk: ['KeyX'], pulse: ['KeyF'], pause: ['Escape', 'KeyP'], photo: ['KeyH'], map: ['KeyM'], journal: ['KeyJ'], heal: ['KeyR'],
 };
 
 export class Input {
@@ -91,7 +91,7 @@ export class Input {
       if (ax || ay) { mx = ax; my = -ay; }
       lx += rx * 0.045 * this.sensitivity; ly += ry * 0.032 * this.sensitivity * (this.invertY ? -1 : 1);
       const map = { 0: 'jump', 1: 'dodge', 2: 'attack', 3: 'heavy', 4: 'pulse', 5: 'attack', 7: 'heavy', 9: 'pause', 10: 'sprint', 11: 'lock', 12: 'photo', 3.5: 'interact' };
-      map[14] = 'interact'; map[13] = 'interact'; map[8] = 'map'; map[15] = 'journal';
+      map[14] = 'interact'; map[13] = 'interact'; map[8] = 'map'; map[15] = 'journal'; map[12] = 'heal';
       pad.buttons.forEach((b, i) => {
         const a = map[i];
         if (!a) return;

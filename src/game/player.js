@@ -22,6 +22,9 @@ export const TUNE = {
   swim: 2.7, swimFast: 4.0, swimCost: 5, swimDepth: 1.18,      // he floats with the water this far up his body
   // Sprinting strike: the run carried into a full turn of the blade.
   dash: { t: 0.7, hit: [0.2, 0.42], dmg: 46, lunge: 13, cost: 18, arc: 6.3, reach: 3.0 },
+  // The refrain: he hums the note he carries and it mends him. A few to a journey between
+  // places of rest; it takes a moment in which he cannot move or strike.
+  refrain: { time: 0.95, at: 0.55, heal: 0.45, charges: 3 },
 };
 
 const _v = new THREE.Vector3();
@@ -32,6 +35,7 @@ export class Player {
     // What he has been given along the way: more life, more breath, a keener edge, and the
     // things each spire teaches (see Game._skills).
     this.up = { health: 0, stamina: 0, blade: 0 }; this.skills = new Set();
+    this.refrains = TUNE.refrain.charges; this.refrainMax = TUNE.refrain.charges; this.inCombat = false;
     this.pos = new THREE.Vector3();
     this.vel = new THREE.Vector3();
     this.yaw = 0;                   // facing: (sin yaw, 0, cos yaw)
@@ -62,7 +66,7 @@ export class Player {
   spawn(x, y, z, yaw = 0) {
     this.pos.set(x, y, z); this.vel.set(0, 0, 0); this.yaw = yaw; this.viewY = this._viewY1 = y;
     this.lastSafe.copy(this.pos);
-    this.state = 'move'; this.health = this.healthMax; this.stamina = this.staminaMax; this.windUsed = false;
+    this.state = 'move'; this.health = this.healthMax; this.stamina = this.staminaMax; this.windUsed = false; this.refrains = this.refrainMax;
   }
 
   get healthMax() { return TUNE.healthMax + 20 * this.up.health + (this.skills.has('gift') ? 20 : 0); }
@@ -148,7 +152,7 @@ export class Player {
 
     if (input.pressed.has('walk')) this.walking = !this.walking;
     this.sinceHurt = (this.sinceHurt ?? 99) + dt;
-    if (this.sinceHurt > 7 && this.health < this.healthMax) this.health = Math.min(this.healthMax, this.health + 3 * dt);
+    if (this.sinceHurt > 9 && !this.inCombat && this.health < this.healthMax * 0.5) this.health = Math.min(this.healthMax * 0.5, this.health + 2.5 * dt);
     if (this.state === 'move') {
       this.sprinting = input.held.has('sprint') && wishLen > 0.5 && this.stamina > 1 && this.grounded;
       if (this.sprinting) this.walking = false;
@@ -186,6 +190,7 @@ export class Player {
       } else if (input.pressed.has('attack') && this.grounded && this.sprinting && this.skills.has('dash')) { if (this.startAttack(T.dash, 2)) this.emit('dash'); }
       else if (input.pressed.has('attack') && this.grounded) this.startAttack(T.combo[0], 0);
       else if (input.pressed.has('heavy') && this.grounded) this.startAttack(T.heavy, 3);
+      else if (input.pressed.has('heal') && this.grounded && this.refrains > 0 && this.health < this.healthMax) { this.setState('heal'); this.healed = false; this.vel.x = this.vel.z = 0; this.emit('healStart'); }
       else if (input.pressed.has('pulse') && this.pulseTimer <= 0 && this.grounded && this.skills.has('pulse')) { this.pulseTimer = this.skills.has('surge') ? 6 : T.pulseCooldown; this.emit('pulse'); }
     } else if (this.state === 'roll') {
       const t = this.stateTime / T.rollTime;
@@ -234,6 +239,10 @@ export class Player {
       if (this.grounded && this.stateTime > 0.5 && input.pressed.has('dodge') && this.spend(T.rollCost * 0.5)) {
         this.setState('roll'); const d = wishLen > 0.2 ? wish : this.facing; this.rollDir = new THREE.Vector3(d.x, 0, d.z).normalize(); this.yaw = Math.atan2(this.rollDir.x, this.rollDir.z); this.emit('roll');
       } else if (this.stateTime > 1.15 && this.grounded) { this.setState('move'); this.invulnerable = Math.max(this.invulnerable, 0.35); }
+    } else if (this.state === 'heal') {
+      const R = T.refrain, k = Math.exp(-10 * dt); this.vel.x *= k; this.vel.z *= k;
+      if (!this.healed && this.stateTime >= R.at) { this.healed = true; this.refrains--; const before = this.health; this.health = Math.min(this.healthMax, this.health + this.healthMax * R.heal); this.emit('heal', { amount: this.health - before }); }
+      if (this.stateTime >= R.time) this.setState('move');
     } else if (this.state === 'hurt') {
       const drag = Math.exp(-6 * dt);
       this.vel.x *= drag; this.vel.z *= drag;

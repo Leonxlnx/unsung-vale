@@ -255,6 +255,9 @@ export class Game {
   // The side goal the interface shows: a trial under way, else the nearest quest.
   tracker() { return this.trials.tracker() ?? this.quests.tracker(); }
 
+  // A place of rest (a tuned spire, a bell rung, a pylon reached): the refrains come back.
+  rest() { const p = this.player; if (p.refrains < p.refrainMax) { p.refrains = p.refrainMax; this.emit('rest', {}); } }
+
   // A gift: one step of life, breath or edge, and some of the song (resonance).
   grant({ up = null, xp = 0 } = {}) {
     const p = this.player;
@@ -472,6 +475,10 @@ export class Game {
     this.world.stream(p.pos.x, p.pos.z);
     // While a spire is being tuned the hero stands to it and the camera belongs to the moment.
     const busy = this.tuning.active || !!this.people.talk;
+    // How hard the Mute press: more of them at once and brisker on Standard and Hard.
+    this.enemies.crowd = { gentle: 2, hard: 4 }[this.challenge] ?? 3; this.enemies.haste = { gentle: 1, hard: 1.45 }[this.challenge] ?? 1.22;
+    p.inCombat = this.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.state !== 'return' && e.pos.distanceToSquared(p.pos) < 1600);
+    p.refrainMax = TUNE.refrain.charges + (this.spires.filter((s) => s.tuned).length >= 3 ? 1 : 0) + (this.spires.filter((s) => s.tuned).length >= 6 ? 1 : 0);
     // Echo step: for a breath the Mute move as if through water.
     this.slow = Math.max(0, this.slow - realDt); this.slowCd = Math.max(0, this.slowCd - realDt);
     const edt = this.slow > 0 ? dt * (0.22 + 0.78 * Math.max(0, 1 - this.slow / 0.35)) : dt;
@@ -639,6 +646,17 @@ export class Game {
       this.vfx.wave(p.pos.x, p.pos.y + 1.0, p.pos.z, { kind: 1, r0: 0.4, r1: 5, life: 0.5, strength: 1.4, width: 0.1, color: [3.2, 2.3, 1.0] });
       this.flash = Math.max(this.flash, 0.5); this.rig.addShake(0.6); this.hitStop = 0.14;
     }
+    if (e.type === 'healStart') {
+      for (let k = 0; k < 16; k++) { const a = (k / 16) * 6.283; this.particles.spawn(p.pos.x + Math.cos(a) * 1.3, p.pos.y + 0.1, p.pos.z + Math.sin(a) * 1.3, { vel: [-Math.cos(a) * 1.6, 2.2 + Math.random(), -Math.sin(a) * 1.6], life: 0.6, size: 0.05, color: [3.4, 2.8, 1.5], drag: 0.6 }); }
+      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 3.2, r1: 0.5, life: 0.5, linear: true, rise: true, strength: 0.6, width: 0.06, color: [3.2, 2.6, 1.4] });
+    }
+    if (e.type === 'heal') {
+      // The note goes through him: a column of warm light, a ring going out over the ground.
+      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.4, r1: 5, life: 0.7, strength: 1.0, width: 0.08, color: [3.4, 2.8, 1.5] });
+      this.vfx.wave(p.pos.x, p.pos.y + 1.0, p.pos.z, { kind: 1, r0: 0.3, r1: 2.6, life: 0.45, strength: 1.0, width: 0.12, color: [3.4, 2.8, 1.5] });
+      for (let k = 0; k < 34; k++) { const a = Math.random() * 6.283, r = Math.random() * 0.6; this.particles.spawn(p.pos.x + Math.cos(a) * r, p.pos.y + Math.random() * 1.6, p.pos.z + Math.sin(a) * r, { vel: [Math.cos(a) * 0.5, 2.5 + Math.random() * 3.5, Math.sin(a) * 0.5], life: 0.9, size: 0.06, color: [3.6, 3.0, 1.7], drag: 0.8, streak: 0.06 }); }
+      this.flash = Math.max(this.flash, 0.2);
+    }
     if (e.type === 'pulse') {
       // Resonance pulse: a ring of force that staggers everything nearby.
       const surge = p.skills.has('surge'), PR = TUNE.pulseRadius * (surge ? 1.4 : 1);
@@ -655,7 +673,7 @@ export class Game {
   }
 
   _onEnemyEvent(e) {
-    if (e.type === 'hitPlayer') { this.player.damage(Math.round(e.damage * ({ gentle: 0.6, hard: 1.4 }[this.challenge] ?? 1)), e.from ?? e.enemy.pos); }
+    if (e.type === 'hitPlayer') { this.player.damage(Math.round(e.damage * ({ gentle: 0.75, hard: 1.75 }[this.challenge] ?? 1.3)), e.from ?? e.enemy.pos); }
     if (e.type === 'slam') {
       const big = e.enemy?.def.boss ? 1 : 0.5;
       this.rig.addShake(0.7 * big + 0.1);
@@ -766,7 +784,7 @@ export class Game {
     s.tuned = true; s.tuning = 0; s.releasing = 0.001;
     const p = this.player;
     this._skills();
-    p.health = p.healthMax; p.stamina = p.staminaMax; p.windUsed = false;
+    p.health = p.healthMax; p.stamina = p.staminaMax; p.windUsed = false; p.refrainMax = Math.max(p.refrainMax, TUNE.refrain.charges); this.rest();
     if (SKILLS[s.id] && !this.cine) this.emit('skill', { ...SKILLS[s.id] });
     this.checkpoint = { x: p.pos.x, y: p.pos.y + 0.1, z: p.pos.z, yaw: p.yaw };
     for (let k = 0; k < 120; k++) { const a = Math.random() * 6.283, r = Math.random() * 3; this.particles.spawn(s.x + Math.cos(a) * r, s.base + 1 + Math.random() * 18, s.z + Math.sin(a) * r, { vel: [Math.cos(a) * 3, 6 + Math.random() * 10, Math.sin(a) * 3], life: 1.8, size: 0.14, color: [3.2, 2.3, 1.0], drag: 0.8 }); }

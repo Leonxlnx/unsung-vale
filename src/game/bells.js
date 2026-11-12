@@ -89,6 +89,7 @@ export class Bells {
     for (let k = 0; k < 60; k++) { const t = k / 60; g.particles.spawn(b.x + dx * t * 0.5, b.y + 2.4 + 6 * Math.sin(Math.PI * t * 0.5), b.z + dz * t * 0.5, { vel: [(dx / d) * 16, 1.5, (dz / d) * 16], life: 1.2 + t, size: 0.07, color: [4, 3, 1.4], drag: 0.3, streak: 0.14 }); }
     g.flash = Math.max(g.flash, 0.3);
     g.checkpoint = { x: g.player.pos.x, y: g.player.pos.y + 0.1, z: g.player.pos.z, yaw: g.player.yaw };
+    g.rest();
     g.emit('bell', { id: b.id, index: b.i, count: n, total, done: n >= total, pitch: [1, 5 / 4, 3 / 2][Math.min(2, n - 1)] });
     if (n >= total) g.encounters.callCourt(b.id);
     g.save();

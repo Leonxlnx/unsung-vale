@@ -288,6 +288,9 @@ void main() {
   if (m == 2) metal = 1.0;
   if (m == 7) metal = 0.6;
 
+  // Paving seen at a low angle stays stone: without this a court floor turns into a sheet of
+  // reflected sky that reads as water, or as nothing at all.
+  if ((m == 4 || m == 0) && N.y > 0.9) rough = mix(rough, max(rough, 0.72), pow(1.0 - saturate(dot(N, V)), 1.6));
   float vis = sunVisibility(vWorld + N * 0.12 + uSunDir * 0.12);
   vec3 col = shadeSurface(alb, rough, metal, Ns, V, vis, ao, 0.0);
   col += alb * (1.0 - metal) * lampLight(vWorld, Ns) * ao;

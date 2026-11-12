@@ -472,7 +472,7 @@ window.__dbg = {
         if (g.people.talk) { mode = 'talk'; b.talkT += dt; if (b.talkT > 3.2) { b.talkT = 0; pu.pressed.add('interact'); } }         // a reader's pace
         else if (T.active) { mode = 'tune'; if (T.phase === 'beats' && T.ring && Math.abs(T.bt - T.period) < 0.04) pu.pressed.add('interact'); }
         else if (p.state === 'ride') mode = 'ride';
-        else if (foe) { mode = 'fight'; const hp = p.health, st = p.stamina; d.fight(dt); if (!cheat) { p.health = hp; p.stamina = st; } }
+        else if (foe) { mode = 'fight'; const hp = p.health, st = p.stamina; d.fight(dt); if (!cheat) { p.health = hp; p.stamina = st; if (hp < p.healthMax * 0.4 && p.refrains > 0 && p.state === 'move') { pu.pressed.clear(); pu.pressed.add('heal'); } } }
         else if (g.prompt && (/^(Tune|Take|Open|Ring)/.test(g.prompt.text) || (trial && /^Begin/.test(g.prompt.text)) || (who && /^Speak/.test(g.prompt.text)) || (g.marker?.name === 'String of light' && !near && /^Ride/.test(g.prompt.text)))) pu.pressed.add('interact');
         else if (who) { mode = 'side'; go(who.x, who.z, 2.3); }
         else if (near) { mode = 'side'; go(near.x, near.z, 0.6); }

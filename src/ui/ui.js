@@ -17,7 +17,7 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 const KEYS = [
   ['Move', 'W A S D'], ['Look', 'Mouse'], ['Sprint', 'Shift'], ['Jump', 'Space'], ['Dodge roll', 'Ctrl or C'], ['Walk or run', 'X'],
-  ['Strike', 'Left mouse'], ['Heavy strike', 'Right mouse'], ['Falling strike', 'Strike in the air'], ['Lock on', 'Q'], ['Resonance pulse', 'F'],
+  ['Strike', 'Left mouse'], ['Heavy strike', 'Right mouse'], ['Falling strike', 'Strike in the air'], ['Lock on', 'Q'], ['Refrain (mend yourself)', 'R'], ['Resonance pulse', 'F'],
   ['Speak, tune, ride', 'E'], ['Map', 'M'], ['Journal', 'J'], ['Zoom', 'Mouse wheel'], ['Pause', 'Esc'],
 ];
 const EMBLEM = '<svg class="emblem" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true"><path d="M11.2 50 A24 24 0 1 1 52.8 50"/><path d="M17.7 46.25 A16.5 16.5 0 1 1 46.3 46.25" opacity="0.75"/><path d="M24.2 42.5 A9 9 0 1 1 39.8 42.5" opacity="0.5"/><path d="M32 5 V59"/><path d="M32 33.4 L36.6 38 L32 42.6 L27.4 38 Z" fill="currentColor" stroke="none"/></svg>';
@@ -44,7 +44,7 @@ export class UI {
           <div class="bars">
             <div class="meter health"><i class="ghost"></i><i class="fill"></i></div>
             <div class="meter stamina"><i class="fill"></i></div>
-            <div class="res"><i></i><span>0</span></div>
+            <div class="under"><div class="refrain"></div><div class="res"><i></i><span>0</span></div></div>
           </div>
         </div>
         <div class="prompt"><div class="key"><span></span></div><div class="text"></div></div>
@@ -103,7 +103,7 @@ export class UI {
       marker: $('#hud .marker.main'), markerText: $('#hud .marker.main span'), marker2: $('#hud .marker.side'), marker2Text: $('#hud .marker.side span'),
       reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), toastBig: $('#hud .toast .big'), toastSmall: $('#hud .toast .small'), card: $('#hud .card'), cardTitle: $('#hud .card b'), cardText: $('#hud .card span'),
       hints: $('#hud .hints'), fps: $('#hud .fps'), grab: $('#hud .grab'), tally: $('#hud .tally'), beat: $('#hud .beat'), beatCue: $('#hud .beat .cue'), beatRing: $('#hud .beat .cue i'), beatPips: $('#hud .beat .pips'),
-      foes: $$('#hud .foe'),
+      foes: $$('#hud .foe'), refrain: $('#hud .refrain'),
       compass: $('#hud .compass'), ticks: $('#hud .compass .ticks'), card4: $$('#hud .compass b'), pinGoal: $('#hud .compass .pin.goal'), pinSide: $('#hud .compass .pin.side'),
       talk: $('#talk'), talkName: $('#talk .who b'), talkRole: $('#talk .who span'), talkText: $('#talk p'), talkNext: $('#talk .next'),
       tabBody: $('#settings .tabbody'), play: $('[data-act="play"]'), newGame: $('[data-act="new"]'),
@@ -218,7 +218,7 @@ export class UI {
     if (type === 'objective') { el.goal.textContent = d.text; el.goal.parentElement.classList.remove('new'); void el.goal.offsetWidth; el.goal.parentElement.classList.add('new'); }
     if (type === 'enemy' && d.type === 'wake' && !this._fightHint) {
       this._fightHint = true;
-      this._hints([['Strike', 'Left mouse'], ['Heavy strike', 'Right mouse'], ['Falling strike', 'Strike in the air'], ['Dodge roll', 'Ctrl or C'], ['Lock on', 'Q']]);
+      this._hints([['Strike', 'Left mouse'], ['Heavy strike', 'Right mouse'], ['Falling strike', 'Strike in the air'], ['Dodge roll', 'Ctrl or C'], ['Refrain', 'R'], ['Lock on', 'Q']]);
       this._showHints(12000);
     }
     if (type === 'boss') {
@@ -239,8 +239,9 @@ export class UI {
       if (d.phase === 'done') this.toast(`${d.name} is won`, d.reward ? [GIFT[d.reward.up], `${d.reward.xp} resonance`].join('  ·  ') : null);
     }
     if (type === 'map' && d.phase === 'given') setTimeout(() => this.card('The map', 'M opens it. J opens the journal.'), 800);
-    if (type === 'people' && d.type === 'wake') { clearTimeout(this._wakeT); this._wakeT = setTimeout(() => this.card(`${d.name} wakes`, 'Someone at this court can speak again.'), 9500); }
+    if (type === 'people' && d.type === 'wake') { clearTimeout(this._wakeT); const n = (this._wakeN = (this._wakeN ?? 0) + 1); this._wakeT = setTimeout(() => { this._wakeN = 0; this.card(n > 1 ? 'The court wakes' : `${d.name} wakes`, n > 1 ? `${n} people here can speak again.` : 'Someone at this court can speak again.'); }, 9500); }
     if (type === 'hit' && d.enemy) (this._hit ??= new Map()).set(d.enemy, performance.now());
+    if (type === 'rest') { el.refrain.classList.remove('gain'); void el.refrain.offsetWidth; el.refrain.classList.add('gain'); }
     if (type === 'xp') { el.res.classList.remove('gain'); void el.res.offsetWidth; el.res.classList.add('gain'); }
     if (type === 'player' && d.type === 'hurt') { el.hurt.style.transition = 'none'; el.hurt.style.opacity = '1'; requestAnimationFrame(() => { el.hurt.style.transition = ''; el.hurt.style.opacity = '0'; }); el.health.classList.remove('hit'); void el.health.offsetWidth; el.health.classList.add('hit'); }
     if (type === 'echo') { el.hud.classList.add('echo'); setTimeout(() => el.hud.classList.remove('echo'), 1500); }
@@ -275,6 +276,9 @@ export class UI {
     el.staminaFill.style.transform = `scaleX(${p.stamina / p.staminaMax})`;
     el.health.classList.toggle('low', hk < 0.3);
     el.resText.textContent = g.xp;
+    // Refrains left: one small diamond each.
+    { const key = p.refrains + '/' + p.refrainMax; if (key !== this._ref) { this._ref = key; el.refrain.innerHTML = Array.from({ length: p.refrainMax }, (_, i) => `<i class="${i < p.refrains ? 'on' : ''}"></i>`).join(''); } }
+    if (hk < 0.5 && p.refrains > 0 && !this._healHint) { this._healHint = true; this.card('The refrain', 'R: hum the note you carry and it mends you. Refrains return at spires, bells, pylons and with lost notes.'); }
     const hasPulse = p.skills.has('pulse'), pr = 1 - p.pulseTimer / (p.skills.has('surge') ? 6 : TUNE.pulseCooldown);
     el.pulse.classList.toggle('have', hasPulse); el.pulse.style.setProperty('--p', Math.max(0, Math.min(1, pr)).toFixed(3)); el.pulse.classList.toggle('ready', hasPulse && pr >= 1);
     // Without the pointer captured the mouse cannot turn the view: say how to get it back.
