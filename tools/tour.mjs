@@ -39,7 +39,8 @@ await ev(() => {
   g.save = () => {}; g.player.invulnerable = 1e9;
   window.__tour = {
     tune(ids) { for (const s of g.spires) if (ids.includes(s.id)) { s.tuned = true; s.power = 1; s.zoneR = 0; s.zone.z = 0; s.zone.w = 0; } g.enemies.list = g.enemies.list.filter((e) => !ids.includes(e.group) && !(ids.includes('cantor') && e.group === 'stair')); if (ids.includes('cantor')) g.bridgeOpen = true; g._skills(); g.story.leg = null; g.story._goal(); },
-    tp(x, y, z, yaw = 0, pitch = -0.14, dist = 5.6) { g.world.stream(x, z, 8); g.player.spawn(x, y, z, yaw); g.player.invulnerable = 1e9; g.rig.snap(g.player); g.rig.yaw = yaw; g.rig.pitch = pitch; g.rig.distance = dist; },
+    // Wherever an earlier scene left things (a closing card, a flight), a new one starts in play.
+    tp(x, y, z, yaw = 0, pitch = -0.14, dist = 5.6) { if (g.state !== 'playing') { g.story.mode = null; g.state = 'playing'; g.emit('state', { state: 'playing' }); document.getElementById('ending')?.classList.remove('on'); } g.input.enabled = true; g.world.stream(x, z, 8); g.player.spawn(x, y, z, yaw); g.player.invulnerable = 1e9; g.rig.snap(g.player); g.rig.yaw = yaw; g.rig.pitch = pitch; g.rig.distance = dist; },
     // Stand a few paces from a construct, looking at it.
     face(e, d = 12, pitch = 0.02, dist = 8) { const a = Math.atan2(g.player.pos.x - e.pos.x, g.player.pos.z - e.pos.z) || 0.5, x = e.pos.x + Math.sin(a) * d, z = e.pos.z + Math.cos(a) * d; this.tp(x, g.world.floorBelow(x, e.pos.y + 3, z, 8) + 0.1, z, a + Math.PI, pitch, dist); },
     clear(id) { for (const e of g.enemies.list) if (e.group === id) e.alive = false; g.enemies.list = g.enemies.list.filter((e) => e.group !== id); },
