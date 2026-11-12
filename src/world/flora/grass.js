@@ -9,6 +9,7 @@ import { TERRAIN_SAMPLING } from '../terrain.js';
 import { mulberry32 } from '../../util/noise.js';
 
 import { MEADOW_GLSL } from '../meadow.js';
+import { POOLS } from '../layout.js';
 
 const CELL = 16;           // grass cell size (m): small, so density can step down with distance
 const FCELL = 32;          // flower cell size: fewer, larger draws
@@ -21,6 +22,7 @@ uniform sampler2D uPathTex;
 uniform vec3 uWind;
 uniform float uTime;
 uniform float uFadeDist;
+uniform vec4 uPools[7];     // xz: centre, z: radius, w: water level of each mesa-top pool
 ${MEADOW_GLSL}
 // x: height above sea level, y: growth 0..1 (0 = nothing grows here), z: macro tone,
 // w: meadow family (lush to dry). clover is set to how much of a low clover patch this is.
@@ -32,7 +34,11 @@ vec4 groundInfo(vec2 xz) {
   vec4 n2 = textureLod(uNoise, xz / 57.0 + 0.31, 0.0);
   float cliff = smoothstep(0.3, 0.7, nm.a + (n2.r - 0.5) * 0.35);
   float soil = smoothstep(0.66, 0.8, n2.r);
-  float grow = (1.0 - smoothstep(0.02, 0.2, cliff)) * smoothstep(1.3, 2.6, h) * (1.0 - soil * 0.85);
+  // Grass comes down close to the lake shore; nothing grows under the water of a pool.
+  float grow = (1.0 - smoothstep(0.02, 0.2, cliff)) * smoothstep(0.7, 1.5, h) * (1.0 - soil * 0.85);
+  for (int i = 0; i < 7; i++) {
+    if (h < uPools[i].w + 0.25 && distance(xz, uPools[i].xy) < uPools[i].z + 8.0) grow = 0.0;
+  }
   grow *= step(max(abs(xz.x), abs(xz.y)), CORE_SIZE * 0.45);
   grow *= 1.0 - smoothstep(0.25, 0.7, textureLod(uPathTex, xz / CORE_SIZE + 0.5, 0.0).r);
   gClover = meadowClover(textureLod(uNoise, xz / 13.0 + 0.7, 0.0).g);
@@ -177,6 +183,7 @@ export class GroundCover {
     const uniforms = {
       ...pipe.lit(), uNCore: terrain.surfaceUniforms.uNCore, uNoise: terrain.surfaceUniforms.uNoise, uPathTex: terrain.surfaceUniforms.uPathTex,
       uWind: { value: wind }, uFadeDist: this.fade,
+      uPools: { value: POOLS.map((p) => new THREE.Vector4(p.x, p.z, p.r, p.level)) },
     };
 
     // One clump = three tapered blades of five vertices each.

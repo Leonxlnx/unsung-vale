@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Pipeline } from './engine/pipeline.js';
 import { Terrain } from './world/terrain.js';
 import { Water } from './world/water.js';
-import { WORLD, buildMesas } from './world/layout.js';
+import { WORLD, buildMesas, POOLS } from './world/layout.js';
 import { Forest } from './world/flora/forest.js';
 import { GroundCover } from './world/flora/grass.js';
 import { Architecture } from './world/arch/sites.js';
@@ -77,7 +77,7 @@ await stage(0.64, 'Growing the forest');
 const forest = new Forest(pipe, terrain);
 window.__forest = forest;
 // Keep trees off the paved sites and the routes between them.
-const clear = [[-512, -70, 34], [-540, -22, 9], [-372, -392, 24], [66, -498, 27], [96, -590, 34], [98, -336, 13], [150, -15, 44], [-146, -459, 34]];
+const clear = [...POOLS.map((p) => [p.x, p.z, p.r + 5]), [-512, -70, 34], [-540, -22, 9], [-372, -392, 24], [66, -498, 27], [96, -590, 34], [98, -336, 13], [150, -15, 44], [-146, -459, 34]];
 forest.populate((x, z) => clear.some(([cx, cz, r]) => (x - cx) * (x - cx) + (z - cz) * (z - cz) < r * r), [
   { x: -531, z: -93, species: 'ember', scale: 1.3 }, { x: -533, z: -46, species: 'blossom', scale: 1.25 }, { x: -549, z: -34, species: 'elder', scale: 1.0 },
   { x: -356, z: -420, species: 'blossom', scale: 1.2 }, { x: -392, z: -376, species: 'ember', scale: 1.15 }, { x: 40, z: -520, species: 'blossom', scale: 1.2 },
