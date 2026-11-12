@@ -343,11 +343,11 @@ export class Hero {
     let dyaw = wrap(p.yaw - this.lastYaw); this.lastYaw = p.yaw;
     this.yawVel += (dyaw / Math.max(dt, 1e-4) - this.yawVel) * Math.min(1, 8 * dt);
     const moving = grounded && p.state === 'move';
-    this.gait += ((moving ? sstep(0.3, 1.1, speed) : 0) - this.gait) * Math.min(1, 12 * dt);
+    this.gait += ((moving ? sstep(0.3, 1.1, speed) : 0) - this.gait) * Math.min(1, 8 * dt);
     this.airBlend += ((!grounded && p.state !== 'roll' && p.state !== 'attack' && p.airTime > 0.06 ? 1 : 0) - this.airBlend) * Math.min(1, 10 * dt);
     this.landSquash = Math.max(0, this.landSquash - dt * 3.4);
     this.hurtK += ((p.state === 'hurt' ? 1 : 0) - this.hurtK) * Math.min(1, 14 * dt);
-    this.rollK += ((p.state === 'roll' ? 1 : 0) - this.rollK) * Math.min(1, 22 * dt);
+    this.rollK += ((p.state === 'roll' ? 1 : 0) - this.rollK) * Math.min(1, 15 * dt);
     this.deadK += ((p.state === 'dead' ? 1 : 0) - this.deadK) * Math.min(1, 9 * dt);
     const tuning = game.prompt && game.input.held.has('interact') ? clamp01((game.prompt.progress ?? 0) * 3 + 0.3) : 0;
     this.tuneK += (tuning - this.tuneK) * Math.min(1, 7 * dt);
@@ -362,7 +362,7 @@ export class Hero {
     const acc = (speed - this.lastSpeed) / Math.max(dt, 1e-4); this.lastSpeed = speed;
     this.accLean += (Math.max(-1, Math.min(1, acc / 30)) * (moving ? 1 : 0) - this.accLean) * Math.min(1, 7 * dt);
     this.lean += (Math.max(-1, Math.min(1, this.yawVel / 6)) * this.gait - this.lean) * Math.min(1, 6 * dt);
-    const g = this.gait, ikW = clamp01(1 - this.rollK * 1.4) * (1 - this.deadK);
+    const g = this.gait, ikW = ease(clamp01(1 - this.rollK * 1.2)) * (1 - this.deadK);
     const kn = ease(clamp01(this.kneel ?? 0));
 
     // --- attack channels ---
@@ -474,7 +474,8 @@ export class Hero {
 
     // --- airborne, landing, hurt ---
     if (this.airBlend > 0.01) {
-      const w = this.airBlend, falling = clamp01(-p.vel.y / 9);
+      this.fallK = (this.fallK ?? 0) + (clamp01(-p.vel.y / 9) - (this.fallK ?? 0)) * Math.min(1, 9 * dt);
+      const w = this.airBlend, falling = this.fallK;
       R.rot('UpperArm.L', -0.25, 0, 0.35 + 0.45 * falling, w);
       R.rot('Spine', 0.08 - 0.12 * falling, 0, 0, w);
     }
@@ -503,7 +504,7 @@ export class Hero {
     const feet = this.feet, bodyYawW = p.yaw + spinYaw, cb = Math.cos(bodyYawW), sb = Math.sin(bodyYawW);
     const toWorld = (x, y, z, out) => out.set(p.pos.x + x * cb + z * sb, PY + y, p.pos.z - x * sb + z * cb);
     const stand = (s) => { const a = STAND[s], b = FIGHT[s], c = A[s], k = KNEEL[s], w = A.w, f = fight * (1 - g); return [lerp(lerp(lerp(a[0], b[0], f), c[0], w), k[0], kn), lerp(lerp(lerp(a[1], b[1], f), c[1], w), k[1], kn), lerp(lerp(lerp(a[2], b[2], f), c[2], w), k[2], kn), c[3] * w]; };
-    const air = this.airBlend, rising = clamp01(p.vel.y / 6), lockW = Math.max(A.lock, air, g > 0.5 ? 1 : 0);
+    const air = this.airBlend, rising = clamp01(p.vel.y / 6), lockW = Math.max(A.lock, air);       // how far the feet are carried with the body (a leap, a turn)
     const order = ['L', 'R'];
     const ankles = {};
     for (const s of order) {
@@ -512,7 +513,10 @@ export class Hero {
       // First frame, or the body was moved somewhere else in one go: the feet go with it.
       if (!f.init || Math.hypot(want.x - f.pos.x, want.z - f.pos.z) > 2.5) { f.pos.copy(want); f.yaw = wantYaw; f.init = true; f.step = -1; f.lift = 0; }
       // Planted feet stay where they are until the body has moved away from them, then step.
-      if (lockW > 0.5) { f.pos.copy(want); f.yaw = wantYaw; f.step = -1; f.lift = 0; }
+      // While the gait or the body carries a foot outright, its planted place simply goes
+      // along, so it is in the right spot the moment it is set down again.
+      if (g > 0.98) { toWorld(o.x, 0, o.z, f.pos); f.yaw = bodyYawW; f.step = -1; f.lift = 0; }
+      else if (lockW > 0.98) { f.pos.copy(want); f.yaw = wantYaw; f.step = -1; f.lift = 0; }
       else if (f.step >= 0) {
         f.step += dt / f.dur;
         const k = ease(Math.min(1, f.step));
@@ -522,7 +526,7 @@ export class Hero {
         // One foot at a time, unless the body has got well away from this one.
         const err = Math.hypot(want.x - f.pos.x, want.z - f.pos.z), yerr = Math.abs(wrap(wantYaw - f.yaw)), other = feet[s === 'L' ? 'R' : 'L'];
         if ((err > (attacking ? 0.1 : 0.2) || yerr > 0.55) && (other.step < 0 || err > 0.5)) {
-          f.from.copy(f.pos); f.fromYaw = f.yaw; f.step = 0; f.dur = Math.max(0.1, Math.min(0.24, 0.1 + err * 0.22)) * (attacking ? 0.7 : 1); f.h = 0.04 + Math.min(0.1, err * 0.14);
+          f.from.copy(f.pos); f.fromYaw = f.yaw; f.step = 0; f.dur = Math.max(0.1, Math.min(0.24, 0.1 + err * 0.22)) * (attacking ? 0.9 : 1); f.h = 0.04 + Math.min(0.1, err * 0.14);
         }
       }
       // Height of the ground under the foot, eased so a kerb is a step and not a jolt.
@@ -530,8 +534,14 @@ export class Hero {
       const floor = grounded ? W.floorBelow(fx, p.pos.y + 0.55, fz, 1.2) - PY : 0;
       this.gy[s] += (Math.max(-0.45, Math.min(0.45, floor)) - this.gy[s]) * Math.min(1, 18 * dt);
       // Blend: planted / stepping foot, the gait cycle, the air pose.
-      const a = (ankles[s] = { pos: new THREE.Vector3(), yaw: f.yaw - bodyYawW, pitch: 0, abs: 1 });
-      a.pos.set(f.pos.x, PY + ANKLE[1] + f.lift + st[3] + this.gy[s], f.pos.z);
+      const a = (ankles[s] = { pos: new THREE.Vector3(), yaw: wrap(f.yaw - bodyYawW), pitch: 0, abs: 1 });
+      a.pos.set(f.pos.x, PY + ANKLE[1] + f.lift + this.gy[s], f.pos.z);
+      if (lockW > 0.001) {
+        // Carried with the body: eased in and out, never switched.
+        const k = ease(lockW);
+        _v1.set(want.x, PY + ANKLE[1] + st[3] + this.gy[s], want.z);
+        a.pos.lerp(_v1, k); a.yaw = lerp(a.yaw, st[2], k);
+      }
       a.pitch = f.step >= 0 ? 0.25 * Math.sin(Math.PI * Math.min(1, f.step)) : 0;
       // Kneeling: the back foot is up on its toes.
       if (kn > 0.001 && s === 'R') { a.pitch += 1.05 * kn; a.pos.y += 0.1 * kn; }
