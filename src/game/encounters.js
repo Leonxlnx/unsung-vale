@@ -2,10 +2,10 @@
 // five courts beyond the water are fought for in waves, the last led by an elite; the Crown
 // ends with the Stillness. Packs also roam the wilds between the courts.
 const ELITE = {
-  lantern: { scale: 1.38, hp: 3.2, dmg: 1.35, elite: true, name: 'The Lantern Thrall' },
-  stalker: { scale: 1.5, hp: 4.2, dmg: 1.4, speed: 1.12, elite: true, name: 'The Reed Stalker' },
-  gilded: { scale: 1.28, hp: 2.4, dmg: 1.3, elite: true, name: 'The Gilded Warden' },
-  cantor: { scale: 1.4, hp: 3.6, dmg: 1.3, recover: 0.7, elite: true, name: 'The Orchard Cantor' },
+  lantern: { scale: 1.38, hp: 3.2, dmg: 1.35, elite: true, affix: 'mark', name: 'The Lantern Thrall' },
+  stalker: { scale: 1.5, hp: 4.2, dmg: 1.4, speed: 1.12, elite: true, affix: 'split', name: 'The Reed Stalker' },
+  gilded: { scale: 1.28, hp: 2.4, dmg: 1.3, elite: true, affix: 'shell', name: 'The Gilded Warden' },
+  cantor: { scale: 1.4, hp: 3.6, dmg: 1.3, recover: 0.7, elite: true, affix: 'hymn', name: 'The Orchard Cantor' },
   veteran: { scale: 1.16, hp: 1.7, dmg: 1.2, tint: 0.6 },        // a tougher one of the rank and file
 };
 

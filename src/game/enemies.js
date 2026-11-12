@@ -161,7 +161,7 @@ const _q = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0), _v = new TH
 class Enemy {
   constructor(kind, x, y, z, seed, group, mods = null) {
     this.kind = kind; this.def = mods ? derive(KINDS[kind], mods) : KINDS[kind]; this.group = group;
-    this.scale = mods?.scale ?? 1; this.tint = mods ? (mods.tint ?? 1) : 0; this.elite = !!mods?.elite; this.phase = 0;
+    this.scale = mods?.scale ?? 1; this.tint = mods ? (mods.tint ?? 1) : 0; this.elite = !!mods?.elite; this.affix = mods?.affix ?? null; this.phase = 0;
     this.pos = new THREE.Vector3(x, y, z); this.home = this.pos.clone();
     this.yaw = seed * 6.283; this.vel = new THREE.Vector3();
     this.hp = this.def.hp; this.poise = this.def.poise;
@@ -224,6 +224,7 @@ export class Enemies {
         dmg *= 0.5;
       }
     }
+    if (e.shelled) { dmg *= 0.3; this.events.push({ type: 'warded', enemy: e }); }
     if (e.ward > 0 && !(heavy && this.anvil)) { dmg *= heavy ? 0.6 : 0.35; this.events.push({ type: 'warded', enemy: e }); }
     // Caught off balance, it takes a heavy blow half as hard again, and everyone hears it.
     if (heavy && e.state === 'stagger' && !e.def.boss) { dmg *= 1.5; this.events.push({ type: 'rung', enemy: e }); }
@@ -248,6 +249,7 @@ export class Enemies {
     this.particles.burst(c.x, c.y, c.z, e.def.boss ? 90 : 36, { speed: e.def.boss ? 14 : 8, life: 0.9, size: 0.1, color: [4, 2, 8], gravity: 5, drag: 1.5, streak: 0.05 });
     this.particles.spawn(c.x, c.y, c.z, { life: 0.5, size: e.def.boss ? 7 : 3, color: [2.4, 1.2, 4.5], grow: 1.5, alpha: 0.7 });
     this.events.push({ type: 'death', enemy: e });
+    if (e.affix === 'split') this.events.push({ type: 'split', enemy: e });
   }
 
   update(dt, player, time) {
@@ -259,6 +261,10 @@ export class Enemies {
       e.t += dt;
       e.glow += ((e.state === 'windup' ? 0.6 + 0.9 * (e.t / d.windup) : 0.12) - e.glow) * Math.min(1, 6 * dt);
       e.staggerK *= Math.exp(-5 * dt);
+      if (e.affix === 'shell' && e.alive && e.state !== 'dormant') {
+        e.shelled = this.list.some((o) => o !== e && o.alive && o.group === e.group);
+        if (e.shelled) { const c = e.center, an = time * 2.4, rr = d.radius + 0.7; for (let k = 0; k < 3; k++) P.spawn(c.x + Math.cos(an + k * 2.094) * rr, c.y + 0.5 * Math.sin(time * 1.7 + k), c.z + Math.sin(an + k * 2.094) * rr, { life: 0.4, size: 0.12, color: [3.0, 1.6, 6.0], alpha: 0.9 }); }
+      }
       if (e.wardCd > 0) e.wardCd -= dt;
       if (e.rushCd > 0) e.rushCd -= dt;
       if (e.ward > 0) {
@@ -298,10 +304,10 @@ export class Enemies {
             if (d.caster && !(e.wardCd > 0) && dist < 30) {
               let best = null, bd = 18;
               for (const o of this.list) { if (o === e || !o.alive || o.def.ranged || o.def.boss || o.def.burst || o.ward > 0 || o.state === 'dormant' || o.state === 'rise') continue; const dd = o.pos.distanceTo(e.pos); if (dd < bd) { bd = dd; best = o; } }
-              e.wardCd = best ? 10 : 2;
-              if (best) { best.ward = 5.5; best.warder = e; this.events.push({ type: 'ward', enemy: e, ally: best }); }
+              e.wardCd = best ? (e.affix === 'hymn' ? 3.5 : 10) : 2;
+              if (best) { best.ward = e.affix === 'hymn' ? 7.5 : 5.5; best.warder = e; this.events.push({ type: 'ward', enemy: e, ally: best }); }
             }
-            if (dist < 22 && e.t > 1.4 + e.seed * 1.2) { e.state = 'windup'; e.t = 0; this.events.push({ type: 'charge', enemy: e }); }
+            if (dist < 22 && e.t > (1.4 + e.seed * 1.2) / this.haste) { e.state = 'windup'; e.t = 0; this.events.push({ type: 'charge', enemy: e }); }
           } else if (d.circle && dist < 8.5) {
             // Round the hero at a few paces, then in.
             const s = (e.orbit ??= e.seed < 0.5 ? 1 : -1), inw = dist > 5.5 ? 0.7 : dist < 3.6 ? -0.5 : 0.05;
@@ -333,7 +339,8 @@ export class Enemies {
           if (playerAlive && dist < d.sight * 0.5 && e.pos.distanceTo(e.home) < 40) e.state = 'chase';
         } else if (e.state === 'windup') {
           if (e.t < d.windup * 0.75) faceP();
-          if (e.t >= d.windup / (0.5 + 0.5 * this.haste)) { e.state = 'strike'; e.t = 0; e.didHit = false; this.events.push({ type: 'attack', enemy: e }); }
+          if (e.t >= d.windup / (0.5 + 0.5 * this.haste)) { e.state = 'strike'; e.t = 0; e.didHit = false; this.events.push({ type: 'attack', enemy: e });
+            if (e.affix === 'mark') { const b = { x: player.pos.x, z: player.pos.z, t: 1.15, r: 2.8, dmg: Math.round(d.damage * 0.8), y: W.floorBelow(player.pos.x, player.pos.y + 1.5, player.pos.z, 6) }; this.blasts.push(b); this.events.push({ type: 'blastMark', blast: b, enemy: e }); } }
         } else if (e.state === 'strike') {
           const f = _v2.set(Math.sin(e.yaw), 0, Math.cos(e.yaw));
           if (d.burst) {

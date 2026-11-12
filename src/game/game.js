@@ -524,7 +524,7 @@ export class Game {
     // While a spire is being tuned the hero stands to it and the camera belongs to the moment.
     const busy = this.tuning.active || !!this.people.talk;
     // How hard the Mute press: more of them at once and brisker on Standard and Hard.
-    this.enemies.crowd = { gentle: 2, hard: 4 }[this.challenge] ?? 3; this.enemies.haste = { gentle: 1, hard: 1.45 }[this.challenge] ?? 1.22;
+    this.enemies.crowd = { gentle: 2, hard: 4 }[this.challenge] ?? 3; this.enemies.haste = { gentle: 1, hard: 1.5 }[this.challenge] ?? 1.3;
     p.inCombat = this.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.state !== 'return' && e.pos.distanceToSquared(p.pos) < 1600);
     p.refrainMax = TUNE.refrain.charges + (this.spires.filter((s) => s.tuned).length >= 3 ? 1 : 0) + (this.spires.filter((s) => s.tuned).length >= 6 ? 1 : 0);
     // Echo step: for a breath the Mute move as if through water.
@@ -633,7 +633,7 @@ export class Game {
       if (dist > 0.6 && d.normalize().dot(f) < Math.cos(a.arc / 2 + 0.25)) continue;
       p.hitDone.add(e);
       const heavy = p.comboStep >= 2;
-      if (this.enemies.hit(e, a.dmg * p.power * (1 + 0.08 * this.cadenceLevel), p.pos, heavy)) {
+      if (this.enemies.hit(e, a.dmg * p.power * (1 + 0.08 * this.cadenceLevel) * ({ gentle: 1, hard: 0.8 }[this.challenge] ?? 0.9), p.pos, heavy)) {
         this._cadence(heavy ? 2 : 1, e);
         this.hitStop = heavy ? 0.11 : 0.06;
         this.rig.addShake(heavy ? 0.5 : 0.28);
@@ -770,7 +770,7 @@ export class Game {
 
   _onEnemyEvent(e) {
     if (e.type === 'hitPlayer') {
-      const took = this.player.damage(Math.round(e.damage * ({ gentle: 0.75, hard: 1.75 }[this.challenge] ?? 1.3)), e.from ?? e.enemy.pos);
+      const took = this.player.damage(Math.round(e.damage * ({ gentle: 0.75, hard: 1.9 }[this.challenge] ?? 1.5)), e.from ?? e.enemy.pos);
       if (took && e.enemy?.alive && this.player.charms?.has('thorn')) { this.enemies.hit(e.enemy, Math.round(e.damage * 0.6 * this.player.power), this.player.pos, false); const c = e.enemy.center; this.particles.burst(c.x, c.y, c.z, 12, { speed: 6, life: 0.4, size: 0.05, color: [1.8, 3.0, 1.0], gravity: 8, drag: 1.4, streak: 0.1 }); }
     }
     if (e.type === 'slam') {
@@ -813,6 +813,12 @@ export class Game {
     if (e.type === 'blocked') {
       const c = e.enemy.center;
       this.particles.burst(c.x, c.y, c.z, 12, { speed: 8, life: 0.3, size: 0.05, color: [3, 2.6, 4], gravity: 12, drag: 1.5, streak: 0.14 });
+    }
+    if (e.type === 'wake' && e.enemy.affix && !this.cine) this.emit('hint', { title: e.enemy.def.name, text: { mark: 'Where it strikes, the ground remembers. Do not stand where you stood.', split: 'When it falls, what held it together comes for you.', shell: 'Nothing bites on it while any of its own still stand.', hymn: 'It keeps two of its own under ward at once. Break the singer first.' }[e.enemy.affix] });
+    if (e.type === 'split') {
+      const q = e.enemy;
+      for (let k = 0; k < 3; k++) { const a = k * 2.094 + 0.5, s = this.enemies.spawn('seeker', q.pos.x + Math.cos(a) * 1.6, q.pos.z + Math.sin(a) * 1.6, q.group, null, q.pos.y); s.state = 'rise'; s.t = 0.5; }
+      this.vfx.wave(q.pos.x, q.pos.y + 0.1, q.pos.z, { r0: 0.4, r1: 5, life: 0.6, strength: 1.1, width: 0.07, color: [2.4, 1.15, 4.6] });
     }
     if (e.type === 'wake' && (e.enemy.def.boss || e.enemy.elite)) { this.boss = e.enemy; this.emit('boss', { enemy: e.enemy }); this.regard = { e: e.enemy, t: e.enemy.def.boss ? 2.4 : 1.2 }; }
     if (e.type === 'phase') {
