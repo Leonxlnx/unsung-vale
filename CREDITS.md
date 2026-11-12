@@ -3,7 +3,7 @@
 ## Audio
 
 All audio in `public/audio/` is third-party material used under Creative Commons licences
-(CC BY 4.0, CC BY 3.0 or CC0 1.0). Nothing was synthesised or generated for this project.
+(CC BY 4.0 or CC0 1.0). Nothing was synthesised or generated for this project.
 
 Every file was edited with ffmpeg: trimmed, given short fades, normalised (music and ambience to
 about -16 LUFS integrated, effects to a -3 dBFS peak) and re-encoded as Ogg Vorbis. The per-file
@@ -13,7 +13,6 @@ high-quality MP3 previews, which carry the same licence as the original uploads.
 Licences used:
 
 - **CC BY 4.0** - Creative Commons Attribution 4.0 International - <https://creativecommons.org/licenses/by/4.0/>
-- **CC BY 3.0** - Creative Commons Attribution 3.0 Unported - <https://creativecommons.org/licenses/by/3.0/>
 - **CC0 1.0** - Creative Commons Zero 1.0 Universal (public domain dedication) - <https://creativecommons.org/publicdomain/zero/1.0/>
 
 CC0 material needs no attribution; it is credited here with thanks.
@@ -52,16 +51,64 @@ All ambience recordings come from [freesound.org](https://freesound.org) and are
 | `amb/waterfall.ogg` | Þingvellir waterfall hard 1.wav | dikolson | <https://freesound.org/people/dikolson/sounds/130232/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Excerpt 0:05 to 1:10; the end is cross-faded (5 s) into the start to make a seamless 60 s loop. Gain +7.2 dB to about -16.7 LUFS. Converted to Ogg Vorbis. |
 | `amb/water_lap.ogg` | Water_Lapping_River.wav | ceich93 | <https://freesound.org/people/ceich93/sounds/318064/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | The end is cross-faded (4 s) into the start to make a seamless 54.5 s loop. Gain +12.4 dB with peak limiting of the splash transients to -16 LUFS. Converted to Ogg Vorbis. |
 
-### Sound effects
+### Impulse response
 
-Unless stated otherwise each effect was trimmed to the sound itself, mixed down to mono, given
-edge fades of a few milliseconds, peak-normalised to -3 dBFS and converted to Ogg Vorbis.
-
-#### Little Robot Sound Factory - CC BY 3.0
+The reverb uses a measured impulse response of a real space from the Open Acoustic Impulse
+Response Library (OpenAIR) of the University of York.
 
 | File | Title | Author | Source | Licence | Changes |
 | --- | --- | --- | --- | --- | --- |
-| `sfx/enemy_shot_1.ogg` | Fantasy Sound Effects Library (`Spell_01.wav`) | Little Robot Sound Factory (<https://www.littlerobotsoundfactory.com>) | <https://opengameart.org/content/fantasy-sound-effects-library> | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) | Leading and trailing silence trimmed, 60 ms fade-out, peak-normalised, WAV converted to Ogg Vorbis. |
+| `ir/space.ogg` | Falkland Palace Royal Tennis Court (`falkland_tennis_court_ortf.wav`, stereo ORTF measurement of the unroofed stone court) | Dr. Damian T. Murphy, Audiolab, University of York (OpenAIR, www.openairlib.net) | <https://www.openair.hosted.york.ac.uk/?page_id=476> (file: <https://webfiles.york.ac.uk/OPENAIR/IRs/falkland-palace-royal-tennis-court/stereo/falkland_tennis_court_ortf.wav>) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | 22 ms of leading silence removed; first 1.73 s kept with a 0.35 s fade-out (the original is 4.8 s, mostly silent tail). Kept in stereo, peak-normalised to about -3 dBFS, 24-bit WAV converted to Ogg Vorbis. |
+
+### Sound effects
+
+Unless stated otherwise each effect was trimmed to the sound itself, mixed down to mono, given
+edge fades of a few milliseconds, peak-normalised to -3 dBFS and converted to Ogg Vorbis. Where
+one source holds several takes, each take was cut into its own file; the times given are
+positions in the source recording.
+
+#### freesound.org - CC BY 4.0
+
+| File | Title | Author | Source | Licence | Changes |
+| --- | --- | --- | --- | --- | --- |
+| `sfx/swing_1.ogg`, `sfx/swing_2.ogg`, `sfx/swing_3.ogg`, `sfx/swing_4.ogg`, `sfx/swing_5.ogg`, `sfx/swing_heavy_1.ogg`, `sfx/swing_heavy_2.ogg`, `sfx/swing_heavy_3.ogg` | Combat Whoosh 2021 | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/572682/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Eight of the 21 whooshes cut into separate files: `swing` from 4.02 s, 4.50 s, 5.80 s, 7.18 s and 2.37 s (0.27 to 0.45 s each), `swing_heavy` from 10.68 s, 11.70 s and 1.59 s (0.52 to 0.70 s each). 50 to 60 ms fade-out, mono mix-down, peak-normalised, converted. |
+| `sfx/enemy_swing_1.ogg`, `sfx/enemy_swing_2.ogg` | Swooshes (Bass) | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/582083/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | The fifth and fourth swooshes: 0.6 s from 6.87 s and from 5.04 s, the long tails shortened with a 200 ms fade-out. Mono mix-down, peak-normalised, converted. |
+| `sfx/hit_1.ogg`, `sfx/hit_2.ogg`, `sfx/hit_3.ogg`, `sfx/hit_4.ogg`, `sfx/hit_5.ogg` | Sword Hit | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/574612/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Five of the 45 hits cut into separate files (from 1.19 s, 8.44 s, 16.72 s, 30.95 s and 42.07 s; 0.55 to 0.6 s each); 150 ms fade-out, mono mix-down, peak-normalised, converted. |
+| `sfx/hit_heavy_1.ogg`, `sfx/hit_heavy_2.ogg`, `sfx/hit_heavy_3.ogg` | Impact Hit & Drop | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/646937/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | The first three impacts cut into separate files (from 0.22 s, 1.03 s and 1.86 s; 0.75 s each); 200 ms fade-out, mono mix-down, peak-normalised, converted. |
+| `sfx/crystal_1.ogg`, `sfx/crystal_2.ogg`, `sfx/crystal_3.ogg`, `sfx/crystal_4.ogg` | Mining Mineral Ice Picking Crystal | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/554794/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Strikes 1, 2, 4 and 5 of the five cut into separate files (from 0.06 s, 0.97 s, 2.55 s and 3.44 s; about 0.4 s each); 150 ms fade-out, mono mix-down, peak-normalised, converted. |
+| `sfx/shatter_1.ogg`, `sfx/shatter_2.ogg` | Glass Break Impact | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/569562/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | The two breaks cut into separate files (from 0.07 s and 2.58 s; about 1.7 s each); 350 ms fade-out, mono mix-down, peak-normalised, converted. |
+| `sfx/shatter_3.ogg` | Magic Ice Impact Skill Spell | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/550267/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Whole sound (1.73 s) with a 200 ms fade-out; mono mix-down, peak-normalised, converted. |
+| `sfx/shatter_big_1.ogg` | Earth & Ice Impact Spell Skill | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/550262/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | 90 ms lead-in trimmed, 400 ms fade-out; mono mix-down, peak-normalised, converted. |
+| `sfx/shatter_big_2.ogg`, `sfx/enemy_wake_1.ogg`, `sfx/enemy_wake_2.ogg`, `sfx/enemy_wake_3.ogg` | Rocks - Crumbling / Falling - Designed Rocks | GregorQuendel (<https://www.gregorquendel.com>) | <https://freesound.org/people/GregorQuendel/sounds/555048/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Excerpts of the 21.5 s recording: `shatter_big_2` is 16.6 s to 20.4 s (the final collapse, 20 ms fade-in, 400 ms fade-out); `enemy_wake` is 0 s to 1.6 s, 5.9 s to 7.6 s and 10.5 s to 12.3 s (fade-ins of 10 to 100 ms, fade-outs of 350 to 400 ms). Peak-normalised, converted. |
+| `sfx/enemy_charge_1.ogg`, `sfx/enemy_charge_2.ogg` | Magic Whoosh | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/612666/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | The rising half of the third and fourth whooshes only (8.09 s to 9.04 s and 11.38 s to 12.33 s), closed with a 120 ms fade-out so each ends at its loudest point. Mono mix-down, peak-normalised, converted. |
+| `sfx/enemy_shot_1.ogg` | Fire Magic Whoosh | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/546824/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Whole sound with a 100 ms fade-out; mono mix-down, peak-normalised, converted. |
+| `sfx/enemy_shot_2.ogg` | Shadow Evil Spell Dark Magic | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/559087/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | First 0.9 s of the 1.87 s sound with a 250 ms fade-out; mono mix-down, peak-normalised, converted. |
+| `sfx/enemy_shot_hit_1.ogg` | Magic Ice Spell Impact & Punch | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/541479/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | 60 ms lead-in trimmed, cut to 0.64 s with a 200 ms fade-out; mono mix-down, peak-normalised, converted. |
+| `sfx/enemy_shot_hit_2.ogg` | Magic Lighting Spell Impact & Punch | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/541480/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Cut to 0.7 s with a 150 ms fade-out; mono mix-down, peak-normalised, converted. |
+| `sfx/slam_1.ogg`, `sfx/slam_2.ogg`, `sfx/death_1.ogg` | Cinematic Hit Impact 2023 | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/712057/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Three of the five impacts cut into separate files, the first 2 s of each: `slam` from 14.75 s and 20.75 s (600 ms fade-out), `death` from 9.59 s (700 ms fade-out). Mono mix-down, peak-normalised, converted. |
+| `sfx/hurt_1.ogg` | Combat Punch Metal Armor | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/545021/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | 70 ms lead-in trimmed, 100 ms fade-out; mono mix-down, peak-normalised, converted. |
+| `sfx/hurt_2.ogg`, `sfx/hurt_3.ogg` | Player Hit & Impact | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/568795/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Impacts 1 and 3 of the three cut into separate files (0.42 s each); 120 ms fade-out, mono mix-down, peak-normalised, converted. |
+| `sfx/block_1.ogg` | Sword Hit Medium | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/536105/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | 48 ms of leading silence trimmed, 120 ms fade-out; mono mix-down, peak-normalised, converted. |
+| `sfx/block_2.ogg` | Sword Hit Heavy | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/536104/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | 55 ms of leading silence trimmed, 250 ms fade-out; mono mix-down, peak-normalised, converted. |
+| `sfx/pulse_1.ogg`, `sfx/pulse_2.ogg` | Tonal Impact | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/623135/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Impacts 1 and 8 of the nine cut into separate files (from 0.28 s and 9.90 s; about 1.2 s each); 300 ms fade-out, mono mix-down, peak-normalised, converted. |
+| `sfx/tune_hold_1.ogg` | Singin Bowl Magic Energy Aura Varations | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/581625/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | 3.4 s excerpt (21.0 s to 24.4 s, where the rubbed tone swells) with a 120 ms fade-in and 300 ms fade-out; kept in stereo, peak-normalised, converted. |
+| `sfx/restore_1.ogg` | Heal Short | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/587603/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Whole sound (3.5 s) with a 200 ms fade-out; kept in stereo, peak-normalised, converted. |
+| `sfx/respawn_1.ogg` | Priest Cure Disease Purify Skill | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/554792/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Whole sound (1.87 s) with a 200 ms fade-out; mono mix-down, peak-normalised, converted. |
+| `sfx/objective_1.ogg` | Notification Chime | hykenfreak | <https://freesound.org/people/hykenfreak/sounds/202029/> | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | First 1.5 s of the 5 s sound with a 550 ms fade-out; mono mix-down, peak-normalised, converted. |
+
+#### freesound.org - CC0 1.0
+
+| File | Title | Author | Source | Licence | Changes |
+| --- | --- | --- | --- | --- | --- |
+| `sfx/step_grass_1.ogg`, `sfx/step_grass_2.ogg`, `sfx/step_grass_3.ogg`, `sfx/step_grass_4.ogg`, `sfx/step_grass_5.ogg`, `sfx/step_grass_6.ogg`, `sfx/step_grass_7.ogg`, `sfx/step_grass_8.ogg` | Footsteps_Mountain_Boots_Grass_Mono.wav | Nox_Sound | <https://freesound.org/people/Nox_Sound/sounds/556042/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Eight single steps cut into separate files (from 1.08 s, 6.32 s, 8.54 s, 11.49 s, 14.56 s, 15.64 s, 16.81 s and 17.78 s; about 0.44 s each); 120 ms fade-out, peak-normalised, converted. |
+| `sfx/step_stone_1.ogg`, `sfx/step_stone_2.ogg`, `sfx/step_stone_3.ogg`, `sfx/step_stone_4.ogg`, `sfx/step_stone_5.ogg`, `sfx/step_stone_6.ogg`, `sfx/step_stone_7.ogg`, `sfx/step_stone_8.ogg` | Footsteps_Mountain_Boots_Rock_Walk_Sequence_Mono.wav | Nox_Sound | <https://freesound.org/people/Nox_Sound/sounds/558472/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Eight single steps cut into separate files (from 1.87 s, 3.74 s, 4.71 s, 7.45 s, 8.36 s, 13.20 s, 14.09 s and 17.03 s; 0.38 to 0.45 s each); 80 ms fade-out, peak-normalised, converted. |
+| `sfx/land_1.ogg`, `sfx/land_2.ogg`, `sfx/land_3.ogg`, `sfx/land_heavy_1.ogg`, `sfx/land_heavy_2.ogg` | Footsteps_Mountain_Boots_Rock_Jump_Sequence_Mono.wav | Nox_Sound | <https://freesound.org/people/Nox_Sound/sounds/558477/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | The landing of five of the six jumps cut out, without the push-off before it: `land` from 4.96 s, 6.50 s and 7.88 s (0.44 s each, 120 ms fade-out), `land_heavy` from 0.45 s and 2.00 s (0.49 s each, 150 ms fade-out). Peak-normalised, converted. |
+| `sfx/roll_1.ogg`, `sfx/roll_2.ogg`, `sfx/roll_3.ogg`, `sfx/jump_1.ogg`, `sfx/jump_2.ogg` | Foley_Cloth_Movement_Jacket_96khz.wav | Nox_Sound | <https://freesound.org/people/Nox_Sound/sounds/555307/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Five of the nine movements cut into separate files: `roll` from 12.93 s, 1.86 s and 0.18 s (0.56 to 0.7 s each), `jump` from 3.41 s and 4.60 s (0.4 s each). 10 to 30 ms fade-in, 80 to 120 ms fade-out, peak-normalised, converted. |
+| `sfx/gear_1.ogg`, `sfx/gear_2.ogg`, `sfx/gear_3.ogg`, `sfx/gear_4.ogg`, `sfx/gear_5.ogg` | Leather Movement | EminYILDIRIM | <https://freesound.org/people/EminYILDIRIM/sounds/536087/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Five short creaks cut into separate files (from 0.30 s, 1.68 s, 2.98 s, 3.72 s and 4.34 s; 0.22 to 0.34 s each); 30 ms fade-in, 80 ms fade-out, mono mix-down, peak-normalised, converted. |
+| `sfx/enemy_idle_1.ogg` | Dark Voice Drone 03 - Loop | kkenny101 | <https://freesound.org/people/kkenny101/sounds/873035/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | The end is cross-faded (0.75 s) into the start to restore a seamless 8.15 s loop; mono mix-down, peak-normalised, converted. |
+| `sfx/pickup_1.ogg` | Glockenspiel_46_f4_04 | cabled_mess | <https://freesound.org/people/cabled_mess/sounds/348924/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | First 1.5 s with a 0.5 s fade-out; peak-normalised, converted. |
+| `sfx/spire_tune_1.ogg` | Tibetan bowl_center hit.wav | dersinnsspace | <https://freesound.org/people/dersinnsspace/sounds/421829/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | First 7.5 s with a 2.5 s fade-out; kept in stereo, peak-normalised, converted. |
+| `sfx/bridge_1.ogg` | MAGShim_Reverse, Shimmering, High-Pitched, Crystal, Tremelo_02_JW Audio | JW_Audio | <https://freesound.org/people/JW_Audio/sounds/831803/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Excerpt 0.25 s to 5.0 s with a 0.6 s fade-out; kept in stereo, peak-normalised, converted. |
 
 #### Kenney - CC0 1.0
 
@@ -71,33 +118,3 @@ edge fades of a few milliseconds, peak-normalised to -3 dBFS and converted to Og
 | `sfx/ui_click.ogg` | Interface Sounds (`click_001.ogg`) | Kenney | <https://kenney.nl/assets/interface-sounds> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Peak-normalised and re-encoded. |
 | `sfx/ui_back.ogg` | Interface Sounds (`back_002.ogg`) | Kenney | <https://kenney.nl/assets/interface-sounds> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Peak-normalised and re-encoded. |
 | `sfx/ui_open.ogg` | Interface Sounds (`open_002.ogg`) | Kenney | <https://kenney.nl/assets/interface-sounds> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Peak-normalised and re-encoded. |
-| `sfx/roll_1.ogg` | RPG Audio (`cloth1.ogg`) | Kenney | <https://kenney.nl/assets/rpg-audio> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Silence trimmed, mono mix-down, peak-normalised and re-encoded. |
-
-#### OpenGameArt.org - CC0 1.0
-
-| File | Title | Author | Source | Licence | Changes |
-| --- | --- | --- | --- | --- | --- |
-| `sfx/jump_1.ogg` | RPG Sound Pack (`inventory/cloth.wav`) | artisticdude | <https://opengameart.org/content/rpg-sound-pack> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Silence trimmed, mono mix-down, peak-normalised, WAV converted to Ogg Vorbis. |
-
-#### freesound.org - CC0 1.0
-
-| File | Title | Author | Source | Licence | Changes |
-| --- | --- | --- | --- | --- | --- |
-| `sfx/step_grass_1.ogg`, `sfx/step_grass_2.ogg`, `sfx/step_grass_3.ogg`, `sfx/step_grass_4.ogg` | Hiking Boot Footsteps on Grass | Fission9 | <https://freesound.org/people/Fission9/sounds/521587/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Steps 1, 3, 4 and 5 of the six-step recording cut into separate files; 60 ms fade-out, peak-normalised, converted. |
-| `sfx/step_stone_1.ogg`, `sfx/step_stone_2.ogg`, `sfx/step_stone_3.ogg`, `sfx/step_stone_4.ogg` | Hiking Boot Footsteps on Stone | Fission9 | <https://freesound.org/people/Fission9/sounds/521590/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Steps 2, 3, 4 and 5 of the six-step recording cut into separate files; 60 ms fade-out, peak-normalised, converted. |
-| `sfx/swing_1.ogg` | Whoosh | qubodup | <https://freesound.org/people/qubodup/sounds/60013/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Mono mix-down, edge fades, peak-normalised, converted. |
-| `sfx/swing_2.ogg` | Fast Sword Swing Sound | qubodup | <https://freesound.org/people/qubodup/sounds/60004/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Mono mix-down, edge fades, peak-normalised, converted. |
-| `sfx/swing_3.ogg` | swosh swinging sword 37.flac | qubodup | <https://freesound.org/people/qubodup/sounds/60024/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Mono mix-down, edge fades, peak-normalised, converted. |
-| `sfx/hit_1.ogg` | Stone hit | CamoMano | <https://freesound.org/people/CamoMano/sounds/431019/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Silence trimmed, mono mix-down, peak-normalised, converted. |
-| `sfx/hit_2.ogg` | Concrete Hit | dslrguide | <https://freesound.org/people/dslrguide/sounds/321477/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Tail trimmed, mono mix-down, peak-normalised, converted. |
-| `sfx/hit_3.ogg` | Concrete Hit 2 | dslrguide | <https://freesound.org/people/dslrguide/sounds/321478/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Leading silence trimmed, mono mix-down, peak-normalised, converted. |
-| `sfx/shatter_1.ogg` | Glass Break | unfa | <https://freesound.org/people/unfa/sounds/221528/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Silence trimmed, mono mix-down, peak-normalised, converted. |
-| `sfx/shatter_2.ogg` | Glass Smash.wav | chewiesmissus | <https://freesound.org/people/chewiesmissus/sounds/244238/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Silence trimmed, mono mix-down, peak-normalised, converted. |
-| `sfx/block_1.ogg` | Sword_Clash (7).wav | JohnBuhr | <https://freesound.org/people/JohnBuhr/sounds/326868/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Trailing silence trimmed, 80 ms fade-out, peak-normalised, converted. |
-| `sfx/hurt_1.ogg`, `sfx/hurt_2.ogg` | Face Punch, Body Impact, 4x | Kinoton | <https://freesound.org/people/Kinoton/sounds/503277/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Impacts 1 and 3 of the four cut into separate files; mono mix-down, peak-normalised, converted. |
-| `sfx/land_1.ogg` | Footsteps_Mountain_Boots_Rock_Jump_Sequence_Mono.wav | Nox_Sound | <https://freesound.org/people/Nox_Sound/sounds/558477/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | The second landing (1.99 s to 2.40 s) cut out; 80 ms fade-out, peak-normalised, converted. |
-| `sfx/enemy_charge_1.ogg` | ANI - Wine glass - Rubbing 1a | ani_music | <https://freesound.org/people/ani_music/sounds/198403/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | 2 s excerpt (0.3 s to 2.3 s) with a 1.5 s fade-in, so the tone swells, and a 150 ms fade-out; mono mix-down, peak-normalised, converted. |
-| `sfx/enemy_idle_1.ogg` | Dark Voice Drone 03 - Loop | kkenny101 | <https://freesound.org/people/kkenny101/sounds/873035/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | The end is cross-faded (0.75 s) into the start to restore a seamless 8.15 s loop; mono mix-down, peak-normalised, converted. |
-| `sfx/pickup_1.ogg` | Glockenspiel_46_f4_04 | cabled_mess | <https://freesound.org/people/cabled_mess/sounds/348924/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | First 1.5 s with a 0.5 s fade-out; peak-normalised, converted. |
-| `sfx/spire_tune_1.ogg` | Tibetan bowl_center hit.wav | dersinnsspace | <https://freesound.org/people/dersinnsspace/sounds/421829/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | First 7.5 s with a 2.5 s fade-out; kept in stereo, peak-normalised, converted. |
-| `sfx/bridge_1.ogg` | MAGShim_Reverse, Shimmering, High-Pitched, Crystal, Tremelo_02_JW Audio | JW_Audio | <https://freesound.org/people/JW_Audio/sounds/831803/> | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Excerpt 0.25 s to 5.0 s with a 0.6 s fade-out; kept in stereo, peak-normalised, converted. |

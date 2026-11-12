@@ -8,6 +8,8 @@ import * as THREE from 'three';
 
 const key = (name) => name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 const _e = new THREE.Euler(), _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _m = new THREE.Matrix4();
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3(), _k = new THREE.Vector3(), _t = new THREE.Vector3();
+const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion(), _q4 = new THREE.Quaternion();
 
 export class Rig {
   constructor(root) {
@@ -39,6 +41,72 @@ export class Rig {
     if (!b) return;
     _q.setFromEuler(_e.set(x * weight, y * weight, z * weight, 'YXZ'));
     b.pose.premultiply(_q); b.hasPose = true;
+  }
+
+  // The same about any axis given in character space (need not be unit length).
+  rotAxis(name, ax, ay, az, angle) {
+    const b = this.bones[key(name)];
+    if (!b || !angle) return;
+    const l = Math.hypot(ax, ay, az) || 1;
+    _q.setFromAxisAngle(_v.set(ax / l, ay / l, az / l), angle);
+    b.pose.premultiply(_q); b.hasPose = true;
+  }
+
+  // World orientation of a bone (its parents' matrices are brought up to date first).
+  worldQ(bone, out) { bone.updateWorldMatrix(true, false); return out.setFromRotationMatrix(bone.matrixWorld); }
+
+  // Turns a bone so that its orientation in the world is exactly q, whatever its parents do.
+  setWorldQ(name, q, weight = 1) {
+    const b = this.bones[key(name)];
+    if (!b) return;
+    this.worldQ(b.bone.parent, _q4).invert().multiply(q);
+    if (weight >= 1) b.bone.quaternion.copy(_q4); else b.bone.quaternion.slerp(_q4, weight);
+  }
+
+  // The same in the character's own space: the bone's rest orientation turned by d (a
+  // quaternion in character axes), e.g. a foot held flat on the ground while the leg moves.
+  setCharQ(name, d, weight = 1) {
+    const b = this.bones[key(name)];
+    if (!b) return;
+    this.worldQ(this.root, _q3).multiply(d).multiply(b.rest);
+    this.setWorldQ(name, _q3, weight);
+  }
+
+  // Two-bone inverse kinematics: turns `upper` and `lower` so that the origin of `end`
+  // reaches `target` (world space), bending toward `pole` (a world direction). Out-of-reach
+  // targets are approached with the limb straight. weight blends against the pose the limb
+  // already has.
+  ik(upper, lower, end, target, pole, weight = 1) {
+    const U = this.bones[key(upper)]?.bone, L = this.bones[key(lower)]?.bone, E = this.bones[key(end)]?.bone;
+    if (!U || !L || !E || weight <= 0) return;
+    const u0 = _q1.copy(U.quaternion), l0 = _q2.copy(L.quaternion);
+    U.updateWorldMatrix(true, false); L.updateWorldMatrix(false, false); E.updateWorldMatrix(false, false);
+    const a = _a.setFromMatrixPosition(U.matrixWorld), b = _b.setFromMatrixPosition(L.matrixWorld), c = _c.setFromMatrixPosition(E.matrixWorld);
+    const lab = a.distanceTo(b), lcb = b.distanceTo(c);
+    const dir = _d.copy(target).sub(a);
+    const lat = Math.max(Math.abs(lab - lcb) + 1e-3, Math.min((lab + lcb) * 0.9995, dir.length()));
+    dir.normalize();
+    // The part of the pole that is square to the reach direction says which way the joint bends.
+    const pp = _p.copy(pole).addScaledVector(dir, -pole.dot(dir));
+    if (pp.lengthSq() < 1e-8) pp.set(dir.y, dir.z, dir.x).addScaledVector(dir, -(dir.x * dir.y + dir.y * dir.z + dir.z * dir.x));
+    pp.normalize();
+    const cosA = Math.max(-1, Math.min(1, (lab * lab + lat * lat - lcb * lcb) / (2 * lab * lat))), sinA = Math.sqrt(1 - cosA * cosA);
+    const knee = _k.copy(a).addScaledVector(dir, lab * cosA).addScaledVector(pp, lab * sinA);
+    // Upper bone: swing its child toward the joint position.
+    _q.setFromUnitVectors(_v.copy(b).sub(a).normalize(), _v2.copy(knee).sub(a).normalize());
+    this.worldQ(U, _q3).premultiply(_q);
+    this.worldQ(U.parent, _q4).invert().multiply(_q3);
+    U.quaternion.copy(_q4);
+    U.updateWorldMatrix(false, false); L.updateWorldMatrix(false, false); E.updateWorldMatrix(false, false);
+    // Lower bone: swing the end onto the target.
+    b.setFromMatrixPosition(L.matrixWorld); c.setFromMatrixPosition(E.matrixWorld);
+    _t.copy(a).addScaledVector(dir, lat);
+    _q.setFromUnitVectors(_v.copy(c).sub(b).normalize(), _v2.copy(_t).sub(b).normalize());
+    _q3.setFromRotationMatrix(L.matrixWorld).premultiply(_q);
+    _q4.setFromRotationMatrix(U.matrixWorld).invert().multiply(_q3);
+    L.quaternion.copy(_q4);
+    if (weight < 1) { U.quaternion.copy(u0.slerp(U.quaternion, weight)); L.quaternion.copy(l0.slerp(L.quaternion, weight)); }
+    U.updateWorldMatrix(false, true);
   }
 
   // Writes the accumulated poses into the bones' local rotations.

@@ -273,7 +273,7 @@ export class Enemies {
       const hitPlayer = Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z) < 0.6 && p.pos.y > player.pos.y - 0.1 && p.pos.y < player.pos.y + 1.95;
       const hitGround = p.pos.y < W.floorBelow(p.pos.x, p.pos.y + 1, p.pos.z, 2) + 0.05;
       if (hitPlayer) this.events.push({ type: 'hitPlayer', damage: p.damage, from: p.pos.clone().sub(p.vel) });
-      if (hitPlayer || hitGround || p.life <= 0) { P.burst(p.pos.x, p.pos.y, p.pos.z, 10, { speed: 4, life: 0.35, size: 0.07, color: [3, 1.5, 6], gravity: 6 }); this.projectiles.splice(i, 1); }
+      if (hitPlayer || hitGround || p.life <= 0) { P.burst(p.pos.x, p.pos.y, p.pos.z, 10, { speed: 4, life: 0.35, size: 0.07, color: [3, 1.5, 6], gravity: 6 }); this.events.push({ type: 'shotHit', pos: p.pos.clone() }); this.projectiles.splice(i, 1); }
     }
 
     this._writeInstances(dt, time, player);

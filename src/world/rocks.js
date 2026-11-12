@@ -154,11 +154,34 @@ export class Rocks {
       const twin = new THREE.InstancedMesh(mesh.geometry, depth, c.list.length);
       twin.instanceMatrix = mesh.instanceMatrix; twin.frustumCulled = false; twin.matrixAutoUpdate = false; twin.visible = false;
       pipe.shadows.scene.add(twin);
-      this.cells.push({ mesh, twin, cx: c.cx, cz: c.cz, y: H(c.cx, c.cz), reach: c.big ? REACH : SMALL });
+      this.cells.push({ mesh, twin, cx: c.cx, cz: c.cz, y: H(c.cx, c.cz), reach: c.big ? REACH : SMALL, sizes: c.list.map((r) => r[2]) });
       count += c.list.length;
     }
     this.count = count;
     this.group.updateMatrixWorld(true);
+  }
+
+  // Collision: each cell's stones as one world-space geometry, built on demand. Pebbles too
+  // small to matter are left out so nobody trips over them.
+  colliders() {
+    const v = new THREE.Vector3(), m = new THREE.Matrix4();
+    return this.cells.map((c) => ({
+      cx: c.cx, cz: c.cz, r: CELL * 0.75,
+      build: () => {
+        const src = c.mesh.geometry.attributes.position, out = [];
+        for (let i = 0; i < c.mesh.count; i++) {
+          if (c.sizes[i] < 0.42) continue;
+          c.mesh.getMatrixAt(i, m);
+          for (let k = 0; k < src.count; k++) { v.fromBufferAttribute(src, k).applyMatrix4(m); out.push(v.x, v.y, v.z); }
+        }
+        if (!out.length) return null;
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(out, 3));
+        g.setIndex(Array.from({ length: out.length / 3 }, (_, i) => i));
+        g.computeBoundingBox();
+        return g;
+      },
+    }));
   }
 
   update(camera) {

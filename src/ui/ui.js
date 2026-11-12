@@ -13,8 +13,8 @@ const KEYS = [
 ];
 
 export class UI {
-  constructor({ game, settings, apply }) {
-    this.game = game; this.settings = settings; this.apply = apply;
+  constructor({ game, settings, apply, story = null }) {
+    this.game = game; this.settings = settings; this.apply = apply; this.story = story;
     this.root = h(`<div id="ui">
       <div id="hud" class="screen">
         <div class="hurt"></div>
@@ -51,6 +51,7 @@ export class UI {
       <div id="credits" class="screen scrim"><div class="panel"><h2>Credits</h2><div class="credits"></div><button class="back" data-act="back">Back</button></div></div>
       <div id="ending" class="screen"><div><h2>The Vale sings again</h2><p>Every spire is tuned. Thank you for playing.</p>
         <div class="menu"><button class="primary" data-act="continue">Keep exploring</button><button data-act="title">Return to title</button></div></div></div>
+      <div id="story"><div class="bar top"></div><div class="bar bottom"></div><div class="caption"></div><div class="skip">Space to skip</div></div>
       <div id="fade"></div>
       <div id="loading" class="screen on"><div class="inner"><h1>Unsung Vale</h1><div class="bar"><i></i></div><p>Preparing the valley</p></div></div>
     </div>`);
@@ -58,7 +59,7 @@ export class UI {
     const $ = (s) => this.root.querySelector(s);
     this.el = {
       loading: $('#loading'), loadBar: $('#loading .bar i'), loadText: $('#loading p'), home: $('#home'), hud: $('#hud'), pause: $('#pause'),
-      settings: $('#settings'), credits: $('#credits'), ending: $('#ending'), fade: $('#fade'),
+      settings: $('#settings'), credits: $('#credits'), ending: $('#ending'), fade: $('#fade'), story: $('#story'), caption: $('#story .caption'),
       health: $('.meter.health i'), stamina: $('.meter.stamina i'), objective: $('#hud .objective'), prompt: $('#hud .prompt'), promptKey: $('#hud .prompt .key'),
       promptKeyText: $('#hud .prompt .key span'), promptText: $('#hud .prompt .text'), boss: $('#hud .boss'), bossName: $('#hud .boss .name'), bossBar: $('#hud .boss .meter i'),
       pulse: $('#hud .pulse'), marker: $('#hud .marker'), markerText: $('#hud .marker span'), reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), hints: $('#hud .hints'), fps: $('#hud .fps'),
@@ -93,6 +94,9 @@ export class UI {
     });
 
     game.on((type, d) => this._onGame(type, d));
+    // Any key or click moves past the opening.
+    const skip = (e) => { if (game.state === 'intro' && (e.type === 'mousedown' || ['Space', 'Enter', 'Escape'].includes(e.code))) this.story?.skip(); };
+    window.addEventListener('keydown', skip); window.addEventListener('mousedown', skip);
     this.el.objective.textContent = game.objective;
   }
 
@@ -110,16 +114,27 @@ export class UI {
   _begin() {
     this.onSound?.('ui_open');
     this.game.input.lockPointer();          // must happen inside the click to be allowed
+    const fresh = this.story && !this.game.hasSave && !this.game.introSeen;
     this._fadeThen(() => {
+      if (fresh) { this.story.begin(); return; }
       this.game.respawnAtCheckpoint();
       this.game.start();
-      this.el.hints.classList.add('on');
-      setTimeout(() => this.el.hints.classList.remove('on'), 14000);
     });
   }
 
   _onGame(type, d) {
-    if (type === 'state') { if (d.state === 'playing') this.show('hud'); else if (d.state === 'paused') this.show('pause'); else if (d.state === 'home') this.show('home'); }
+    if (type === 'state') {
+      if (d.state === 'playing') this.show('hud'); else if (d.state === 'paused') this.show('pause'); else if (d.state === 'home') this.show('home'); else if (d.state === 'intro') this.show('none');
+      this.el.story.classList.toggle('cine', d.state === 'intro');
+      // The keys are shown once, when play first begins.
+      if (d.state === 'playing' && !this._hinted) { this._hinted = true; this.el.hints.classList.add('on'); setTimeout(() => this.el.hints.classList.remove('on'), 14000); }
+    }
+    if (type === 'caption') {
+      clearTimeout(this._capT);
+      if (d.text) { const show = () => { this.el.caption.textContent = d.text; this.el.caption.classList.add('on'); }; if (this.el.caption.classList.contains('on')) { this.el.caption.classList.remove('on'); this._capT = setTimeout(show, 450); } else show(); }
+      else this.el.caption.classList.remove('on');
+    }
+    if (type === 'fade') this.el.fade.classList.toggle('on', !!d.on);
     if (type === 'objective') this.el.objective.textContent = d.text;
     if (type === 'boss') { this.el.boss.classList.toggle('on', !!d.enemy); if (d.enemy) this.el.bossName.textContent = d.enemy.def.name; }
     if (type === 'tuned') this.toast({ petal: 'The Petal Court sings', cantor: "Cantor's Rise sings", choir: 'The Choir sings' }[d.spire.id]);
@@ -154,23 +169,25 @@ export class UI {
       el.reticle.style.left = `${(v.x * 0.5 + 0.5) * 100}%`; el.reticle.style.top = `${(-v.y * 0.5 + 0.5) * 100}%`;
     } else el.reticle.classList.remove('on');
     // Marker for the next spire, held at the screen edge when it is out of view.
-    const next = g.spires.find((s) => !s.tuned);
+    const next = g.marker;
     if (next) {
-      const cam = g.pipe.camera, v = this._v.set(next.x, next.base + 9, next.z);
+      const cam = g.pipe.camera, v = this._v.set(next.x, next.y, next.z);
       const dist = Math.hypot(next.x - p.pos.x, next.z - p.pos.z);
       v.project(cam);
+      const focused = v.z < 1 && Math.hypot(v.x, v.y) < 0.2;
       let x = v.x, y = v.y;
       if (v.z > 1) { x = -x; y = -1; }
       const m = 0.9;
       const k = Math.max(Math.abs(x) / m, Math.abs(y) / m, 1);
       x /= k; y /= k;
       el.marker.style.transform = `translate(${((x * 0.5 + 0.5) * innerWidth).toFixed(1)}px, ${((-y * 0.5 + 0.5) * innerHeight).toFixed(1)}px) translate(-50%, -50%)`;
-      el.markerText.textContent = `${Math.round(dist)} m`;
-      el.marker.classList.toggle('on', dist > 14);
+      el.markerText.textContent = `${next.name} · ${Math.round(dist)} m`;
+      el.marker.classList.toggle('focus', focused);
+      el.marker.classList.toggle('on', dist > (next.way ? 6 : 14));
     } else el.marker.classList.remove('on');
     if (this.settings.get('showFps')) {
       this._fpsAcc += dt; this._fpsN++;
-      if (this._fpsAcc > 0.5) { el.fps.textContent = `${Math.round(this._fpsN / this._fpsAcc)} fps`; this._fpsAcc = 0; this._fpsN = 0; }
+      if (this._fpsAcc > 0.5) { el.fps.textContent = `${Math.round(this._fpsN / this._fpsAcc)} fps · ${Math.round(g.pipe.renderScale * 100)}%`; this._fpsAcc = 0; this._fpsN = 0; }
     } else if (el.fps.textContent) el.fps.textContent = '';
   }
 
@@ -191,7 +208,8 @@ export class UI {
     let html = '';
     if (this.tab === 'graphics') {
       html = row('Quality', seg('preset', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra']]), s.preset === 'custom' ? 'Custom' : '')
-        + row('Render scale', slider('renderScale', 0.4, 1, 0.01), 'Lower is faster; the image is sharpened back up')
+        + row('Frame rate to hold', seg('targetFps', [[0, 'Off'], [40, '40'], [50, '50'], [60, '60']]), 'Lowers the render resolution when needed, never the detail')
+        + row('Render scale', slider('renderScale', 0.4, 1, 0.01), s.targetFps ? 'The most the game will use' : 'Lower is faster; the image is sharpened back up')
         + row('Object shadows', toggle('shadows')) + row('Light shafts and mist', toggle('volumetrics')) + row('Floor reflections', toggle('reflections'))
         + row('Ground cover', slider('cover', 0.4, 1, 0.05), 'How far grass and flowers reach')
         + row('Field of view', slider('fov', 45, 80, 1)) + row('Show frame rate', toggle('showFps'));

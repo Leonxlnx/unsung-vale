@@ -40,12 +40,26 @@ export class Input {
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('mousemove', (e) => {
-      if (document.pointerLockElement === canvas) { this._dx += e.movementX; this._dy += e.movementY; this.usingPad = false; }
+      if (document.pointerLockElement !== canvas) return;
+      // The first report after the pointer is captured, and the odd rogue one later, can carry
+      // a jump of hundreds of counts that the hand never made: those are dropped.
+      if (this._skipMove > 0) { this._skipMove--; return; }
+      if (Math.abs(e.movementX) > 900 || Math.abs(e.movementY) > 900) return;
+      this._dx += e.movementX; this._dy += e.movementY; this.usingPad = false;
     });
+    document.addEventListener('pointerlockchange', () => { this._skipMove = 2; this._dx = 0; this._dy = 0; });
     canvas.addEventListener('wheel', (e) => { this._wheel = (this._wheel ?? 0) + Math.sign(e.deltaY); }, { passive: true });
   }
 
-  lockPointer() { this.canvas.requestPointerLock?.()?.catch?.(() => {}); }
+  // Raw mouse counts where the browser offers them: the view then turns exactly as far as
+  // the hand moves, without the operating system's pointer acceleration on top.
+  lockPointer() {
+    if (document.pointerLockElement === this.canvas) return;
+    let p;
+    try { p = this.canvas.requestPointerLock?.({ unadjustedMovement: true }); } catch { p = null; }
+    if (p?.catch) p.catch(() => this.canvas.requestPointerLock?.()?.catch?.(() => {}));
+    else if (!p) this.canvas.requestPointerLock?.();
+  }
   unlockPointer() { if (document.pointerLockElement) document.exitPointerLock(); }
   get locked() { return document.pointerLockElement === this.canvas; }
 
@@ -64,7 +78,7 @@ export class Input {
     this.held.clear();
     for (const a of Object.keys(DEFAULT_KEYS)) if (k(a)) this.held.add(a);
     let mx = (k('right') ? 1 : 0) - (k('left') ? 1 : 0), my = (k('forward') ? 1 : 0) - (k('back') ? 1 : 0);
-    const s = 0.0023 * this.sensitivity;
+    const s = 0.0016 * this.sensitivity;
     let lx = this._dx * s, ly = this._dy * s * (this.invertY ? -1 : 1);
     this._dx = 0; this._dy = 0;
     this.zoom = this._wheel ?? 0; this._wheel = 0;

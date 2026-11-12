@@ -163,7 +163,7 @@ export class Pipeline {
     this.terrainUniforms = {};      // filled in by the terrain once it has loaded
 
     this.skyPass = new FullscreenPass({
-      fragment: SKY_DRAW,
+      fragment: SKY_DRAW, far: this.reversed,
       uniforms: { ...this.sky.uniforms, ...this.camUniforms, uSunDir: this.globals.uSunDir, uSunColor: this.globals.uSunColor },
     });
     // Copies of the opaque scene that water, particles and effects sample.
@@ -215,10 +215,10 @@ export class Pipeline {
     };
   }
 
-  setSize(w, h) {
+  setSize(w, h, scaleOnly = false) {
     this.displayW = Math.max(2, Math.floor(w));
     this.displayH = Math.max(2, Math.floor(h));
-    this.renderer.setSize(this.displayW, this.displayH, false);
+    if (!scaleOnly) this.renderer.setSize(this.displayW, this.displayH, false);
     const rw = Math.max(2, Math.round(this.displayW * this.renderScale)), rh = Math.max(2, Math.round(this.displayH * this.renderScale));
     this.rw = rw; this.rh = rh;
     this.rtScene?.dispose();
@@ -236,8 +236,10 @@ export class Pipeline {
     this.sceneUniforms.uOpaque.value = this.rtOpaque.texture;
     this.sceneUniforms.uLinDepth.value = this.rtLinDepth.texture;
     this.sceneUniforms.uResolution.value.set(rw, rh);
-    this.taa.setSize(this.displayW, this.displayH);
-    this.bloom.setSize(this.displayW, this.displayH);
+    if (!scaleOnly) {
+      this.taa.setSize(this.displayW, this.displayH);
+      this.bloom.setSize(this.displayW, this.displayH);
+    }
     this.tonemap.uniforms.uTexel.value.set(1 / this.displayW, 1 / this.displayH);
     this.camera.aspect = this.displayW / this.displayH;
     this.camera.updateProjectionMatrix();
@@ -262,7 +264,7 @@ export class Pipeline {
   }
 
   setRenderScale(s) {
-    this.renderScale = s; this.setSize(this.displayW, this.displayH);
+    this.renderScale = s; this.setSize(this.displayW, this.displayH, true);
     // An upscaled frame needs more sharpening than a native one.
     this.tonemap.uniforms.uSharpen.value = 0.45 + 0.5 * Math.min(1, Math.max(0, (1 - s) / 0.45));
   }
@@ -294,9 +296,10 @@ export class Pipeline {
     // Opaque scene on top of the sky.
     r.setRenderTarget(this.rtScene);
     r.clear(false, true, false);
-    this.skyPass.render(r, this.rtScene);
-    r.setRenderTarget(this.rtScene);
+    // With a reversed depth buffer the sky is drawn last, only where nothing covers it.
+    if (!this.reversed) { this.skyPass.render(r, this.rtScene); r.setRenderTarget(this.rtScene); }
     r.render(this.scene, cam);
+    if (this.reversed) this.skyPass.render(r, this.rtScene);
 
     // Second phase: surfaces that refract or reflect the opaque scene.
     if (this.sceneT.children.length) {

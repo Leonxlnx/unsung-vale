@@ -4,7 +4,7 @@ import * as THREE from 'three';
 
 export const TUNE = {
   radius: 0.36, height: 1.82,
-  walk: 2.6, run: 5.4, sprint: 8.0, accel: 34, airAccel: 9, turn: 13,
+  walk: 1.9, run: 5.2, sprint: 7.8, accel: 26, airAccel: 9, turn: 12,
   gravity: 23, jump: 7.6, coyote: 0.12, buffer: 0.14,
   rollTime: 0.62, rollSpeed: 9.4, rollCost: 22, rollIFrames: [0.06, 0.44],
   staminaMax: 100, staminaRegen: 26, staminaDelay: 0.7, sprintCost: 9, jumpCost: 6,
@@ -13,9 +13,9 @@ export const TUNE = {
   combo: [
     { t: 0.46, hit: [0.14, 0.27], dmg: 18, lunge: 3.2, cost: 9, arc: 1.5, reach: 2.5 },
     { t: 0.46, hit: [0.13, 0.26], dmg: 21, lunge: 3.2, cost: 9, arc: 1.5, reach: 2.5 },
-    { t: 0.7, hit: [0.22, 0.4], dmg: 36, lunge: 4.6, cost: 14, arc: 2.2, reach: 2.9 },
+    { t: 0.7, hit: [0.22, 0.42], dmg: 36, lunge: 4.2, cost: 14, arc: 6.3, reach: 2.9 },
   ],
-  heavy: { t: 0.86, hit: [0.3, 0.48], dmg: 58, lunge: 5.2, cost: 26, arc: 1.3, reach: 3.2 },
+  heavy: { t: 0.86, hit: [0.33, 0.46], dmg: 58, lunge: 5.2, cost: 26, arc: 1.3, reach: 3.2 },
   pulseCooldown: 9, pulseRadius: 8.5,
 };
 
@@ -237,7 +237,7 @@ export class Player {
     if (this.pos.y < -1.6 && this.state !== 'dead') { this.emit('splash'); this.respawn(12); }
 
     // Footstep timing follows distance travelled on the ground.
-    if (grounded && this.speed > 0.8 && this.state === 'move') {
+    if (this.autoSteps !== false && grounded && this.speed > 0.8 && this.state === 'move') {
       this.stepPhase += this.speed * dt / (this.sprinting ? 1.25 : 0.95);
       if (this.stepPhase >= 1) { this.stepPhase -= 1; this.emit('step'); }
     }

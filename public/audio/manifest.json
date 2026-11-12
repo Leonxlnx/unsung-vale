@@ -43,54 +43,133 @@
       "loop": true
     }
   },
+  "ir": {
+    "space": "ir/space.ogg"
+  },
   "sfx": {
     "step_grass": [
       "sfx/step_grass_1.ogg",
       "sfx/step_grass_2.ogg",
       "sfx/step_grass_3.ogg",
-      "sfx/step_grass_4.ogg"
+      "sfx/step_grass_4.ogg",
+      "sfx/step_grass_5.ogg",
+      "sfx/step_grass_6.ogg",
+      "sfx/step_grass_7.ogg",
+      "sfx/step_grass_8.ogg"
     ],
     "step_stone": [
       "sfx/step_stone_1.ogg",
       "sfx/step_stone_2.ogg",
       "sfx/step_stone_3.ogg",
-      "sfx/step_stone_4.ogg"
+      "sfx/step_stone_4.ogg",
+      "sfx/step_stone_5.ogg",
+      "sfx/step_stone_6.ogg",
+      "sfx/step_stone_7.ogg",
+      "sfx/step_stone_8.ogg"
+    ],
+    "gear": [
+      "sfx/gear_1.ogg",
+      "sfx/gear_2.ogg",
+      "sfx/gear_3.ogg",
+      "sfx/gear_4.ogg",
+      "sfx/gear_5.ogg"
     ],
     "swing": [
       "sfx/swing_1.ogg",
       "sfx/swing_2.ogg",
-      "sfx/swing_3.ogg"
+      "sfx/swing_3.ogg",
+      "sfx/swing_4.ogg",
+      "sfx/swing_5.ogg"
+    ],
+    "swing_heavy": [
+      "sfx/swing_heavy_1.ogg",
+      "sfx/swing_heavy_2.ogg",
+      "sfx/swing_heavy_3.ogg"
     ],
     "hit": [
       "sfx/hit_1.ogg",
       "sfx/hit_2.ogg",
-      "sfx/hit_3.ogg"
+      "sfx/hit_3.ogg",
+      "sfx/hit_4.ogg",
+      "sfx/hit_5.ogg"
+    ],
+    "hit_heavy": [
+      "sfx/hit_heavy_1.ogg",
+      "sfx/hit_heavy_2.ogg",
+      "sfx/hit_heavy_3.ogg"
+    ],
+    "crystal": [
+      "sfx/crystal_1.ogg",
+      "sfx/crystal_2.ogg",
+      "sfx/crystal_3.ogg",
+      "sfx/crystal_4.ogg"
     ],
     "shatter": [
       "sfx/shatter_1.ogg",
-      "sfx/shatter_2.ogg"
+      "sfx/shatter_2.ogg",
+      "sfx/shatter_3.ogg"
+    ],
+    "shatter_big": [
+      "sfx/shatter_big_1.ogg",
+      "sfx/shatter_big_2.ogg"
     ],
     "block": [
-      "sfx/block_1.ogg"
+      "sfx/block_1.ogg",
+      "sfx/block_2.ogg"
     ],
     "hurt": [
       "sfx/hurt_1.ogg",
-      "sfx/hurt_2.ogg"
+      "sfx/hurt_2.ogg",
+      "sfx/hurt_3.ogg"
     ],
     "roll": [
-      "sfx/roll_1.ogg"
+      "sfx/roll_1.ogg",
+      "sfx/roll_2.ogg",
+      "sfx/roll_3.ogg"
     ],
     "jump": [
-      "sfx/jump_1.ogg"
+      "sfx/jump_1.ogg",
+      "sfx/jump_2.ogg"
     ],
     "land": [
-      "sfx/land_1.ogg"
+      "sfx/land_1.ogg",
+      "sfx/land_2.ogg",
+      "sfx/land_3.ogg"
+    ],
+    "land_heavy": [
+      "sfx/land_heavy_1.ogg",
+      "sfx/land_heavy_2.ogg"
+    ],
+    "slam": [
+      "sfx/slam_1.ogg",
+      "sfx/slam_2.ogg"
+    ],
+    "death": [
+      "sfx/death_1.ogg"
+    ],
+    "respawn": [
+      "sfx/respawn_1.ogg"
+    ],
+    "enemy_wake": [
+      "sfx/enemy_wake_1.ogg",
+      "sfx/enemy_wake_2.ogg",
+      "sfx/enemy_wake_3.ogg"
     ],
     "enemy_charge": [
-      "sfx/enemy_charge_1.ogg"
+      "sfx/enemy_charge_1.ogg",
+      "sfx/enemy_charge_2.ogg"
+    ],
+    "enemy_swing": [
+      "sfx/enemy_swing_1.ogg",
+      "sfx/enemy_swing_2.ogg"
     ],
     "enemy_shot": [
-      "sfx/enemy_shot_1.ogg"
+      "sfx/enemy_shot_1.ogg",
+      "sfx/enemy_shot_2.ogg"
+    ],
+    "enemy_shot_hit": [
+      "sfx/enemy_shot_hit_1.ogg",
+      "sfx/enemy_shot_hit_2.ogg"
     ],
     "enemy_idle": [
       "sfx/enemy_idle_1.ogg"
@@ -98,11 +177,24 @@
     "pickup": [
       "sfx/pickup_1.ogg"
     ],
+    "pulse": [
+      "sfx/pulse_1.ogg",
+      "sfx/pulse_2.ogg"
+    ],
+    "tune_hold": [
+      "sfx/tune_hold_1.ogg"
+    ],
     "spire_tune": [
       "sfx/spire_tune_1.ogg"
     ],
+    "restore": [
+      "sfx/restore_1.ogg"
+    ],
     "bridge": [
       "sfx/bridge_1.ogg"
+    ],
+    "objective": [
+      "sfx/objective_1.ogg"
     ],
     "ui_hover": [
       "sfx/ui_hover.ogg"

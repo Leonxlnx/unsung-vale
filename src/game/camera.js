@@ -7,7 +7,7 @@ const _pivot = new THREE.Vector3(), _dir = new THREE.Vector3(), _want = new THRE
 export class CameraRig {
   constructor(camera, world) {
     this.camera = camera; this.world = world;
-    this.yaw = 0; this.pitch = -0.12;
+    this.yaw = 0; this.pitch = -0.2;
     this.distance = 4.4; this.current = 4.4;
     this.baseFov = 60; this.fov = 60;
     this.follow = new THREE.Vector3();

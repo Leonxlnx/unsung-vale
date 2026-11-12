@@ -8,7 +8,7 @@ export const PRESETS = {
   ultra:  { renderScale: 1.0, shadows: true, volumetrics: true, reflections: true, cover: 1.0, clouds: 2, cloudRes: 2048, shadowRate: 1, softShadows: 2 },
 };
 
-const DEFAULTS = { preset: 'medium', ...PRESETS.medium, fov: 60, sensitivity: 1, invertY: false, master: 0.8, music: 0.55, sfx: 0.85, showFps: false };
+const DEFAULTS = { preset: 'medium', ...PRESETS.medium, targetFps: 50, fov: 60, sensitivity: 1, invertY: false, master: 0.8, music: 0.55, sfx: 0.85, showFps: false };
 
 export class Settings {
   constructor(renderer) {
@@ -36,9 +36,11 @@ export class Settings {
 }
 
 // Pushes the current values into the engine. Cheap to call again after any change.
-export function applySettings(settings, { pipe, game, cover, audio, gloss }) {
+export function applySettings(settings, { pipe, game, cover, audio, gloss, governor = null }) {
   const v = settings.values;
-  if (Math.abs(pipe.renderScale - v.renderScale) > 1e-3) pipe.setRenderScale(v.renderScale);
+  // The governor may run below the chosen render scale to hold the frame rate, never above it.
+  if (governor) governor.setLimits(v.renderScale, v.targetFps ?? 0);
+  else if (Math.abs(pipe.renderScale - v.renderScale) > 1e-3) pipe.setRenderScale(v.renderScale);
   pipe.shadows.enabled = v.shadows;
   pipe.shadows.rate = v.shadowRate ?? 1;
   // Soft penumbrae everywhere, only close to the camera (Medium), or not at all.

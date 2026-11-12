@@ -45,7 +45,7 @@ uniform vec3 uColor; uniform float uPower; uniform float uTime;
 in vec2 vUv; in vec3 vWorld;
 void main() {
   float x = abs(vUv.x - 0.5) * 2.0;
-  float core = exp(-x * x * 70.0) * 9.0 + exp(-x * x * 6.0) * 1.6;
+  float core = exp(-x * x * 70.0) * 5.0 + exp(-x * x * 6.0) * 1.1;
   float rise = 0.75 + 0.25 * sin(vUv.y * 60.0 - uTime * 6.0);
   float fade = (1.0 - smoothstep(0.55, 1.0, vUv.y)) * smoothstep(0.0, 0.01, vUv.y);
   float a = core * rise * fade * uPower;
@@ -108,10 +108,13 @@ void main() {
 }`;
 
 export class Game {
-  constructor({ pipe, terrain, arch, sites, canvas }) {
+  constructor({ pipe, terrain, arch, sites, canvas, forest = null, rocks = null }) {
     this.pipe = pipe; this.terrain = terrain; this.sites = sites; this.arch = arch;
     this.world = new CollisionWorld(terrain);
     for (const g of sites.solids) this.world.addGeometry(g);
+    // Trees and boulders are solid too: trunks as capsules, stones with their real shape.
+    forest?.trunkColliders((a, b, r) => this.world.addCapsule(a, b, r));
+    for (const c of rocks?.colliders() ?? []) this.world.addLazy(c.cx, c.cz, c.r, c.build);
     this.input = new Input(canvas);
     this.player = new Player(this.world);
     this.rig = new CameraRig(pipe.camera, this.world);
@@ -144,7 +147,7 @@ export class Game {
   }
 
   // Swaps the stand-in body for the real animated hero.
-  attachHero(hero) { this.hero = hero; this.standIn.visible = false; hero.update(0.016, this.player, this); }
+  attachHero(hero) { this.hero = hero; this.standIn.visible = false; this.player.autoSteps = false; hero.update(0.016, this.player, this); }
 
   on(fn) { this.listeners.push(fn); }
   emit(type, data = {}) { for (const fn of this.listeners) fn(type, data); }
@@ -241,7 +244,7 @@ export class Game {
 
   save() {
     if (this.cine) return;        // the film must never overwrite a player's progress
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended })); } catch { /* storage may be unavailable */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [] })); } catch { /* storage may be unavailable */ }
   }
   load() {
     this.checkpoint = { ...this.sites.spawn };
@@ -250,7 +253,7 @@ export class Game {
       if (!d) return;
       for (const s of this.spires) if (d.tuned?.includes(s.id)) { s.tuned = true; s.power = 1; s.zoneR = 0; s.zone.w = 0; s.crystal.material.uniforms.uPower.value = 1; s.beam.material.uniforms.uPower.value = 1; }
       if (d.checkpoint) this.checkpoint = d.checkpoint;
-      this.ended = !!d.ended;
+      this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? [];
       if (this.spires[1].tuned) { this.bridgeOpen = true; this.bridgeProgress = 1; }
     } catch { /* ignore a corrupt save */ }
   }
@@ -259,12 +262,14 @@ export class Game {
 
   respawnAtCheckpoint() {
     const s = this.checkpoint;
+    this.world.stream(s.x, s.z, 6);
     this.player.spawn(s.x, s.y, s.z, s.yaw ?? 0);
     this.rig.snap(this.player);
     this.rig.yaw = s.yaw ?? 0;
   }
 
   _refreshObjective() {
+    if (this.story) { this.story._goal(); return; }
     const next = this.spires.find((s) => !s.tuned);
     const names = { petal: 'the Petal Court', cantor: "Cantor's Rise", choir: 'the Choir' };
     if (!next) this.objective = 'The Vale sings again';
@@ -322,7 +327,9 @@ export class Game {
     this.time += dt;
     const p = this.player;
 
+    this.world.stream(p.pos.x, p.pos.z);
     p.update(dt, this.input, this.rig.yaw);
+    this._bodies();
     this._lockOn();
     this._combat();
     this.enemies.update(dt, p, this.time);
@@ -342,6 +349,23 @@ export class Game {
     if (p.state === 'dead' && p.stateTime > 2.6) {
       this.respawnAtCheckpoint();
       this.emit('respawn');
+    }
+  }
+
+  // The hero and the constructs cannot stand inside one another: whoever overlaps is eased
+  // apart (he can still roll through the small ones).
+  _bodies() {
+    const p = this.player;
+    if (p.state === 'dead') return;
+    for (const e of this.enemies.list) {
+      if (!e.alive || e.state === 'dormant' || e.state === 'rise') continue;
+      if (p.state === 'roll' && !e.def.boss) continue;
+      if (Math.abs(p.pos.y - e.pos.y) > 2.2 + e.def.core) continue;
+      const dx = p.pos.x - e.pos.x, dz = p.pos.z - e.pos.z, d = Math.hypot(dx, dz), min = TUNE.radius + e.def.radius * 0.85;
+      if (d >= min || d < 1e-4) continue;
+      const k = (min - d) / d;
+      p.pos.x += dx * k * 0.7; p.pos.z += dz * k * 0.7;
+      if (!e.def.boss) { e.pos.x -= dx * k * 0.3; e.pos.z -= dz * k * 0.3; }
     }
   }
 
@@ -365,12 +389,18 @@ export class Game {
 
   _combat() {
     const p = this.player;
-    // Every swing shoves the air ahead of the blade: a quick bubble of bent light.
-    if (p.attackActive && !this._swinging) {
-      const big = p.comboStep >= 2;
-      this.vfx.wave(p.pos.x + p.facing.x * 1.5, p.pos.y + 1.15, p.pos.z + p.facing.z * 1.5, { kind: 1, r0: 0.3, r1: big ? 2.4 : 1.7, life: big ? 0.26 : 0.2, strength: big ? 0.9 : 0.6, width: 0.2, color: [1.6, 1.25, 0.7] });
-    }
-    this._swinging = p.attackActive;
+    // The heavy strike ends with the blade in the ground: a ring, dust and a jolt, hit or miss.
+    if (p.state === 'attack' && p.comboStep === 3) {
+      if (!this._slammed && p.stateTime >= 0.42) {
+        this._slammed = true;
+        const tip = this.hero?.tip ?? p.pos, gx = this.hero ? tip.x : p.pos.x + p.facing.x * 1.6, gz = this.hero ? tip.z : p.pos.z + p.facing.z * 1.6;
+        const gy = this.world.floorBelow(gx, p.pos.y + 1, gz, 3) + 0.06;
+        this.vfx.wave(gx, gy, gz, { r0: 0.3, r1: 4.2, life: 0.45, strength: 0.9, width: 0.1, color: [2.2, 1.6, 0.8] });
+        this.particles.burst(gx, gy + 0.1, gz, 22, { speed: 5, life: 0.5, size: 0.05, color: [3.4, 2.5, 1.2], gravity: 12, drag: 1.4, streak: 0.1, up: 2.5 });
+        this.rig.addShake(0.35);
+        this.emit('player', { type: 'slamHit' });
+      }
+    } else this._slammed = false;
     if (!p.attackActive) return;
     const a = p.attack, f = p.facing.clone();
     for (const e of this.enemies.list) {
@@ -385,10 +415,10 @@ export class Game {
         this.hitStop = heavy ? 0.11 : 0.06;
         this.rig.addShake(heavy ? 0.5 : 0.28);
         const c = e.center ?? e.pos, hy = c.y + (e.center ? 0 : 1.2);
-        this.particles.burst(c.x, hy, c.z, heavy ? 60 : 32, { speed: heavy ? 16 : 12, life: 0.5, size: 0.075, color: [12, 8.5, 3.6], gravity: 16, drag: 1.0, streak: 0.16, dir: [f.x, 0.35, f.z], bias: 5 });
-        this.particles.spawn(c.x, hy, c.z, { life: 0.14, size: heavy ? 3.4 : 2.2, color: [10, 7.5, 4], alpha: 0.9 });
-        this.vfx.wave(c.x, hy, c.z, { kind: 1, r0: 0.2, r1: heavy ? 3.4 : 2.0, life: heavy ? 0.32 : 0.22, strength: heavy ? 1.3 : 0.8, width: 0.16, color: [2.4, 1.8, 1.0] });
-        if (heavy) this.vfx.wave(e.pos.x, e.pos.y + 0.08, e.pos.z, { r0: 0.4, r1: 5.5, life: 0.5, strength: 1.0, width: 0.1, color: [5, 3.6, 1.6] });
+        this.particles.burst(c.x, hy, c.z, heavy ? 36 : 20, { speed: heavy ? 13 : 10, life: 0.42, size: 0.055, color: [5.5, 4, 1.9], gravity: 16, drag: 1.2, streak: 0.16, dir: [f.x, 0.35, f.z], bias: 4 });
+        this.particles.spawn(c.x, hy, c.z, { life: 0.1, size: heavy ? 1.7 : 1.1, color: [3.6, 2.8, 1.6], alpha: 0.7 });
+        this.vfx.wave(c.x, hy, c.z, { kind: 1, r0: 0.2, r1: heavy ? 2.4 : 1.5, life: heavy ? 0.26 : 0.18, strength: heavy ? 0.9 : 0.55, width: 0.18, color: [1.1, 0.85, 0.5] });
+        if (heavy) this.vfx.wave(e.pos.x, e.pos.y + 0.08, e.pos.z, { r0: 0.4, r1: 4.5, life: 0.45, strength: 0.8, width: 0.1, color: [2.6, 1.9, 0.9] });
         this.emit('hit', { heavy, enemy: e });
       }
     }
@@ -399,11 +429,11 @@ export class Game {
     if (e.type === 'land' && e.fell > 3) this.rig.addShake(Math.min(0.5, e.fell * 0.03));
     if (e.type === 'land' && e.fell > 1.5) this.vfx.wave(p.pos.x, p.pos.y + 0.06, p.pos.z, { r0: 0.2, r1: 1.2 + Math.min(3, e.fell * 0.3), life: 0.4, strength: 0.5, width: 0.16, color: [0.5, 0.42, 0.3] });
     if (e.type === 'land') this.hero?.onLand(e.fell ?? 0);
-    if (e.type === 'hurt') { this.rig.addShake(0.55); this.hero?.onHit(); }
+    if (e.type === 'hurt') { this.rig.addShake(0.4); this.hero?.onHit(); }
     if (e.type === 'pulse') {
       // Resonance pulse: a ring of force that staggers everything nearby.
-      for (let k = 0; k < 56; k++) { const a = (k / 56) * 6.283; this.particles.spawn(p.pos.x, p.pos.y + 1, p.pos.z, { vel: [Math.cos(a) * 15, 0.4, Math.sin(a) * 15], life: 0.55, size: 0.28, color: [4, 2.9, 1.4], drag: 2.5 }); }
-      this.particles.spawn(p.pos.x, p.pos.y + 1, p.pos.z, { life: 0.4, size: 5, color: [2.4, 1.8, 0.9], grow: 1.6, alpha: 0.6 });
+      for (let k = 0; k < 56; k++) { const a = (k / 56) * 6.283; this.particles.spawn(p.pos.x, p.pos.y + 1, p.pos.z, { vel: [Math.cos(a) * 15, 0.4, Math.sin(a) * 15], life: 0.55, size: 0.2, color: [3, 2.2, 1.1], drag: 2.5 }); }
+      this.particles.spawn(p.pos.x, p.pos.y + 1, p.pos.z, { life: 0.35, size: 3.4, color: [1.3, 1.0, 0.5], grow: 1.4, alpha: 0.5 });
       this.vfx.wave(p.pos.x, p.pos.y + 1.0, p.pos.z, { kind: 1, r0: 0.5, r1: TUNE.pulseRadius * 0.9, life: 0.55, strength: 1.5, width: 0.1, color: [5, 3.6, 1.6] });
       this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.5, r1: TUNE.pulseRadius * 1.25, life: 0.75, strength: 1.2, width: 0.07, color: [5, 3.6, 1.6] });
       this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.5, r1: TUNE.pulseRadius * 0.9, life: 0.7, strength: 0.7, width: 0.09, color: [2.5, 1.8, 0.8], delay: 0.14 });
@@ -495,7 +525,7 @@ export class Game {
     const lat = this.arch?.material?.uniforms?.uLattice?.value;
     if (lat) { this.ringPulse = (this.ringPulse ?? 0) * Math.exp(-dt * 0.45); const lit = this.spires.filter((s) => s.tuned).length / this.spires.length; lat.w += (0.28 * lit + this.ringPulse - lat.w) * Math.min(1, dt * 1.5); }
     this.flash *= Math.exp(-dt * 3.2);
-    this.pipe.exposure = this.baseExposure * (1 + 0.45 * this.flash);
+    this.pipe.exposure = this.baseExposure * (1 + 0.16 * this.flash);
     for (const s of this.spires) {
       // Strands of light around each spire: climbing when it is tuned, steady afterwards.
       s.helix ??= this.vfx.helix({ x: s.x, base: s.base, z: s.z, h: s.h ?? 24 });

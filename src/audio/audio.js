@@ -24,6 +24,15 @@ export class AudioManager {
     this.musicFilter = c.createBiquadFilter(); this.musicFilter.type = 'lowpass'; this.musicFilter.frequency.value = 20000;
     this.musicBus = c.createGain(); this.musicBus.connect(this.musicFilter); this.musicFilter.connect(this.master);
     this.sfxBus = c.createGain(); this.sfxBus.connect(this.master);
+    // A touch of real space on every effect: a recorded impulse response of an open stone
+    // court, fed from its own send so each sound can ask for more or less of it.
+    this.reverbSend = c.createGain(); this.reverbSend.gain.value = 1;
+    if (this.manifest.ir?.space) {
+      const conv = c.createConvolver(), wet = c.createGain(); wet.gain.value = 0.55;
+      this.reverbSend.connect(conv); conv.connect(wet); wet.connect(this.sfxBus);
+      fetch(base + this.manifest.ir.space).then((r) => r.arrayBuffer()).then((b) => c.decodeAudioData(b)).then((buf) => { conv.buffer = buf; }).catch(() => {});
+    }
+    this.last = new Map();       // per effect: which variation played last, so none repeats twice running
     this.ambBus = c.createGain(); this.ambBus.connect(this.master);
     this.setVolumes(this.vol.master, this.vol.music, this.vol.sfx);
     this.ready = true;
@@ -83,12 +92,19 @@ export class AudioManager {
     });
   }
 
-  // One-shot effect. opts: volume, pitch (playback rate), pan (-1..1), spread (random pitch).
+  // One-shot effect. opts: volume, pitch (playback rate), pan (-1..1), spread (random pitch),
+  // delay (seconds from now), wet (how much of the space's reverb, 0..1).
   sfx(name, opts = {}) {
     if (!this.ready) return;
     const list = this.manifest.sfx?.[name];
     if (!list) return;
-    const file = Array.isArray(list) ? list[Math.floor(Math.random() * list.length)] : list;
+    let file = list;
+    if (Array.isArray(list)) {
+      let i = Math.floor(Math.random() * list.length);
+      if (list.length > 1 && i === this.last.get(name)) i = (i + 1 + Math.floor(Math.random() * (list.length - 1))) % list.length;
+      this.last.set(name, i); file = list[i];
+    }
+    const when = this.ctx.currentTime + (opts.delay ?? 0);
     this._load(file).then((buf) => {
       if (!buf) return;
       const c = this.ctx, s = c.createBufferSource(); s.buffer = buf;
@@ -96,8 +112,36 @@ export class AudioManager {
       const g = c.createGain(); g.gain.value = opts.volume ?? 1;
       if (opts.pan && c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, opts.pan)); s.connect(p); p.connect(g); } else s.connect(g);
       g.connect(this.sfxBus);
-      s.start();
+      const wet = opts.wet ?? 0.16;
+      if (wet > 0) { const w = c.createGain(); w.gain.value = wet; g.connect(w); w.connect(this.reverbSend); }
+      s.start(Math.max(when, c.currentTime));
     });
+  }
+
+  // A sound that is held: starts (or keeps) playing while on is true and fades away when it
+  // is not. Used for the tone of a spire being tuned.
+  hold(name, on, volume = 0.4) {
+    if (!this.ready) return;
+    this.holds ??= {};
+    const h = this.holds[name], t = this.ctx.currentTime;
+    if (on && !h) {
+      const list = this.manifest.sfx?.[name];
+      if (!list) return;
+      const g = this.ctx.createGain(); g.gain.value = 0; g.connect(this.sfxBus);
+      const node = (this.holds[name] = { gain: g, src: null });
+      this._load([].concat(list)[0]).then((buf) => {
+        if (!buf || this.holds[name] !== node) return;
+        const s = this.ctx.createBufferSource(); s.buffer = buf; s.loop = true;
+        // Loop the sustained second half, so a long hold keeps its swell without a restart.
+        s.loopStart = buf.duration * 0.5; s.loopEnd = buf.duration * 0.96;
+        s.connect(g); s.start(); node.src = s;
+        g.gain.setTargetAtTime(volume, this.ctx.currentTime, 0.15);
+      });
+    } else if (!on && h) {
+      h.gain.gain.setTargetAtTime(0, t, 0.12);
+      const src = h.src; setTimeout(() => { try { src?.stop(); } catch { /* already stopped */ } }, 700);
+      this.holds[name] = null;
+    }
   }
 
   // Effect at a world position: quieter with distance, panned by where it is on screen.
@@ -106,7 +150,8 @@ export class AudioManager {
     const d = Math.hypot(dx, dy, dz);
     const vol = (opts.volume ?? 1) / (1 + (d / (opts.range ?? 9)) ** 2);
     if (vol < 0.02) return;
-    this.sfx(name, { ...opts, volume: vol, pan: d > 0.5 ? ((dx * right.x + dz * right.z) / d) * 0.7 : 0 });
+    // Far sounds carry more of the space with them.
+    this.sfx(name, { ...opts, volume: vol, wet: Math.min(0.6, 0.16 + d * 0.012), pan: d > 0.5 ? ((dx * right.x + dz * right.z) / d) * 0.7 : 0 });
   }
 
   // Ambience mix. ctx: { fall: 0..1 nearness to a waterfall, lake: 0..1, mute: 0..1 inside silence }

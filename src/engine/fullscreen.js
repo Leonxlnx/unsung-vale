@@ -24,15 +24,17 @@ in vec2 vUv;
 
 // A single full-screen triangle with a raw GLSL3 fragment shader.
 export class FullscreenPass {
-  constructor({ fragment, uniforms = {}, defines = {}, blending = THREE.NoBlending, outputs = 'layout(location = 0) out vec4 outColor;' }) {
+  // far: draw at the far plane with the depth test on, so only pixels nothing else covered
+  // are shaded (used for the sky, which then costs nothing behind the landscape).
+  constructor({ fragment, uniforms = {}, defines = {}, blending = THREE.NoBlending, outputs = 'layout(location = 0) out vec4 outColor;', far = false }) {
     this.uniforms = uniforms;
     this.material = new THREE.RawShaderMaterial({
       glslVersion: THREE.GLSL3,
-      vertexShader: FS_VERT,
+      vertexShader: far ? FS_VERT.replace('0.5, 1.0', '0.0, 1.0') : FS_VERT,
       fragmentShader: FS_HEAD + outputs + '\n' + fragment,
       uniforms,
       defines,
-      depthTest: false,
+      depthTest: far,
       depthWrite: false,
       blending,
     });

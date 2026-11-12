@@ -14,8 +14,10 @@ await new Promise((r) => setTimeout(r, 6000));
 const out = await page.evaluate(async (preset) => {
   const D = window.__dbg, P = window.__pipe, G = window.__game, X = window.__parts;
   const gl = P.renderer.getContext(), px = new Uint8Array(4);
+  window.__ui.settings.set('preset', preset); window.__ui.apply();
   D.ui(false);
-  D.play(60, 0, 0, { tp: [-372, 178.4, -410, 0] });
+  const spot = { court: [-372, 178.4, -410, 0], terrace: [-519, 210.5, -70, Math.PI / 2], meadow: [-600, 210.2, -180, 0.9] }[new URLSearchParams(location.search).get('spot') ?? 'court'];
+  D.play(60, 0, 0, { tp: spot });
   const sync = () => { P.renderer.setRenderTarget(null); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); };
   const measure = () => {
     for (let i = 0; i < 12; i++) D.step(1); sync();

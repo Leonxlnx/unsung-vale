@@ -474,6 +474,25 @@ export class Forest {
     return tree;
   }
 
+  // Solid trunks for the collision world: each tree within `half` metres of the origin is
+  // a few capsules following its trunk up to above head height. add(a, b, r) receives them.
+  trunkColliders(add, half = 1100) {
+    let n = 0;
+    for (const t of this.trees) {
+      if (Math.abs(t.x) > half || Math.abs(t.z) > half) continue;
+      const v = this.variants[t.v], tr = v.tree.branches[0], c = Math.cos(t.yaw), s = Math.sin(t.yaw);
+      const at = (p) => [t.x + (c * p[0] + s * p[2]) * t.s, t.y + p[1] * t.s, t.z + (-s * p[0] + c * p[2]) * t.s];
+      for (let i = 0; i < tr.pts.length - 1; i++) {
+        if (tr.pts[i][1] * t.s > 5) break;
+        add(at(tr.pts[i]), at(tr.pts[i + 1]), Math.max(tr.radii[i], tr.radii[i + 1]) * t.s * 0.94);
+        n++;
+      }
+      // A cypress is foliage to the ground: its dense core is solid as well.
+      if (v.species === 'cypress') { add([t.x, t.y + 0.4, t.z], [t.x, t.y + 5, t.z], 0.62 * t.s); n++; }
+    }
+    return n;
+  }
+
   // Scatters trees with noise-driven groves. Returns the number placed.
   populate(exclude = () => false, extra = []) {
     const T = this.terrain, rnd = mulberry32(90210);
