@@ -144,7 +144,8 @@ export class Pipeline {
       uSunDir: { value: this.sky.sunDir },
       uSunColor: { value: this.sky.sunColor },
       uSH: { value: this.sky.sh },
-      uBounce: { value: 0.05 },          // sunlight returned by lit cliffs and ground, as a share of the sun
+      uBounce: { value: 0.05 },
+      uLamps: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) },   // nearest lanterns, see setLamps()          // sunlight returned by lit cliffs and ground, as a share of the sun
       ...this.sky.uniforms,
     };
     this.camUniforms = {
@@ -205,7 +206,7 @@ export class Pipeline {
     const g = this.globals;
     return {
       ...this.sky.uniforms, ...this.shadows.uniforms, ...this.terrainUniforms,
-      uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH, uBounce: g.uBounce, uTime: g.uTime, uFrame: g.uFrame,
+      uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH, uBounce: g.uBounce, uLamps: g.uLamps, uTime: g.uTime, uFrame: g.uFrame,
       uWeatherTex: { value: this.sky.weather.texture }, uCloudShadow: { value: this.cloudShadow },
     };
   }
@@ -238,6 +239,24 @@ export class Pipeline {
     this.camera.updateProjectionMatrix();
   }
 
+  // Lantern positions ([x, y, z] each). The eight nearest the camera light the scene.
+  setLamps(list, strength = 2.0) {
+    this.lampList = list.map(([x, y, z], i) => ({ x, y, z, s: strength, i, d: 0 }));
+  }
+  _updateLamps(cam) {
+    const L = this.lampList, U = this.globals.uLamps.value;
+    if (!L || !L.length) return;
+    const p = cam.position;
+    for (const l of L) l.d = Math.hypot(l.x - p.x, l.y - p.y, l.z - p.z);
+    L.sort((a, b) => a.d - b.d);
+    for (let k = 0; k < 8; k++) {
+      const l = L[k];
+      // Fade with distance from the camera so a lamp never pops in, and breathe a little.
+      const s = l ? l.s * (1 - Math.min(1, Math.max(0, (l.d - 60) / 30))) * (0.94 + 0.06 * Math.sin(this.time * 6.3 + l.i * 2.4)) : 0;
+      if (l && s > 0) U[k].set(l.x, l.y, l.z, s); else U[k].set(0, 0, 0, 0);
+    }
+  }
+
   setRenderScale(s) {
     this.renderScale = s; this.setSize(this.displayW, this.displayH);
     // An upscaled frame needs more sharpening than a native one.
@@ -251,6 +270,7 @@ export class Pipeline {
     this.time += dt;
     this.globals.uTime.value = this.time;
     this.globals.uFrame.value = (this.globals.uFrame.value + 1) % 64;
+    this._updateLamps(this.camera);
     r.info.reset();
     this.sky.update(dt);
 

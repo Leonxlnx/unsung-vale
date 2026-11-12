@@ -28,6 +28,22 @@ vec3 bounceLight(vec3 N) {
   return uSunColor * (uBounce * away * (1.0 - 0.35 * saturate(N.y)));
 }
 
+// Warm light from the nearest lanterns: small pools that matter in the shade and at dusk.
+// Returns irradiance for a white surface; multiply by albedo.
+uniform vec4 uLamps[8];     // xyz: position, w: strength (0 = unused)
+vec3 lampLight(vec3 P, vec3 N) {
+  float sum = 0.0;
+  for (int i = 0; i < 8; i++) {
+    vec3 d = uLamps[i].xyz - P;
+    float r2 = dot(d, d);
+    if (uLamps[i].w <= 0.0 || r2 > 256.0) continue;
+    float fall = sq(1.0 - sq(r2 / 256.0)) / (1.0 + r2 * 0.35);
+    // Wrapped a little: a lantern is a glowing box, not a point.
+    sum += uLamps[i].w * fall * saturate(dot(N, d) * inversesqrt(r2) * 0.8 + 0.2);
+  }
+  return vec3(1.0, 0.6, 0.27) * sum;
+}
+
 vec3 envBRDF(vec3 F0, float rough, float ndv) {
   vec4 r = rough * vec4(-1.0, -0.0275, -0.572, 0.022) + vec4(1.0, 0.0425, 1.04, -0.04);
   float a004 = min(r.x * r.x, exp2(-9.28 * ndv)) * r.x + r.y;

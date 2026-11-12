@@ -55,6 +55,7 @@ void main() {
   float rough = clamp(uSurf.x + (n - 0.5) * 0.16, 0.06, 1.0);
   float vis = sunVisibility(vWorld + N * 0.03 + uSunDir * 0.06);
   vec3 col = shadeSurface(alb, rough, uSurf.y, N, V, vis, 0.9, 0.0);
+  col += alb * (1.0 - 0.7 * uSurf.y) * lampLight(vWorld, N);
   float fres = pow(1.0 - saturate(dot(N, V)), 3.0);
   // Cloth catches the sky along its edges.
   col += alb * shIrradiance(N) * fres * uSurf.z * 2.0;

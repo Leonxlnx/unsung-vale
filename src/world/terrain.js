@@ -349,6 +349,7 @@ void main() {
   vec3 out_ = vec3(N.x, 0.0, N.z) * (1.5 * texel * smoothstep(0.3, 0.7, 1.0 - N.y) / max(length(N.xz), 1e-3));
   float vis = sunVisibility(vWorld + N * 0.35 + out_ + uSunDir * 0.25) * relief;
   vec3 col = shadeSurface(alb, rough, 0.0, Ns, V, vis, ao, 0.0);
+  if (cw > 0.0) col += alb * lampLight(vWorld, Ns) * ao;
   gl_FragColor = vec4(col, 1.0);
 }`;
 

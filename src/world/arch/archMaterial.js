@@ -235,6 +235,7 @@ void main() {
 
   float vis = sunVisibility(vWorld + N * 0.12 + uSunDir * 0.12);
   vec3 col = shadeSurface(alb, rough, metal, Ns, V, vis, ao, 0.0);
+  col += alb * (1.0 - metal) * lampLight(vWorld, Ns) * ao;
   if (m == 6) {
     // Lit interiors: the glazing glows warm at dusk.
     // Not every room is lit: each window gets its own brightness, and some stay dark.

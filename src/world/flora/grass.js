@@ -92,6 +92,7 @@ void main() {
   float back = pow(saturate(dot(-V, uSunDir)), 2.0) * t;
   vec3 col = alb * uSunColor * 0.3183 * vis * (ndl + back * 1.3);
   col += alb * shIrradiance(vec3(0.0, 1.0, 0.0)) * mix(0.58, 1.0, t);
+  col += alb * lampLight(p, vec3(0.0, 1.0, 0.0));
   vColor = col;
   gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
 }`;

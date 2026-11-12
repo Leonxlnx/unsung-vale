@@ -62,6 +62,7 @@ arch.buildFarCities();
 await stage(0.44, 'Laying the paths');
 const sites = arch.buildPlayable();
 pipe.scene.add(arch.group);
+pipe.setLamps(sites.lanterns);
 const lattice = new Lattice(pipe, arch.material);
 pipe.scene.add(lattice.group);
 
