@@ -72,7 +72,7 @@ export class Reliquaries {
     this.g = game; this.pipe = pipe; this.list = [];
     const W = game.world, time = pipe.globals.uTime, found = game.charmsFound ?? [];
     const base = new MeshBuilder();
-    const lidGeo = new THREE.BoxGeometry(1.24, 0.14, 0.8).translate(0, 0.07, 0.4), capGeo = new THREE.BoxGeometry(0.9, 0.1, 0.5).translate(0, 0.19, 0.4), seamGeo = new THREE.BoxGeometry(1.1, 0.05, 0.66);
+    const lidGeo = new THREE.BoxGeometry(1.24, 0.14, 0.8).translate(0, 0.07, 0.4), capGeo = new THREE.CylinderGeometry(0.44, 0.44, 1.18, 3).rotateZ(Math.PI / 2).rotateX(-Math.PI / 2).scale(1, 0.3, 1).translate(0, 0.206, 0.4), seamGeo = new THREE.BoxGeometry(1.1, 0.05, 0.66);
     const mk = (geo, glow) => { const m = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: { uTime: time, uGlow: { value: glow } } })); m.frustumCulled = false; return m; };
     for (const [charm, x0, z0, mesa, guard] of PLACES) {
       W.stream(x0, z0, 6);
