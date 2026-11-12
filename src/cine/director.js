@@ -188,7 +188,8 @@ export class Director {
           const L = Math.hypot(br.to[0] - br.from[0], br.to[2] - br.from[2]);
           const dx = (br.to[0] - br.from[0]) / L, dz = (br.to[2] - br.from[2]) / L, e = ease(k);
           const back = 4.2 + 1.3 * e;
-          d.cam([p.x - dx * back - dz * 1.7, p.y + 1.4 + 2.0 * e, p.z - dz * back + dx * 1.7],
+          // Starts above the grass at the bridge head so no blades stand in front of the lens.
+          d.cam([p.x - dx * back - dz * 1.7, p.y + 2.05 + 1.5 * e, p.z - dz * back + dx * 1.7],
             [lerp(br.from[0], br.to[0], 0.6), lerp(br.from[1], br.to[1], 0.6) + 6, lerp(br.from[2], br.to[2], 0.6)], 42);
         },
       },
