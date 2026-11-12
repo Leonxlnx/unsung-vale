@@ -165,8 +165,8 @@ export class Dressing {
     this._b = { pos: [], nrm: [], uv: [], info: [], idx: [] };
     this.bannerMat = new THREE.ShaderMaterial({ vertexShader: BANNER_VERT, fragmentShader: BANNER_FRAG, uniforms: lit, defines: pipe.depthDefines, side: THREE.DoubleSide });
 
-    // Vines reuse the forest's leaf material (lilac clusters and green leaves).
-    this._v = { 2: [], 4: [] };
+    // Vines reuse the forest's leaf material (wisteria racemes and green leaves).
+    this._v = { 9: [], 4: [] };
     this.forest = forest;
     this.rnd = mulberry32(8675309);
 
@@ -234,7 +234,7 @@ export class Dressing {
       const len = drop * (0.45 + 0.75 * rnd()), wdt = 0.5 + 0.35 * rnd(), yaw = rnd() * Math.PI, off = (rnd() - 0.5) * 0.7;
       const cx = Math.cos(yaw), cz = Math.sin(yaw);
       // Hanging blossom raceme: a tall card whose top is pinned to the beam.
-      this._v[2].push({ x: x - dz * off, y, z: z + dx * off, ux: cx * wdt * 0.5, uz: cz * wdt * 0.5, len, ph: rnd() * 6.283, r: rnd() });
+      this._v[9].push({ x: x - dz * off, y, z: z + dx * off, ux: cx * wdt * 0.5, uz: cz * wdt * 0.5, len, ph: rnd() * 6.283, r: rnd() });
       // A tuft of leaves along the beam above it.
       if (i % 2 === 0) this._v[4].push({ x: x - dz * off * 1.3, y: y + 0.55, z: z + dx * off * 1.3, ux: dx * 0.75, uz: dz * 0.75, len: 1.0 + 0.5 * rnd(), ph: rnd() * 6.283, r: rnd() });
     }
@@ -253,7 +253,7 @@ export class Dressing {
       m.frustumCulled = false;
       this.group.add(m);
     }
-    for (const layer of [2, 4]) {
+    for (const layer of [9, 4]) {
       const list = this._v[layer];
       if (!list.length) continue;
       const pos = [], nrm = [], uv = [], wind = [], leaf = [], idx = [];

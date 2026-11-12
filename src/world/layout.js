@@ -12,7 +12,10 @@ export const WORLD = {
   waterLevel: 0,
   heightMin: -64,     // quantisation range for the 16-bit height files
   heightMax: 3136,
-  sun: { azimuthDeg: 16, elevationDeg: 12 },
+  // The sun stands just to the right of the great tree as seen from the Dawn Terrace: still
+  // in the picture with its glow and shafts, but off the valley's axis, so the light rakes
+  // across cliff faces, terraces and the rings instead of leaving everything backlit.
+  sun: { azimuthDeg: 33, elevationDeg: 12 },
 };
 
 // Hand-placed mesas for the playable core. h is the absolute top height in metres.

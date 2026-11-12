@@ -124,18 +124,21 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
 }`;
 
-// Leaf shading shared by the card meshes and the far billboards.
+// Leaf shading shared by the card meshes and the far billboards. Nc is the smooth normal of
+// the crown (it decides what the crown shades of itself), N the normal of the leaf itself.
 const LEAF_SHADE = /* glsl */ `
-vec3 shadeLeaves(vec3 alb, vec3 N, vec3 V, vec3 wp, float inner) {
+vec3 shadeLeaves(vec3 alb, vec3 Nc, vec3 N, vec3 V, vec3 wp, float inner, float thin) {
   float ao = mix(1.0, 0.24, inner);
   float tv = sunVisibility(wp + uSunDir * 0.7);
   // The crown shades its own far side and its core; the rim stays bright.
-  float self = smoothstep(-0.55, 0.45, dot(N, uSunDir));
+  float self = smoothstep(-0.55, 0.45, dot(Nc, uSunDir));
   float vis = tv * mix(1.0, self, 0.85) * mix(1.0, 0.3, inner);
-  vec3 col = shadeSurface(alb, 0.6, 0.0, N, V, vis, ao, 0.0);
-  // Thin leaves glow when the sun is behind them, mostly around the edge of the crown.
-  float back = pow(saturate(dot(-V, uSunDir)), 3.0) * 0.9 + saturate(dot(-N, uSunDir)) * 0.35;
-  col += alb * uSunColor * 0.3183 * back * tv * (1.0 - inner * 0.85) * 0.42;
+  vec3 col = shadeSurface(alb, 0.52, 0.0, N, V, vis, ao, 0.0);
+  // Thin leaves glow when the sun is behind them, mostly around the edge of the crown. The
+  // light that comes through a leaf is yellower and more saturated than what it reflects.
+  float back = pow(saturate(dot(-V, uSunDir)), 3.0) * 0.9 + saturate(dot(-N, uSunDir)) * 0.4;
+  vec3 through = mix(alb, sqrt(alb) * 0.5, 0.5) * vec3(1.1, 1.0, 0.7);
+  col += through * uSunColor * 0.3183 * back * tv * (1.0 - inner * 0.85) * 0.6 * thin;
   return col;
 }`;
 
@@ -149,10 +152,14 @@ ${LIGHTING}
 ${LOD_FADE}
 ${LEAF_SHADE}
 uniform sampler2DArray uLeaves;
+uniform sampler2DArray uLeavesB;
 uniform float uLeafLayer;
 in vec3 vWorld; in vec3 vNormal; in vec2 vUv; in vec3 vLeaf;
 void main() {
   vec4 t = texture(uLeaves, vec3(vUv, uLeafLayer));
+  vec4 tb = texture(uLeavesB, vec3(vUv, uLeafLayer));
+  vec3 dpx = dFdx(vWorld), dpy = dFdy(vWorld);
+  vec2 dux = dFdx(vUv), duy = dFdy(vUv);
   // Far crowns keep more of each card so they stay full instead of thinning into specks.
 #if defined(BAKE_ALBEDO) || defined(BAKE_NORMAL)
   if (t.a < 0.22) discard;
@@ -161,18 +168,24 @@ void main() {
 #endif
   lodFade();
   // Per-tree and per-card colour drift.
-  vec3 alb = t.rgb * mix(vec3(0.78, 0.84, 0.92), vec3(1.2, 1.08, 0.94), vLeaf.z) * (0.66 + 0.6 * vLeaf.y);
+  vec3 alb = t.rgb * mix(vec3(0.8, 0.86, 0.92), vec3(1.18, 1.07, 0.94), vLeaf.z) * (0.84 + 0.3 * vLeaf.y);
   // Some sprays of a red or pink crown turn toward orange and peach, as real crowns do.
   alb.g += 0.3 * alb.r * step(alb.g, alb.r * 0.62) * smoothstep(0.58, 0.95, fract(vLeaf.y * 7.31 + vLeaf.z));
-  vec3 N = normalize(vNormal);
+  vec3 Nc = normalize(vNormal);
+  // Each leaf leans its own way: tilt the crown normal by the baked leaf normal, using the
+  // card's frame rebuilt from screen-space derivatives.
+  float det = dux.x * duy.y - duy.x * dux.y;
+  vec3 T = (dpx * duy.y - dpy * dux.y) * sign(det), Bt = (dpy * dux.x - dpx * duy.x) * sign(det);
+  vec2 tl = (tb.rg - 0.5) * 2.0;
+  vec3 N = normalize(Nc + (normalize(T + 1e-9) * tl.x + normalize(Bt + 1e-9) * tl.y) * 0.85);
 #ifdef BAKE_ALBEDO
   gl_FragColor = vec4(alb, 1.0); return;
 #endif
 #ifdef BAKE_NORMAL
-  gl_FragColor = vec4(N * 0.5 + 0.5, 1.0 - vLeaf.x * 0.9); return;
+  gl_FragColor = vec4(normalize(mix(Nc, N, 0.6)) * 0.5 + 0.5, 1.0 - vLeaf.x * 0.9); return;
 #endif
   vec3 V = normalize(cameraPosition - vWorld);
-  gl_FragColor = vec4(shadeLeaves(alb, N, V, vWorld, vLeaf.x), 1.0);
+  gl_FragColor = vec4(shadeLeaves(alb, Nc, N, V, vWorld, vLeaf.x, tb.b), 1.0);
 }`;
 
 const IMP_VERT = /* glsl */ `
@@ -220,7 +233,7 @@ void main() {
   vec3 N = vec3(c * n.x + s * n.z, n.y, -s * n.x + c * n.z);
   vec3 V = normalize(cameraPosition - vWorld);
   vec3 alb = a.rgb * mix(vec3(0.78, 0.84, 0.92), vec3(1.2, 1.08, 0.94), vInfo.y);
-  gl_FragColor = vec4(shadeLeaves(alb, N, V, vWorld, 1.0 - b.a), 1.0);
+  gl_FragColor = vec4(shadeLeaves(alb, N, N, V, vWorld, 1.0 - b.a, 0.8), 1.0);
 }`;
 
 const WOOD_DEPTH_VERT = /* glsl */ `
@@ -290,7 +303,8 @@ export class Forest {
     const r = pipe.renderer, g = pipe.globals;
     this.group = new THREE.Group();
     this.wind = new THREE.Vector3(0.7, 0, 0.35);
-    this.leafAtlas = bakeLeafAtlas(r, 512);
+    const atlas = bakeLeafAtlas(r, 512);
+    this.leafAtlas = atlas.a; this.leafAtlasB = atlas.b;
     this.bark = new TextureForge(r).bake([{ name: 'bark', code: BARK, bump: 12 }], 512);
 
     const shared = { ...pipe.lit(), uWind: { value: this.wind } };
@@ -302,7 +316,7 @@ export class Forest {
     });
     const mkLeaf = (layer, fade, defines = {}) => new THREE.ShaderMaterial({
       vertexShader: LEAF_VERT, fragmentShader: LEAF_FRAG, defines: { ...D, ...defines }, side: THREE.DoubleSide,
-      uniforms: { ...shared, uLeaves: { value: this.leafAtlas }, uLeafLayer: { value: layer }, uFade: { value: new THREE.Vector2(...fade) } },
+      uniforms: { ...shared, uLeaves: { value: this.leafAtlas }, uLeavesB: { value: this.leafAtlasB }, uLeafLayer: { value: layer }, uFade: { value: new THREE.Vector2(...fade) } },
     });
 
     const woodDepth = new THREE.ShaderMaterial({ vertexShader: WOOD_DEPTH_VERT, fragmentShader: 'void main() {}', uniforms: shared, colorWrite: false });

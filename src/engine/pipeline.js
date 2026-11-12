@@ -25,6 +25,9 @@ void main() {
   float disc = 1.0 - smoothstep(0.0046, 0.0054, ang);
   float limb = 1.0 - 0.45 * sq(ang / 0.0054);
   col += uSunColor * disc * limb * 260.0 * s.a * step(0.0, rd.y + 0.004);
+  // The aureole: sunlight scattered forward by the haze, far wider than the disc itself.
+  float au = 0.42 * exp(-ang * 30.0) + 0.075 * exp(-ang * 8.0) + 0.013 * exp(-ang * 2.6);
+  col += uSunColor * au * mix(0.3, 1.0, s.a) * smoothstep(-0.03, 0.01, rd.y);
   outColor = vec4(col, 1.0);
 }`;
 
@@ -131,7 +134,8 @@ export class Pipeline {
     this.scene.matrixWorldAutoUpdate = false; this.sceneT.matrixWorldAutoUpdate = false;
     this.camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.3, 120000);
     this.renderScale = opts.renderScale ?? 1;
-    this.exposure = 0.3;
+    this.exposure = 0.27;
+    this.bloomStrength = 0.1;
     this.time = 0;
     this.onBeforeScene = [];     // callbacks(camera) run after the camera is final for the frame
 
@@ -144,7 +148,7 @@ export class Pipeline {
       uSunDir: { value: this.sky.sunDir },
       uSunColor: { value: this.sky.sunColor },
       uSH: { value: this.sky.sh },
-      uBounce: { value: 0.05 },
+      uBounce: { value: 0.07 },
       uLamps: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) },   // nearest lanterns, see setLamps()          // sunlight returned by lit cliffs and ground, as a share of the sun
       ...this.sky.uniforms,
     };
@@ -177,7 +181,7 @@ export class Pipeline {
       fragment: TONEMAP,
       uniforms: {
         uColor: { value: null }, uBloom: { value: null }, uBloomStrength: { value: 0.06 }, uExposure: { value: this.exposure },
-        uSaturation: { value: 1.3 }, uContrast: { value: 1.08 }, uVignette: { value: 0.22 }, uSharpen: { value: 0.5 }, uTexel: { value: new THREE.Vector2() },
+        uSaturation: { value: 1.22 }, uContrast: { value: 1.16 }, uVignette: { value: 0.22 }, uSharpen: { value: 0.5 }, uTexel: { value: new THREE.Vector2() },
       },
     });
     this._viewProj = new THREE.Matrix4();

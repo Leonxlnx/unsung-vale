@@ -110,7 +110,7 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
   vec3 gap = mix(srgb(0.27, 0.25, 0.2), srgb(0.2, 0.3, 0.11), smoothstep(0.4, 0.7, pfbm(uv, vec2(9.0), 3, 6.0)));
   col = mix(gap, base, joint);
   // Feet have polished the middle of each stone; the margins stay matt.
-  rough = mix(0.95, 0.8 - 0.22 * bevel * (1.0 - pit), joint);
+  rough = mix(0.95, 0.78 - 0.3 * bevel * (1.0 - pit) * (0.6 + 0.4 * r2), joint);
 }`;
 
 const frieze = /* glsl */ `
@@ -184,6 +184,7 @@ uniform sampler2DArray uArchA;
 uniform sampler2DArray uArchB;
 uniform sampler2D uNoise;
 uniform float uGlow;
+uniform vec4 uPlazas[6];    // xy: centre (world xz), z: radius, w: points of the rose (radius 0 = unused)
 in vec3 vWorld; in vec3 vNormal; in float vMat;
 const float TILE[8] = float[8](4.2, 3.0, 1.3, 2.6, 3.4, 2.4, 1.7, 2.0);
 
@@ -243,6 +244,46 @@ void main() {
     rough = mix(rough, 0.95, moss);
     ao *= 1.0 - 0.35 * (1.0 - smoothstep(0.0, 2.5, above));
   }
+  if ((m == 4 || m == 0) && N.y > 0.9) {
+    // Inlaid floors: each court carries a rose of polished marble inside banded borders. The
+    // slabs, joints and grain of the paving underneath stay visible through the pattern.
+    float tone = luma(alb) / 0.5;
+    for (int i = 0; i < 6; i++) {
+      float R = uPlazas[i].z;
+      vec2 d = vWorld.xz - uPlazas[i].xy;
+      float r = length(d) / max(R, 1e-3);
+      if (R <= 0.0 || r > 1.0) continue;
+      float n = uPlazas[i].w, a = atan(d.y, d.x), aa = 0.008 + dist * 0.0022 / R;
+      float t1 = abs(fract(a * n / TAU) - 0.5) * 2.0, t2 = abs(fract(a * n / TAU + 0.5) - 0.5) * 2.0;
+      float s1 = 0.6 * mix(1.0, 0.36, pow(t1, 0.8)), s2 = 0.41 * mix(1.0, 0.45, pow(t2, 0.8));
+      float in1 = 1.0 - smoothstep(s1 - aa, s1, r), in2 = 1.0 - smoothstep(s2 - aa, s2, r);
+      float band = smoothstep(0.87, 0.87 + aa, r) * (1.0 - smoothstep(0.985 - aa, 0.985, r));
+      float ring = smoothstep(0.655, 0.655 + aa, r) * (1.0 - smoothstep(0.7 - aa, 0.7, r));
+      float core = 1.0 - smoothstep(0.1 - aa, 0.1, r);
+      vec3 cream = vec3(0.86, 0.81, 0.72), rose = vec3(0.6, 0.42, 0.37), slate = vec3(0.27, 0.31, 0.36);
+      alb = mix(alb, slate * tone, band * 0.8);
+      alb = mix(alb, cream * tone, max(ring, in1) * 0.85);
+      alb = mix(alb, rose * tone, in2 * 0.85);
+      alb = mix(alb, slate * tone, core * 0.8);
+      // A fine dark joint outlines every piece of the inlay.
+      float line = max(max(1.0 - smoothstep(0.0, aa * 1.6, abs(r - s1)), 1.0 - smoothstep(0.0, aa * 1.6, abs(r - s2))),
+                       max(1.0 - smoothstep(0.0, aa * 1.6, abs(r - 0.87)), 1.0 - smoothstep(0.0, aa * 1.6, abs(r - 0.7))));
+      alb *= 1.0 - 0.45 * line * step(r, 0.99);
+      rough = mix(rough, rough * 0.62, max(max(in1, in2), max(ring, band)) * (1.0 - line));
+    }
+    // Fallen petals, gathered in drifts by the wind.
+    if (dist < 34.0) {
+      vec2 pc = vWorld.xz * 5.5, pid = floor(pc), pf = fract(pc) - 0.5;
+      vec3 ph = hash32(pid);
+      float drift = smoothstep(0.5, 0.72, textureLod(uNoise, vWorld.xz / 37.0, 0.0).b) * 0.75 + 0.05;
+      float pa = ph.z * 6.2832;
+      vec2 pq = mat2(cos(pa), -sin(pa), sin(pa), cos(pa)) * (pf - (ph.xy - 0.5) * 0.6);
+      pq.x *= 1.75;
+      float petal = (1.0 - smoothstep(0.1, 0.13, length(pq))) * step(hash12(pid + 7.3), drift) * (1.0 - smoothstep(22.0, 34.0, dist));
+      alb = mix(alb, mix(vec3(0.86, 0.5, 0.58), vec3(0.93, 0.8, 0.82), ph.x), petal * 0.92);
+      rough = mix(rough, 0.8, petal);
+    }
+  }
   if (m == 2) metal = 1.0;
   if (m == 7) metal = 0.6;
 
@@ -265,6 +306,7 @@ export function createArchMaterial(pipe, terrain) {
     uniforms: {
       ...pipe.lit(), uArchA: { value: layers.a }, uArchB: { value: layers.b },
       uNoise: terrain.surfaceUniforms.uNoise, uGlow: { value: 3.2 },
+      uPlazas: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) },
     },
   });
   mat.userData.layers = layers;

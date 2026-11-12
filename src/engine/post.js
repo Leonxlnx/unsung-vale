@@ -314,8 +314,8 @@ export class AoPass {
 export class FogPass {
   constructor(pipe) {
     const g = pipe.globals;
-    this.haze = new THREE.Vector4(7.5e-5, 900, 0.06, 0);
-    this.mist = new THREE.Vector4(3.2e-4, 45, 2, 0);
+    this.haze = new THREE.Vector4(6.0e-5, 900, 0.1, 0);
+    this.mist = new THREE.Vector4(3.0e-4, 85, 2, 0);
     this.mute = [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()];
     this.uniforms = { uHaze: { value: this.haze }, uMist: { value: this.mist } };
     this.pass = new FullscreenPass({

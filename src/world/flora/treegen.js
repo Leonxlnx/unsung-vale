@@ -103,7 +103,7 @@ export function generateTree(speciesName, seed) {
   const crownBase = H * sp.branchStart, crownH = H - crownBase;
   const crownCenter = [trunk[trunk.length - 1][0] * 0.6, crownBase + crownH * 0.55, trunk[trunk.length - 1][2] * 0.6];
 
-  function leafCards(pts, count, sizeMul, phase) {
+  function leafCards(pts, count, sizeMul, phase, lobe = null) {
     for (let k = 0; k < count; k++) {
       const { p, d } = at(pts, count === 1 ? 1 : 0.45 + 0.55 * (k / (count - 1)));
       const out = norm(sub(p, crownCenter));
@@ -114,9 +114,9 @@ export function generateTree(speciesName, seed) {
       const size = range(sp.cardSize) * sizeMul;
       const c = add(p, mul(out, size * 0.18));
       if (sp.droop > 0) c[1] -= size * 0.25 * sp.droop;
-      cards.push({ c, n, t, size, phase });
+      cards.push({ c, n, t, size, phase, lobe });
       // Every other cluster gets a second card at right angles so the crown has volume from any side.
-      if (sp.leaf !== 3 && k % 2 === 0) cards.push({ c: add(c, mul(n, size * 0.12)), n: norm(cross(n, t)), t, size: size * 0.9, phase });
+      if (sp.leaf !== 3 && k % 2 === 0) cards.push({ c: add(c, mul(n, size * 0.12)), n: norm(cross(n, t)), t, size: size * 0.9, phase, lobe });
     }
   }
 
@@ -130,17 +130,20 @@ export function generateTree(speciesName, seed) {
     const crownT = (ht - sp.branchStart) / (1 - sp.branchStart);
     const elev = sp.leaf === 3 ? lerp(0.9, 0.5, crownT) : lerp(1.35, 0.35, Math.pow(crownT, 0.9));   // radians from the trunk axis
     const dir = norm(add(mul(d, Math.cos(elev)), mul(side, Math.sin(elev))));
-    const length = Math.max(0.6, crownR * sp.crown(crownT) * (0.75 + 0.5 * rnd()));
+    const length = Math.max(0.6, crownR * sp.crown(crownT) * (sp.leaf === 3 ? 0.75 + 0.5 * rnd() : 0.6 + 0.75 * rnd()));
     const phase = rnd() * 6.283;
     const r0 = Math.min(trunkR(ht) * 0.6, 0.05 + length * 0.028);
     const droop = sp.droop;
     const b1 = grow(p, dir, length, r0, 1, sp.leaf === 3 ? 4 : 7, (t) => sp.tropism * (1 - t) * 0.5 - droop * t * t * 0.6, phase);
+    // Each main bough carries one billow of the crown. Its leaves are shaded as part of that
+    // rounded mass, which is what gives a tree its lobed look from a distance.
+    const lobe = sp.leaf === 3 ? null : { c: at(b1, 0.72).p, r: Math.max(1.0, length * 0.55) };
     if (sp.leaf === 3) { leafCards(b1, 3, 1, phase); }
     else {
       // Large cards deep inside the crown close the gaps so the canopy reads as a solid mass.
       for (const ft of [0.55, 0.85]) {
         const f = at(b1, ft);
-        cards.push({ c: f.p, n: norm(add(UP, mul(side, 0.4))), t: f.d, size: range(sp.cardSize) * 2.1, phase, fill: true });
+        cards.push({ c: f.p, n: norm(add(UP, mul(side, 0.4))), t: f.d, size: range(sp.cardSize) * 2.1, phase, fill: true, lobe });
       }
     }
     const n2 = irange(sp.n2);
@@ -152,16 +155,16 @@ export function generateTree(speciesName, seed) {
       const d2 = norm(add(add(mul(a.d, Math.cos(ang)), mul(s2, Math.sin(ang))), mul(UP, 0.12)));
       const l2 = length * (1 - bt * 0.55) * lerp(0.42, 0.7, rnd());
       const b2 = grow(a.p, d2, l2, r0 * (1 - bt * 0.7) * 0.6, 2, 5, (t) => sp.tropism * 0.3 - droop * t * 0.75, phase + j);
-      if (sp.leaf !== 3) leafCards(b2, 2, 1.15, phase + j);   // fill the inside of the crown
+      if (sp.leaf !== 3) leafCards(b2, 2, 1.15, phase + j, lobe);   // fill the inside of the crown
       const n3 = irange(sp.n3);
-      if (n3 === 0) { leafCards(b2, sp.cardsPerTwig, 1, phase + j); continue; }
+      if (n3 === 0) { leafCards(b2, sp.cardsPerTwig, 1, phase + j, lobe); continue; }
       for (let i = 0; i < n3; i++) {
         const ct = lerp(0.3, 1.0, (i + rnd() * 0.5) / n3);
         const c = at(b2, ct);
         const s3 = rotateAround(perp(c.d), c.d, i * GOLDEN * 2.1 + rnd());
         const d3 = norm(add(add(mul(c.d, 0.75), mul(s3, 0.7)), mul(UP, 0.1 - droop * 0.9)));
         const b3 = grow(c.p, d3, l2 * lerp(0.3, 0.5, rnd()), 0.03, 3, 3, (t) => -droop * t * 0.9, phase + j + i * 0.3);
-        leafCards(b3, sp.cardsPerTwig, 1, phase + j + i * 0.3);
+        leafCards(b3, sp.cardsPerTwig, 1, phase + j + i * 0.3, lobe);
       }
     }
   }
@@ -232,16 +235,25 @@ export function buildLeaves(tree, keep = 1, sizeMul = 1) {
     acc -= step;
     const s = c.size * sizeMul * 0.5;
     const t = c.t, b = norm(cross(c.n, t));
-    const out = norm(sub(c.c, cc));
-    // Soft "ball" normals read as a full canopy instead of flat cards.
-    const n = norm(add(mul(out, 0.72), mul(c.n, 0.28)));
-    const inner = Math.max(c.fill ? 0.72 : 0, 1 - Math.min(1, len(sub(c.c, cc)) / tree.crownRadius));
     const r = rnd();
     const flip = rnd() < 0.5 ? -1 : 1;
     const base = pos.length / 3;
     const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
     for (const [u, v] of corners) {
-      pos.push(c.c[0] + (t[0] * u + b[0] * v) * s, c.c[1] + (t[1] * u + b[1] * v) * s, c.c[2] + (t[2] * u + b[2] * v) * s);
+      const p = [c.c[0] + (t[0] * u + b[0] * v) * s, c.c[1] + (t[1] * u + b[1] * v) * s, c.c[2] + (t[2] * u + b[2] * v) * s];
+      // Normals are those of a rounded mass, worked out per corner so they run smoothly across
+      // every card: part the crown as a whole, part the billow this bough carries, and only a
+      // trace of the card itself. Flat cards then shade as one soft, lobed canopy.
+      const fromCrown = sub(p, cc), dC = len(fromCrown);
+      let n = mul(norm(fromCrown), 0.55), inner = 1 - Math.min(1, dC / tree.crownRadius);
+      if (c.lobe) {
+        const fromLobe = sub(p, c.lobe.c), dL = len(fromLobe);
+        n = add(n, mul(norm(fromLobe), 0.6));
+        inner = Math.min(1, inner * 0.75 + (1 - Math.min(1, dL / c.lobe.r)) * 0.45);
+      } else n = add(n, mul(norm(fromCrown), 0.45));
+      n = norm(add(n, mul(c.n, 0.14)));
+      if (c.fill) inner = Math.max(inner, 0.72);
+      pos.push(p[0], p[1], p[2]);
       nrm.push(n[0], n[1], n[2]);
       uv.push(flip * u * 0.5 + 0.5, v * 0.5 + 0.5);
       wind.push(Math.pow(Math.max(0, c.c[1]) / H, 1.5), c.phase, 1);

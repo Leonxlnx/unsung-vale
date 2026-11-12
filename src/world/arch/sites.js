@@ -109,6 +109,9 @@ export class Architecture {
   buildPlayable() {
     const T = this.terrain, H = (x, z) => T.heightAt(x, z);
     const out = { spires: [], solids: [], lanterns: [], planters: [] };
+    // Courts whose floors carry an inlaid rose: [x, z, radius, points].
+    out.plazas = [[-515, -70, 9.5, 16], [-499, -70, 6.6, 8], [-372, -392, 11.6, 12], [66, -498, 13.6, 12], [150, -15, 29.6, 14]];
+    out.plazas.forEach((p, i) => this.material.uniforms.uPlazas.value[i].set(...p));
     const finish = (b) => { const m = this.add(b, { near: true }); out.solids.push(m.geometry); return m; };
     const lamp = (b, x, y, z) => { b.at(x, y, z, 0, (q) => lantern(q)); out.lanterns.push([x, y + 2.95, z]); };
 
