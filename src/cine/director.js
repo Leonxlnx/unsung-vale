@@ -174,20 +174,25 @@ export class Director {
       },
       { // 7. The light bridge forms toward the Choir.
         dur: 5,
-        setup: (d) => d.game.cineSetup({ tuned: ['petal', 'cantor'], bridge: 0.0001, player: [br.from[0], br.from[1] + 0.1, br.from[2] - 12, 0.21] }),
+        setup: (d) => d.game.cineSetup({ tuned: ['petal', 'cantor'], bridge: 0.0001, player: [br.from[0], br.from[1] + 0.1, br.from[2] + 0.5, 0.21] }),
         update: (d, t, k) => {
           const p = d.game.player.pos;
           d.walkTo(lerp(br.from[0], br.to[0], 0.3), lerp(br.from[2], br.to[2], 0.3), { stop: 1 });
-          // From beside the gate, just past it: the bridge runs away below toward the Choir.
-          d.cam([p.x + 5.5 - 2 * k, p.y + 2.6 + 1.2 * k, p.z - 7.5 + 1.5 * k], [lerp(p.x, br.to[0], 0.22), lerp(p.y, br.to[1], 0.22) + 1.2, lerp(p.z, br.to[2], 0.22)], 44);
+          // Behind the Cantor at the bridge head, rising as the span races away to the Choir.
+          const L = Math.hypot(br.to[0] - br.from[0], br.to[2] - br.from[2]);
+          const dx = (br.to[0] - br.from[0]) / L, dz = (br.to[2] - br.from[2]) / L, e = ease(k);
+          const back = 4.2 + 1.3 * e;
+          d.cam([p.x - dx * back - dz * 1.7, p.y + 1.4 + 2.0 * e, p.z - dz * back + dx * 1.7],
+            [lerp(br.from[0], br.to[0], 0.6), lerp(br.from[1], br.to[1], 0.6) + 6, lerp(br.from[2], br.to[2], 0.6)], 42);
         },
       },
       { // 8. The valley at day's end.
         dur: 3,
         setup: (d) => d.game.cineSetup({ tuned: ['petal', 'cantor', 'choir'], player: [terrace[0] + 15.5, terrace[1] + 0.05, terrace[2] - 1.5, Math.PI / 2] }),
         update: (d, t, k) => {
-          const p = along([[terrace[0] - 4, terrace[1] + 8, terrace[2] - 16], [terrace[0] - 16, terrace[1] + 13, terrace[2] - 21], [terrace[0] - 30, terrace[1] + 19, terrace[2] - 25]], k);
-          d.cam(p, [terrace[0] + 320, terrace[1] + 26, terrace[2] + 60], 40);
+          // Rising back from above the lookout, clear of the trees, as the whole valley opens.
+          const p = along([[terrace[0] + 10, terrace[1] + 13, terrace[2] + 22], [terrace[0] + 3, terrace[1] + 20, terrace[2] + 27], [terrace[0] - 6, terrace[1] + 29, terrace[2] + 33]], k);
+          d.cam(p, [terrace[0] + 320, terrace[1] + 14, terrace[2] + 50], 44);
         },
       },
     ];

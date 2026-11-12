@@ -8,6 +8,7 @@ import { CameraRig } from './camera.js';
 import { Particles } from './particles.js';
 import { Enemies } from './enemies.js';
 import { MeshBuilder, M } from '../world/arch/builder.js';
+import { spireRadius } from '../world/arch/kit.js';
 
 const SAVE_KEY = 'unsung-vale-save-v1';
 
@@ -53,19 +54,56 @@ const BRIDGE_VERT = /* glsl */ `
 out vec2 vUv; out vec3 vWorld;
 void main() { vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
 const BRIDGE_FRAG = /* glsl */ `
-uniform float uProgress; uniform float uTime; uniform sampler2D uNoise;
+uniform float uProgress; uniform float uTime; uniform float uLength; uniform sampler2D uNoise;
 in vec2 vUv; in vec3 vWorld;
 float sq(float x) { return x * x; }
+// An antialiased line of half-width w that dims, rather than shimmers, once it is thinner
+// than a pixel.
+float stroke(float d, float w) {
+  float fw = max(fwidth(d), 1e-5);
+  return (1.0 - smoothstep(w - fw, w + fw, d)) * min(1.0, w / fw + 0.25);
+}
 void main() {
   if (vUv.y > uProgress) discard;
-  float edge = abs(vUv.x - 0.5) * 2.0;
-  float rail = smoothstep(0.82, 0.98, edge);
-  float n = texture(uNoise, vec2(vUv.x * 0.6, vUv.y * 9.0 - uTime * 0.05)).r;
-  float lattice = smoothstep(0.42, 0.5, abs(fract(vUv.y * 46.0 + vUv.x * 2.0) - 0.5)) * 0.35 + smoothstep(0.44, 0.5, abs(fract(vUv.x * 5.0) - 0.5)) * 0.3;
-  float front = exp(-sq((uProgress - vUv.y) * 60.0)) * 3.0;
-  float a = 0.3 + rail * 0.9 + lattice * 0.5 + n * 0.2 + front;
-  // Light made solid: bright enough to bloom, clear enough to see the lake through it.
-  gl_FragColor = vec4(vec3(1.0, 0.8, 0.42) * a * 6.5, 0.3 + rail * 0.4);
+  float x = (vUv.x - 0.5) * 5.2, y = vUv.y * uLength;          // metres across and along
+  float edge = 2.6 - abs(x);
+  float rail = stroke(edge, 0.05), railGlow = exp(-edge * edge * 9.0);
+  // A diamond lattice with a rib across every few metres and a spine down the middle.
+  const float S = 1.3;
+  float da = abs(fract((x + y) / S) - 0.5) * S * 0.707, db = abs(fract((x - y) / S) - 0.5) * S * 0.707;
+  float lattice = max(stroke(da, 0.012), stroke(db, 0.012));
+  float rib = stroke(abs(fract(y / 5.2) - 0.5) * 5.2, 0.03);
+  float spine = stroke(abs(x), 0.02);
+  // Pulses of light run out along the span.
+  float pulse = exp(-sq((fract(y / 70.0 - uTime * 0.11) - 0.5) * 14.0));
+  float n = texture(uNoise, vec2(x * 0.11, y * 0.035 - uTime * 0.03)).r;
+  // The leading edge is a bright seam; the lattice draws itself in first, the glow follows.
+  float behind = (uProgress - vUv.y) * uLength;
+  float front = exp(-sq(behind * 0.9)) * 14.0;
+  float formed = smoothstep(0.0, 9.0, behind);
+  float lines = lattice * 3.2 + rib * 4.0 + spine * 3.0 + rail * 14.0;
+  float glow = (0.22 + 0.25 * n) * formed + railGlow * 1.6;
+  float a = (lines * (0.6 + 0.4 * formed) + glow) * (1.0 + pulse * 1.6) + front;
+  vec3 col = mix(vec3(1.0, 0.74, 0.36), vec3(1.0, 0.93, 0.78), clamp(a * 0.08, 0.0, 1.0)) * a;
+  // Premultiplied: light, plus a faint veil so the deck reads against a bright lake.
+  gl_FragColor = vec4(col, (0.1 + 0.22 * railGlow) * formed);
+}`;
+// Threads of light strung up the faces of a tuning spire.
+const STRING_VERT = /* glsl */ `
+in float aT; in float aK;
+out float vT; out float vK;
+void main() { vT = aT; vK = aK; gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }`;
+const STRING_FRAG = /* glsl */ `
+uniform vec3 uColor; uniform float uPower; uniform float uTune; uniform float uTime;
+in float vT; in float vK;
+void main() {
+  // A steady hum, beads of light climbing each string, and one bright bead that follows
+  // the tuning as it is held.
+  float bead = pow(0.5 + 0.5 * sin(vT * 26.0 - uTime * 4.0 + vK * 2.4), 6.0);
+  float hum = 0.75 + 0.25 * sin(uTime * 9.0 + vK * 1.7);
+  float climb = exp(-pow((vT - uTune) * 9.0, 2.0)) * step(0.001, uTune);
+  vec3 col = uColor * (uPower * (1.6 * hum + 7.0 * bead) + climb * 16.0) + vec3(0.012, 0.011, 0.01);
+  gl_FragColor = vec4(col, 1.0);
 }`;
 
 export class Game {
@@ -123,9 +161,30 @@ export class Game {
       beam.position.set(s.x, s.y + 1, s.z); beam.frustumCulled = false; beam.renderOrder = 4;
       beam.updateMatrixWorld();
       this.pipe.sceneT.add(beam);
+      // Eight strings, one up the middle of each face of the shaft.
+      const sp = [], st = [], sk = [], si = [], h = s.h ?? 22, c8 = Math.cos(Math.PI / 8);
+      const ys = [3.0, h * 0.35, h * 0.7 - 0.3];
+      for (let k = 0; k < 8; k++) {
+        const a = k * Math.PI / 4, ca = Math.cos(a), sa = Math.sin(a), w = 0.028;
+        for (let j = 0; j < ys.length; j++) {
+          const y = ys[j], r = spireRadius(y, h) * c8 + 0.1, t = (y - ys[0]) / (ys[2] - ys[0]);
+          // A square thread: four corners per ring.
+          for (const [dr, dt] of [[-w, -w], [w, -w], [w, w], [-w, w]]) { sp.push(ca * (r + dr) - sa * dt, y, -(sa * (r + dr) + ca * dt)); st.push(t); sk.push(k); }
+          if (j > 0) { const o = (k * ys.length + j - 1) * 4; for (let q = 0; q < 4; q++) { const n = (q + 1) % 4; si.push(o + q, o + n, o + 4 + q, o + n, o + 4 + n, o + 4 + q); } }
+        }
+      }
+      const sgeo = new THREE.BufferGeometry();
+      sgeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+      sgeo.setAttribute('aT', new THREE.Float32BufferAttribute(st, 1));
+      sgeo.setAttribute('aK', new THREE.Float32BufferAttribute(sk, 1));
+      sgeo.setIndex(si);
+      const strings = new THREE.Mesh(sgeo, new THREE.ShaderMaterial({ vertexShader: STRING_VERT, fragmentShader: STRING_FRAG, side: THREE.DoubleSide, uniforms: { uColor: { value: new THREE.Vector3(1.0, 0.8, 0.42) }, uPower: { value: 0 }, uTune: { value: 0 }, uTime: g.uTime } }));
+      strings.position.set(s.x, s.base, s.z); strings.frustumCulled = false;
+      strings.updateMatrixWorld();
+      this.pipe.scene.add(strings);
       const zone = this.pipe.fog.mute[i];
       zone.set(s.x, s.z, i === 2 ? 60 : 78, 1);
-      return { ...s, index: i, crystal, beam, zone, tuned: false, power: 0, zoneR: zone.z, zoneR0: zone.z, tuning: 0 };
+      return { ...s, index: i, crystal, beam, strings, zone, tuned: false, power: 0, zoneR: zone.z, zoneR0: zone.z, tuning: 0 };
     });
   }
 
@@ -146,8 +205,8 @@ export class Game {
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     geo.setIndex(idx);
     this.bridgeMat = new THREE.ShaderMaterial({
-      vertexShader: BRIDGE_VERT, fragmentShader: BRIDGE_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-      uniforms: { uProgress: { value: 0 }, uTime: this.pipe.globals.uTime, uNoise: this.terrain.surfaceUniforms.uNoise },
+      vertexShader: BRIDGE_VERT, fragmentShader: BRIDGE_FRAG, transparent: true, premultipliedAlpha: true, depthWrite: false, side: THREE.DoubleSide,
+      uniforms: { uLength: { value: L }, uProgress: { value: 0 }, uTime: this.pipe.globals.uTime, uNoise: this.terrain.surfaceUniforms.uNoise },
     });
     this.bridge = new THREE.Mesh(geo, this.bridgeMat);
     this.bridge.frustumCulled = false; this.bridge.visible = false; this.bridge.renderOrder = 1;
@@ -387,6 +446,8 @@ export class Game {
         if (s.zoneR > 0) { s.zoneR = Math.max(0, s.zoneR - dt * 26); s.zone.z = s.zoneR; s.zone.w = Math.min(1, s.zoneR / 12); }
       }
       s.crystal.material.uniforms.uPower.value = s.power;
+      s.strings.material.uniforms.uPower.value = s.power;
+      s.strings.material.uniforms.uTune.value = s.tuning / 1.5;
       s.beam.material.uniforms.uPower.value = Math.max(0, (s.power - 0.3) / 0.7) * (s.tuned ? 1 : 0);
       s.beam.visible = s.tuned;
       s.crystal.rotation.y = t * (0.25 + s.power * 0.8) + s.index;

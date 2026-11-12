@@ -51,6 +51,9 @@ terrain.bakePaths([
   [[-110, -459], [-60, -470], [8, -488], [46, -496]],
   [[72, -478], [85, -420], [96, -362], [98, -344]],
   [[-524, -48], [-536, -30]],
+], [
+  // Paved courts and platforms, where no grass should push through the stone.
+  [-372, -392, -372, -392, 18.7], [66, -498, 66, -498, 21.7], [150, -15, 150, -15, 39.7], [94, -336, 102, -336, 4.9],
 ]);
 await stage(0.3, 'Building the cities');
 const arch = new Architecture(pipe, terrain, buildMesas());

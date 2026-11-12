@@ -252,25 +252,59 @@ export function lantern(b, h = 3.2) {
 
 // A Tuning Spire: stepped dais, slender shaft, and four gilded prongs cradling a crystal
 // (the crystal itself is a separate glowing mesh owned by the game). Returns the crystal height.
+// Radius of the spire's shaft (to its corners) at height y, for a spire of height h.
+export function spireRadius(y, h) {
+  const y1 = h * 0.35, y2 = h * 0.7;
+  return y < y1 ? 1.12 + (0.96 - 1.12) * ((y - 2.8) / (y1 - 2.8)) : 0.96 + (0.76 - 0.96) * ((y - y1) / (y2 - y1));
+}
+// The instrument at the heart of each site: a stepped plinth and an eight-sided pedestal
+// carry a tall tapering shaft with gilded corners, crowned by four prongs that cradle the
+// crystal. The game strings eight threads of light up its faces (see Game._buildSpires).
 export function tuningSpire(b, h = 22) {
+  const PI = Math.PI, flat = { smooth: false, phase: PI / 8 };
   b.mat_(M.PAVING).lathe([[5.2, -4], [5.2, 0.25], [4.4, 0.25], [4.4, 0.5], [3.6, 0.5], [3.6, 0.75], [0, 0.75]], 24);
   b.mat_(M.GOLD).lathe([[3.3, 0.76], [3.1, 0.77]], 24);
-  b.mat_(M.MARBLE).prism(1.5, 1.3, 0.75, 2.2, 8, { capTop: true });
-  b.mat_(M.FRIEZE).prism(1.32, 1.32, 1.2, 2.0, 8);
-  b.mat_(M.MARBLE).lathe([[1.05, 2.2], [0.9, h * 0.35], [0.72, h * 0.7]], 8, { smooth: false, phase: Math.PI / 8 });
+  // Pedestal: base moulding, a carved die between corner colonnettes, and a cornice.
+  b.mat_(M.MARBLE).lathe([[2.0, 0.75], [2.0, 0.98], [1.8, 1.08], [1.66, 1.24]], 8, flat);
+  b.mat_(M.FRIEZE).prism(1.52, 1.52, 1.24, 2.34, 8);
+  b.mat_(M.MARBLE).lathe([[1.52, 2.34], [1.66, 2.42], [1.86, 2.52], [1.86, 2.68], [1.2, 2.8], [0, 2.8]], 8, flat);
+  for (let k = 0; k < 8; k++) {
+    const a = (k + 0.5) * PI / 4;
+    b.at(Math.cos(a) * 1.6, 1.24, Math.sin(a) * 1.6, 0, (q) => q.mat_(M.MARBLE).lathe([[0.14, 0], [0.14, 0.07], [0.1, 0.12], [0.085, 0.96], [0.14, 1.03], [0.14, 1.1]], 8));
+  }
+  b.mat_(M.GOLD).lathe([[1.9, 2.69], [1.86, 2.72], [1.26, 2.82]], 8, flat);
+  // Shaft, with a slim gilded rib up every corner and a boss at each end of every face
+  // where a string is anchored.
+  const y1 = h * 0.35, y2 = h * 0.7;
+  b.mat_(M.MARBLE).lathe([[1.12, 2.8], [0.96, y1], [0.76, y2]], 8, flat);
   b.mat_(M.GOLD);
-  for (const f of [0.3, 0.5, 0.7]) b.lathe([[1.0 - f * 0.36, h * f - 0.12], [1.12 - f * 0.36, h * f], [1.0 - f * 0.36, h * f + 0.12]], 8, { smooth: false, phase: Math.PI / 8 });
+  for (let k = 0; k < 8; k++) {
+    b.push().rotateY((k + 0.5) * PI / 4);
+    for (const [r0, ya, r1, yb] of [[1.12, 2.8, 0.96, y1], [0.96, y1, 0.76, y2]]) {
+      const w = 0.055, o = 0.04, t = 0.09;
+      b.quad([r0 + o, ya, -w], [r1 + o, yb, -w], [r1 + o, yb, w], [r0 + o, ya, w]);
+      b.quad([r0 + o, ya, w], [r1 + o, yb, w], [r1 + o - t, yb, w], [r0 + o - t, ya, w]);
+      b.quad([r0 + o - t, ya, -w], [r1 + o - t, yb, -w], [r1 + o, yb, -w], [r0 + o, ya, -w]);
+    }
+    b.pop();
+    b.push().rotateY(k * PI / 4);
+    const c = Math.cos(PI / 8);
+    for (const y of [3.0, y2 - 0.3]) { const r = spireRadius(y, h) * c; b.box(r - 0.03, y - 0.09, -0.09, 0.14, 0.18, 0.18); }
+    b.pop();
+  }
+  for (const f of [0.3, 0.5]) { const r = spireRadius(h * f, h); b.lathe([[r, h * f - 0.12], [r + 0.12, h * f], [r, h * f + 0.12]], 8, flat); }
+  b.lathe([[0.76, y2 - 0.16], [0.9, y2 - 0.04], [0.9, y2 + 0.04]], 8, flat);
   const cy = h * 0.86;
   for (let k = 0; k < 4; k++) {
     b.push().rotateY((k / 4) * Math.PI * 2 + Math.PI / 4);
     // Each prong sweeps out and back in around the crystal.
     const pts = [[0.55, h * 0.7], [1.5, h * 0.76], [1.75, h * 0.84], [1.3, h * 0.93], [0.5, h * 1.0]];
     for (let i = 0; i < pts.length - 1; i++) {
-      const [r0, y0] = pts[i], [r1, y1] = pts[i + 1], w = 0.16 - i * 0.025;
-      b.quad([r0, y0, -w], [r1, y1, -w], [r1, y1, w], [r0, y0, w]);
-      b.quad([r0, y0, w], [r1, y1, w], [r1 - 0.2, y1, w], [r0 - 0.2, y0, w]);
-      b.quad([r0 - 0.2, y0, -w], [r1 - 0.2, y1, -w], [r1, y1, -w], [r0, y0, -w]);
-      b.quad([r0 - 0.2, y0, w], [r1 - 0.2, y1, w], [r1 - 0.2, y1, -w], [r0 - 0.2, y0, -w]);
+      const [r0, y0] = pts[i], [r1, yb] = pts[i + 1], w = 0.16 - i * 0.025;
+      b.quad([r0, y0, -w], [r1, yb, -w], [r1, yb, w], [r0, y0, w]);
+      b.quad([r0, y0, w], [r1, yb, w], [r1 - 0.2, yb, w], [r0 - 0.2, y0, w]);
+      b.quad([r0 - 0.2, y0, -w], [r1 - 0.2, yb, -w], [r1, yb, -w], [r0, y0, -w]);
+      b.quad([r0 - 0.2, y0, w], [r1 - 0.2, yb, w], [r1 - 0.2, yb, -w], [r0 - 0.2, y0, -w]);
     }
     b.pop();
   }

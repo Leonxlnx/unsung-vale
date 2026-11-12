@@ -165,7 +165,7 @@ export class Architecture {
         q.mat_(M.PAVING).lathe([[19, -6], [19, 0.12], [0, 0.12]], 36);
         q.mat_(M.GOLD).lathe([[12.4, 0.13], [12.0, 0.135]], 36);
         const cyl = tuningSpire(q, 22);
-        out.spires.push({ id: 'petal', x: sx, y: y + cyl, z: sz, base: y });
+        out.spires.push({ id: 'petal', x: sx, y: y + cyl, z: sz, base: y, h: 22 });
         for (let k = 0; k < 12; k++) {
           if (k === 3 || k === 8) continue;       // gaps where columns have fallen
           const a0 = (k / 12) * Math.PI * 2;
@@ -200,7 +200,7 @@ export class Architecture {
         q.mat_(M.PAVING).lathe([[22, -6], [22, 0.12], [0, 0.12]], 40);
         q.mat_(M.GOLD).lathe([[14.4, 0.13], [14.0, 0.135]], 40);
         const cyl = tuningSpire(q, 24);
-        out.spires.push({ id: 'cantor', x: sx, y: y + cyl, z: sz, base: y });
+        out.spires.push({ id: 'cantor', x: sx, y: y + cyl, z: sz, base: y, h: 24 });
       });
       const hx = 96, hz = -590;
       b.at(hx, H(hx, hz), hz, 0, (q) => hall(q, { w: 50, d: 19, h: 25, bays: 7, detail: 1, foot: 10 }));
@@ -236,7 +236,7 @@ export class Architecture {
           q.at(x0, 0.1, z0, Math.atan2(-(z1 - z0), x1 - x0), (g) => arcade(g, chord, { bay: chord, colH: 9.5, t: 1.2, top: 2.4, detail: 1 }));
         }
         const cyl = tuningSpire(q, 28);
-        out.spires.push({ id: 'choir', x: cx, y: y + cyl, z: cz, base: y });
+        out.spires.push({ id: 'choir', x: cx, y: y + cyl, z: cz, base: y, h: 28 });
       });
       finish(b);
       out.arena = { x: cx, y, z: cz, r: 31 };

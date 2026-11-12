@@ -111,22 +111,25 @@ void main() {
 // Rasterises the walking routes into a mask over the core so the ground can show a worn path.
 const PATH_BAKE = /* glsl */ `
 uniform vec4 uSeg[40];
+uniform float uRad[40];      // 0: a worn path; above 0: paved ground cleared to this radius
 uniform int uCount;
 uniform float uSize;
 float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y); }
 void main() {
   vec2 p = (vUv - 0.5) * uSize;
-  float d = 1e6;
+  float d = 1e6, clear = 0.0, cut = 0.0;
   for (int i = 0; i < 40; i++) {
     if (i >= uCount) break;
     vec2 a = uSeg[i].xy, b = uSeg[i].zw, ab = b - a;
-    float t = clamp(dot(p - a, ab) / dot(ab, ab), 0.0, 1.0);
-    d = min(d, length(p - a - ab * t));
+    float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-4), 0.0, 1.0);
+    float ds = length(p - a - ab * t), r = uRad[i];
+    // The cut stays well inside the paving so a coarse texel can never open a gap beside it.
+    if (r > 0.0) { clear = max(clear, 1.0 - smoothstep(r - 0.7, r, ds)); cut = max(cut, 1.0 - smoothstep(r - 2.4, r - 1.4, ds)); } else d = min(d, ds);
   }
   // Ragged edges: the width wanders a little along the way.
   float w = 1.5 + 1.3 * vn(p * 0.21) + 0.6 * vn(p * 0.9);
-  outColor = vec4(1.0 - smoothstep(w, w + 2.6, d));
+  outColor = vec4(max(1.0 - smoothstep(w, w + 2.6, d), clear), cut, 0.0, 1.0);
 }`;
 
 export const TERRAIN_SAMPLING = /* glsl */ `
@@ -251,6 +254,8 @@ void main() {
   float dist = distance(vWorld, cameraPosition);
   vec3 V = (cameraPosition - vWorld) / dist;
   float cw = coreWeight(xz);
+  // Under paved courts the ground is cut away, so no bump of turf shows through the stone.
+  if (cw > 0.0 && textureLod(uPathTex, xz / CORE_SIZE + 0.5, 0.0).g > 0.5) discard;
   vec4 nm = texture(uNRegion, xz / REGION_SIZE + 0.5);
   float aoM = texture(uAORegion, xz / REGION_SIZE + 0.5).r;
   if (cw > 0.0) {
@@ -418,7 +423,7 @@ export class Terrain {
       uTA: { value: this.layers.a }, uTB: { value: this.layers.b }, uNoise: { value: this.noise.texture },
       uPathTex: { value: null },
     };
-    this.pathMask = new THREE.WebGLRenderTarget(1024, 1024, { depthBuffer: false, type: THREE.UnsignedByteType, format: THREE.RedFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
+    this.pathMask = new THREE.WebGLRenderTarget(2048, 2048, { depthBuffer: false, type: THREE.UnsignedByteType, format: THREE.RGFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
     this.surfaceUniforms.uPathTex.value = this.pathMask.texture;
 
     pipe.terrainUniforms = this.uniforms;
@@ -426,13 +431,16 @@ export class Terrain {
     this._buildMesh();
   }
 
-  // paths: arrays of [x, z] points. Bakes them into the path mask (cheap; safe to call again).
-  bakePaths(paths) {
-    const segs = [];
+  // paths: arrays of [x, z] points; clearings: [ax, az, bx, bz, radius] capsules of paved
+  // ground where nothing should grow. Bakes both into the path mask (cheap; safe to repeat).
+  bakePaths(paths, clearings = []) {
+    const segs = [], rad = [];
+    for (const c of clearings) { segs.push(new THREE.Vector4(c[0], c[1], c[2], c[3])); rad.push(c[4]); }
     for (const p of paths) for (let i = 0; i < p.length - 1 && segs.length < 40; i++) segs.push(new THREE.Vector4(p[i][0], p[i][1], p[i + 1][0], p[i + 1][1]));
     const count = segs.length;
     while (segs.length < 40) segs.push(new THREE.Vector4());
-    const pass = new FullscreenPass({ fragment: PATH_BAKE, uniforms: { uSeg: { value: segs }, uCount: { value: count }, uSize: { value: this.coreSize } } });
+    while (rad.length < 40) rad.push(0);
+    const pass = new FullscreenPass({ fragment: PATH_BAKE, uniforms: { uSeg: { value: segs }, uRad: { value: rad }, uCount: { value: count }, uSize: { value: this.coreSize } } });
     pass.render(this.pipe.renderer, this.pathMask);
     pass.dispose();
     this.pipe.renderer.setRenderTarget(null);
