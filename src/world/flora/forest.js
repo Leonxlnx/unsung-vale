@@ -161,6 +161,13 @@ void main() {
   vec2 uvt = vUv * uLeafTile, dux = dFdx(uvt), duy = dFdy(uvt);
   vec4 t = textureGrad(uLeaves, vec3(fract(uvt), uLeafLayer), dux, duy);
   vec4 tb = textureGrad(uLeavesB, vec3(fract(uvt), uLeafLayer), dux, duy);
+#ifdef LEAF_TILED
+  // A second layer of sprays, turned and shifted half a tile, fills the gaps between the
+  // first so the tiles never line up into rows of dots.
+  vec2 uv2 = uvt.yx * 1.31 + 0.5;
+  vec4 t2 = textureGrad(uLeaves, vec3(fract(uv2), uLeafLayer), dux.yx * 1.31, duy.yx * 1.31);
+  if (t2.a > t.a) { t = t2; tb = textureGrad(uLeavesB, vec3(fract(uv2), uLeafLayer), dux.yx * 1.31, duy.yx * 1.31); tb.rg = tb.gr; }
+#endif
   vec3 dpx = dFdx(vWorld), dpy = dFdy(vWorld);
   // Far crowns keep more of each card so they stay full instead of thinning into specks.
 #if defined(BAKE_ALBEDO) || defined(BAKE_NORMAL)
@@ -446,7 +453,7 @@ export class Forest {
     const tree = generateTree('great', 4);
     const one = (arr) => new THREE.InstancedBufferAttribute(new Float32Array(arr), 4);
     const iTree = one([x, y, z, 1]), iParam = one([0.6, 0.35, SPECIES.great.leaf, 0]);
-    const parts = [[buildWood(tree, 3, [14, 9, 6, 4]), this._mkWood(BARK_TINT.elder, [0, 0])], [buildLeaves(tree, 1, 1), this._mkLeaf(SPECIES.great.leaf, [0, 0], {}, 4)]];
+    const parts = [[buildWood(tree, 3, [14, 9, 6, 4]), this._mkWood(BARK_TINT.elder, [0, 0])], [buildLeaves(tree, 1, 1), this._mkLeaf(SPECIES.great.leaf, [0, 0], { LEAF_TILED: 1 }, 4)]];
     for (const [data, mat] of parts) {
       const geo = geometryFrom(data);
       geo.setAttribute('iTree', iTree); geo.setAttribute('iParam', iParam);
