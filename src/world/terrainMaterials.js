@@ -69,17 +69,28 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
 }`;
 
 const soil = /* glsl */ `
+// Packed earth: uneven tone, a scatter of stones in two sizes, chaff pressed into the dirt,
+// and hairline cracks only where it has dried hardest.
 void material(vec2 uv, out float h, out vec3 col, out float rough) {
-  float n = pfbm(uv, vec2(6.0), 5, 1.0), fine = pfbm(uv, vec2(48.0), 4, 2.0);
-  vec4 peb = pworley(uv, vec2(34.0), 3.0);
-  float stone = (1.0 - smoothstep(0.2, 0.34, peb.x)) * step(0.55, peb.z);
-  vec4 crk = pworley(uv + 0.02 * (n - 0.5), vec2(9.0), 4.0);
-  float crack = smoothstep(0.0, 0.05, crk.y - crk.x);
-  h = (0.45 * n + 0.2 * fine + 0.35 * stone) * mix(0.6, 1.0, crack);
-  col = mix(srgb(0.30, 0.22, 0.15), srgb(0.44, 0.34, 0.24), n) * (0.75 + 0.5 * fine);
-  col = mix(col, mix(srgb(0.5, 0.48, 0.44), srgb(0.36, 0.33, 0.3), peb.w), stone);
-  col *= mix(0.6, 1.0, crack);
-  rough = 0.92 - 0.15 * stone;
+  float n = pfbm(uv, vec2(5.0), 5, 1.0), mid = pfbm(uv, vec2(17.0), 4, 2.0), fine = pfbm(uv, vec2(64.0), 4, 3.0);
+  float earth = 0.5 * n + 0.3 * mid + 0.2 * fine;
+  vec4 p1 = pworley(uv, vec2(13.0), 3.0), p2 = pworley(uv, vec2(37.0), 5.0);
+  float s1 = (1.0 - smoothstep(0.15, 0.26, p1.x)) * step(0.74, p1.z);
+  float s2 = (1.0 - smoothstep(0.2, 0.33, p2.x)) * step(0.64, p2.z);
+  float stone = max(s1, s2 * 0.85);
+  vec4 crk = pworley(uv + 0.03 * (mid - 0.5), vec2(7.0), 4.0);
+  float crack = 1.0 - (1.0 - smoothstep(0.0, 0.03, crk.y - crk.x)) * smoothstep(0.56, 0.74, n) * 0.6;
+  float chaff = smoothstep(0.7, 0.86, pfbm(uv, vec2(44.0, 9.0), 3, 7.0)) * (1.0 - stone);
+  h = (0.45 * earth + 0.1) * crack + 0.42 * stone * (0.55 + 0.45 * (1.0 - min(p1.x, p2.x) * 3.0));
+  vec3 dry = srgb(0.5, 0.4, 0.28), damp = srgb(0.3, 0.23, 0.16), pale = srgb(0.58, 0.5, 0.38);
+  col = mix(damp, dry, smoothstep(0.3, 0.7, n * 0.7 + mid * 0.3));
+  col = mix(col, pale, smoothstep(0.6, 0.85, mid) * 0.4) * (0.82 + 0.36 * fine);
+  col *= mix(0.7, 1.0, crack);
+  vec3 sc = mix(srgb(0.56, 0.54, 0.5), srgb(0.4, 0.37, 0.34), p1.w);
+  sc = mix(sc, srgb(0.62, 0.5, 0.38), step(0.75, p2.w));
+  col = mix(col, sc * (0.8 + 0.4 * fine), stone);
+  col = mix(col, srgb(0.55, 0.5, 0.25), chaff * 0.5);
+  rough = mix(0.94, 0.68, stone);
 }`;
 
 const moss = /* glsl */ `
@@ -95,20 +106,28 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
 }`;
 
 const pebble = /* glsl */ `
+// Shore and gravel: rippled sand with stones of three sizes that gather in drifts, so no
+// two metres of it look alike.
 void material(vec2 uv, out float h, out vec3 col, out float rough) {
-  vec4 w = pworley(uv, vec2(15.0), 1.0);
-  float edge = w.y - w.x;
-  float dome = smoothstep(0.0, 0.28, edge) * (1.0 - 0.6 * w.x * w.x);
-  vec4 s = pworley(uv, vec2(41.0), 2.0);
-  float small = smoothstep(0.0, 0.2, s.y - s.x) * (1.0 - s.x);
-  float sandN = pfbm(uv, vec2(80.0), 3, 3.0);
-  float isStone = smoothstep(0.05, 0.16, edge);
-  h = mix(0.12 + 0.1 * small + 0.06 * sandN, 0.35 + 0.65 * dome, isStone);
-  vec3 stoneC = mix(mix(srgb(0.55, 0.53, 0.5), srgb(0.38, 0.36, 0.36), w.z), srgb(0.6, 0.48, 0.38), step(0.7, w.w));
-  stoneC *= 0.8 + 0.4 * pfbm(uv, vec2(60.0), 3, 5.0);
-  vec3 sandC = srgb(0.52, 0.46, 0.36) * (0.7 + 0.5 * sandN);
-  col = mix(sandC * (0.6 + 0.4 * small), stoneC, isStone);
-  rough = mix(0.9, 0.55, isStone);
+  float big = pfbm(uv, vec2(3.0), 4, 1.0), sandN = pfbm(uv, vec2(72.0), 4, 3.0);
+  float ripple = pfbm(uv + 0.02 * big, vec2(5.0, 24.0), 3, 5.0);
+  float drift = smoothstep(0.38, 0.66, big);
+  vec4 a = pworley(uv, vec2(8.0), 1.0), b = pworley(uv, vec2(19.0), 2.0), c = pworley(uv, vec2(43.0), 3.0);
+  float sa = (1.0 - smoothstep(0.2, 0.3, a.x)) * step(1.0 - 0.4 * drift, a.z);
+  float sb = (1.0 - smoothstep(0.22, 0.33, b.x)) * step(0.94 - 0.5 * drift, b.z);
+  float sc = (1.0 - smoothstep(0.24, 0.36, c.x)) * step(0.8 - 0.45 * drift, c.z);
+  float da = sa * (1.0 - sq3(a.x / 0.3)), db = sb * (1.0 - sq3(b.x / 0.33)), dc = sc * (1.0 - sq3(c.x / 0.36));
+  float stone = max(sa, max(sb, sc));
+  float sand = 0.16 + 0.1 * ripple + 0.06 * sandN;
+  h = max(sand, max(0.5 + 0.5 * da, max(0.36 + 0.4 * db, 0.26 + 0.3 * dc)) * stone);
+  float id = sa > 0.5 ? a.w : sb > 0.5 ? b.w : c.w;
+  vec3 st = id < 0.4 ? srgb(0.55, 0.54, 0.52) : id < 0.62 ? srgb(0.38, 0.37, 0.37) : id < 0.82 ? srgb(0.63, 0.52, 0.4) : srgb(0.8, 0.78, 0.72);
+  st *= 0.78 + 0.44 * pfbm(uv, vec2(60.0), 3, 5.0);
+  vec3 sandC = mix(srgb(0.6, 0.54, 0.42), srgb(0.5, 0.44, 0.33), smoothstep(0.4, 0.7, ripple)) * (0.8 + 0.4 * sandN);
+  col = mix(sandC, st, stone);
+  // A dark rim of damp around each stone seats it in the sand.
+  col *= 1.0 - 0.3 * (1.0 - stone) * (1.0 - smoothstep(0.3, 0.42, min(a.x + (1.0 - step(1.0 - 0.4 * drift, a.z)), b.x + (1.0 - step(0.94 - 0.5 * drift, b.z)))));
+  rough = mix(0.92, 0.5, stone);
 }`;
 
 const litter = /* glsl */ `

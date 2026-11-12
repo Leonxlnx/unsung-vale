@@ -63,6 +63,7 @@ vec4 pcell(vec2 uv, vec2 freq, float seed) {
   return vec4(best, hash12(idc + seed * 3.3), hash12(idc * 1.7 + seed * 9.1 + 4.0));
 }
 float remap01(float v, float a, float b) { return saturate((v - a) / (b - a)); }
+float sq3(float x) { x = saturate(x); return x * x; }
 vec3 srgb(float r, float g, float b) { return pow(vec3(r, g, b), vec3(2.2)); }
 `;
 

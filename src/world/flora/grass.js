@@ -96,13 +96,13 @@ void main() {
   // A few dry straws stand in any patch; clover is darker and bluer.
   tip = mix(tip, vec3(0.36, 0.31, 0.14), step(0.94, rr.x) * 0.8);
   tip = mix(tip, tip * vec3(0.62, 0.92, 0.78), gClover);
-  vec3 root = tip * vec3(0.42, 0.5, 0.44);
+  vec3 root = tip * vec3(0.58, 0.66, 0.6);
   vec3 alb = mix(root, tip, t) * mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), gi.z);
   vec3 N = normalize(vec3(bend.x * 0.6, 1.0, bend.y * 0.6));
   float ndl = saturate(dot(N, uSunDir)) * 0.55 + 0.25;
   float back = pow(saturate(dot(-V, uSunDir)), 2.0) * t;
   vec3 col = alb * uSunColor * 0.3183 * vis * (ndl + back * 1.3);
-  col += alb * shIrradiance(vec3(0.0, 1.0, 0.0)) * mix(0.58, 1.0, t);
+  col += alb * (shIrradiance(vec3(0.0, 1.0, 0.0)) + bounceLight(vec3(0.0, 1.0, 0.0))) * mix(0.74, 1.0, t);
   col += alb * lampLight(p, vec3(0.0, 1.0, 0.0));
   vColor = col;
   gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);

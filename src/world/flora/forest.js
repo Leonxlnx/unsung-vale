@@ -14,17 +14,24 @@ import { bakeLeafAtlas } from './leafAtlas.js';
 import { fbm, mulberry32, smoothstep } from '../../util/noise.js';
 
 const BARK = /* glsl */ `
+// Furrowed bark: long interlacing ridges running up the trunk, narrow plates split across
+// here and there, with lichen and moss on the weather side.
 void material(vec2 uv, out float h, out vec3 col, out float rough) {
-  float warp = pfbm(uv, vec2(3.0, 2.0), 3, 1.0) - 0.5;
-  vec2 q = vec2(uv.x + warp * 0.08, uv.y);
-  float ridges = pridge(q, vec2(10.0, 2.0), 3, 2.0);
-  vec4 w = pworley(q, vec2(9.0, 3.0), 3.0);
-  float furrow = smoothstep(0.0, 0.14, w.y - w.x);
-  float fine = pfbm(uv, vec2(48.0, 16.0), 3, 5.0);
-  h = 0.5 * furrow + 0.3 * ridges + 0.2 * fine;
-  col = mix(srgb(0.2, 0.15, 0.11), srgb(0.42, 0.34, 0.27), h) * (0.8 + 0.4 * fine);
-  col = mix(col, srgb(0.3, 0.36, 0.2), smoothstep(0.65, 0.85, pfbm(uv, vec2(4.0), 3, 7.0)) * 0.35);
-  rough = 0.9;
+  float warp = pfbm(uv, vec2(4.0, 2.0), 3, 1.0) - 0.5;
+  vec2 q = vec2(uv.x + warp * 0.05, uv.y);
+  float r1 = pridge(q, vec2(14.0, 1.0), 3, 2.0);
+  float r2 = pridge(q + vec2(0.0, r1 * 0.05), vec2(31.0, 3.0), 3, 4.0);
+  vec4 w = pworley(q, vec2(16.0, 2.0), 3.0);
+  float plate = smoothstep(0.0, 0.1, w.y - w.x);
+  float split = smoothstep(0.75, 0.9, pfbm(q, vec2(3.0, 22.0), 3, 6.0));
+  float fine = pfbm(uv, vec2(70.0, 18.0), 3, 5.0);
+  h = saturate(0.42 * r1 + 0.2 * r2 + 0.22 * plate * (1.0 - 0.5 * split) + 0.16 * fine);
+  vec3 deep = srgb(0.13, 0.1, 0.08), ridge = srgb(0.43, 0.36, 0.29), grey = srgb(0.5, 0.47, 0.42);
+  col = mix(deep, ridge, smoothstep(0.25, 0.75, h));
+  col = mix(col, grey, smoothstep(0.7, 0.92, h) * 0.5) * (0.82 + 0.36 * fine);
+  col = mix(col, srgb(0.32, 0.38, 0.2), smoothstep(0.62, 0.85, pfbm(uv, vec2(3.0, 2.0), 3, 7.0)) * 0.4);
+  col = mix(col, srgb(0.62, 0.64, 0.52), smoothstep(0.8, 0.95, pfbm(uv, vec2(9.0, 7.0), 3, 9.0)) * 0.35);
+  rough = 0.92;
 }`;
 
 const VARIANTS = [
@@ -284,7 +291,7 @@ export class Forest {
     this.group = new THREE.Group();
     this.wind = new THREE.Vector3(0.7, 0, 0.35);
     this.leafAtlas = bakeLeafAtlas(r, 512);
-    this.bark = new TextureForge(r).bake([{ name: 'bark', code: BARK, bump: 9 }], 512);
+    this.bark = new TextureForge(r).bake([{ name: 'bark', code: BARK, bump: 12 }], 512);
 
     const shared = { ...pipe.lit(), uWind: { value: this.wind } };
     const D = pipe.depthDefines;
