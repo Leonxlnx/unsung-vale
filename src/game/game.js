@@ -20,6 +20,7 @@ import { Quests } from './quests.js';
 import { Trials } from './trials.js';
 import { Bells } from './bells.js';
 import { Reliquaries } from './reliquaries.js';
+import { Wildlife } from '../world/wildlife.js';
 import { POOLS } from '../world/layout.js';
 
 // What each spire teaches when it is tuned.
@@ -192,6 +193,7 @@ export class Game {
     this.notes = new Notes(this, pipe, LEGS, { avoid: sites.spires.map((s) => [s.x, s.z, 26]), extra: [[sites.spawn.x + 10, sites.spawn.z + 1.5]], more });
     this.bells = new Bells(this, pipe);
     this.reliquaries = new Reliquaries(this, pipe);
+    this.wildlife = new Wildlife(this, pipe, POOLS);
     this._spawnEncounters();
     // The strings of light between the courts. A string wakes when the spires it needs sing.
     this.strings = new Strings(this, pipe, { dawn: [-512, -81], petal: [-385, -392], cantor: [53, -490.5], choir: [171.2, -36.2], east: [568.8, -427.8], south3: [517, 424], aurel: [148.6, 542.6], south1: [-392.4, 438.4], crown: [-993.7, -156.7] },
@@ -465,7 +467,7 @@ export class Game {
       this.particles.update(realDt); this.vfx.update(realDt);
       this.notes.update(realDt, false);
       this.strings.update(realDt, false);
-      this.quests.update(realDt, false); this.people.update(realDt, false); this.trials.update(realDt, false); this.bells.update(realDt, false); this.reliquaries.update(realDt, false);
+      this.quests.update(realDt, false); this.people.update(realDt, false); this.trials.update(realDt, false); this.bells.update(realDt, false); this.reliquaries.update(realDt, false); this.wildlife.update(realDt);
       this._animateWorld(realDt);
       this.enemies.update(0, this.player, this.time);
       this.hero?.update(realDt, this.player, this);
@@ -503,6 +505,7 @@ export class Game {
     this.trials.update(dt, !this.cine && !busy);
     this.bells.update(dt, !this.cine && !busy);
     this.reliquaries.update(dt, !this.cine && !busy);
+    this.wildlife.update(dt);
     this.notes.update(dt, !this.cine);
     this._animateWorld(dt);
     this._motes(dt);
