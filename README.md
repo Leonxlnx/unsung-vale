@@ -41,9 +41,13 @@ Graphics quality, render scale, field of view, sensitivity and volumes are in Se
 ## What is in the demo
 
 - A 2 km playable core inside a 16 km region, with detail carried to the horizon:
-  far cities, viaducts, waterfalls, forests, the Lattice rings and the Elder tree.
+  far cities, cliff-side quarters, viaducts, waterfalls, forests, the Lattice rings and the
+  Elder tree.
+- Cliffs of jointed, faceted rock whose relief shadows itself; karst pillars in the lake;
+  talus, shrubs, flowers, butterflies and falling petals up close.
 - Physically based sky and volumetric clouds, light shafts through valley mist, baked
-  terrain shadows, cascaded object shadows, screen-space reflections on the water.
+  terrain shadows, soft cascaded shadows that sharpen at the caster's foot, warm light
+  bounced into the shade, lantern light, screen-space reflections on the water.
 - Three sites to restore (the Petal Court, Cantor's Rise, the Choir), three kinds of enemy
   including a boss, a light bridge that forms once the second spire is tuned.
 - A title screen, HUD, pause menu and settings; progress is saved in the browser.
@@ -66,14 +70,16 @@ blender --background --python tools/blender/hero.py
 
 ### Rendering the cinematic
 
-With the dev server running:
+Build the game, serve the build, and render the film in resumable five-second parts:
 
 ```bash
-node tools/capture.mjs --w 3840 --h 2160 --fps 60 --seconds 45 --out renders/unsung-vale
+npm run build
+npm run preview
+node tools/render-film.mjs --w 3840 --h 2160 --fps 60 --out renders/unsung-vale
 ```
 
 This plays the in-game cinematic at a fixed time step, renders every frame offline with
-motion blur, and writes an HDR10 master (HEVC Main10, PQ, BT.2020) and an SDR companion
+motion blur and depth of field, and writes an HDR10 master (HEVC Main10, PQ, BT.2020) and an SDR companion
 (H.264). It needs `ffmpeg` on the PATH and Chrome or Edge installed.
 
 ## Performance
