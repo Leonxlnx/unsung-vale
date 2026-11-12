@@ -227,6 +227,20 @@ the opaque scene at the far plane with the depth test on, so it is only shaded w
   `game.rest()`.
 - In `enemies.js`: a struck bolt turns back (`p.back`), choristers ward an ally (`e.ward`,
   `e.warder`), brutes rush (`attackKind` 5, event `rushMark`), seekers burst.
+- Elites carry a way of their own in `mods.affix` (`mark`, `split`, `shell`, `hymn`; see
+  `ELITE` in encounters.js and where each acts in enemies.js). The Toller (`toll: true`)
+  pushes a ring into `enemies.rings`; the picture of it is a linear wave of the same speed.
+- `game._finisher`: an elite or boss under 14% can be ended by a scripted leap into the
+  falling strike. `game.riposteT`: the window after a perfect dodge.
+- Echoes (`encounters.startEcho`, `_echo`, `game.echoes`): after the ending a court replays
+  three harder waves at its spire; their constructs are drawn pale (`mods.ghost`, a +2 on
+  the tint channel). `encounters.reached` keeps the wave a court had reached, so a death
+  there resumes at that wave.
+- Trials have three kinds: `fight`, `run` and `return` (bolts struck back, counted from the
+  `returned` enemy event).
+- `DYES` in game.js: cape colours with the test that earns each; `game.cape`.
+- Photo mode is a game state (`photo`): `game.photo(on)`, a free camera in `_photoTick`.
+- Comfort: `rig.shakeScale` and `game.flashScale` from the settings.
 - `world/wildlife.js`: birds moved wholly in the vertex shader from the clock (one
   instanced draw), butterflies set each frame over the ground round the hero. Not in the film.
 - `world/layout.js` `PADS`: the ground is brought down to just under the paving round every
@@ -283,8 +297,9 @@ looking for stuck spots, falls through the world and NaNs. `__dbg.bot()` plays t
   comes up through a floor and floors with open air under them; `__dbg.holes(step)` checks
   every place where the ground is cut away for paving for holes and exposed banks.
 - `node tools/tour.mjs --only none --at "x,z,yaw,pitch,dist,over;..."` stands the hero at
-  given places and photographs them; scenes `relic` and `foes` show the reliquaries, the
-  charms and what the Mute have learnt.
+  given places and photographs them; scenes `relic`, `foes`, `toll`, `finish`, `echo` and
+  `photo` show the reliquaries and charms, what the Mute have learnt, the Toller's ring, the
+  last note, an echo and photo mode.
 
 `window.__dbg` in the page: `step(n)`, `pos/look` (free camera), `play(frames, moveY, moveX,
 { tp, press, hold })` (scripted play), `sheet()` (four test views in one image), `crop(x, y,
