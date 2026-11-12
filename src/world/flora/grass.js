@@ -8,7 +8,8 @@ import { LIGHTING } from '../../engine/lighting.js';
 import { TERRAIN_SAMPLING } from '../terrain.js';
 import { mulberry32 } from '../../util/noise.js';
 
-const CELL = 16;
+const CELL = 16;           // grass cell size (m): small, so density can step down with distance
+const FCELL = 32;          // flower cell size: fewer, larger draws
 
 // Shared placement: where ground cover may grow, and how tall.
 const PLACE = /* glsl */ `
@@ -196,15 +197,15 @@ export class GroundCover {
       fpos.push(-1, 0, c, 1, 0, c, 1, 1, c, -1, 1, c);
       fidx.push(o, o + 1, o + 2, o, o + 2, o + 3);
     }
-    const fCount = Math.round(CELL * CELL * (opts.flowerDensity ?? 1.6));
+    const fCount = Math.round(FCELL * FCELL * (opts.flowerDensity ?? 1.6));
     const finst = new Float32Array(fCount * 4);
-    for (let i = 0; i < fCount; i++) finst.set([rnd() * CELL, rnd() * CELL, rnd(), rnd()], i * 4);
+    for (let i = 0; i < fCount; i++) finst.set([rnd() * FCELL, rnd() * FCELL, rnd(), rnd()], i * 4);
     const fg = new THREE.InstancedBufferGeometry();
     fg.setAttribute('position', new THREE.Float32BufferAttribute(fpos, 3));
     fg.setIndex(fidx);
     fg.setAttribute('iBlade', new THREE.InstancedBufferAttribute(finst, 4));
     fg.instanceCount = fCount;
-    fg.boundingSphere = new THREE.Sphere(new THREE.Vector3(CELL / 2, 0, CELL / 2), CELL);
+    fg.boundingSphere = new THREE.Sphere(new THREE.Vector3(FCELL / 2, 0, FCELL / 2), FCELL);
     this.flowerMat = new THREE.ShaderMaterial({
       vertexShader: FLOWER_VERT, fragmentShader: FLOWER_FRAG, defines: D, side: THREE.DoubleSide,
       uniforms: { ...uniforms, uLeaves: { value: leafAtlas } },
@@ -213,35 +214,35 @@ export class GroundCover {
     this.group = new THREE.Group();
     this.cells = [];
     for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) {
-      const grass = new THREE.Mesh(this.grassGeo[0], this.grassMat);
-      const flowers = new THREE.Mesh(fg, this.flowerMat);
-      this.group.add(grass, flowers);
-      this.cells.push({ i, j, grass, flowers });
+      const mesh = new THREE.Mesh(this.grassGeo[0], this.grassMat);
+      this.group.add(mesh);
+      this.cells.push({ i, j, mesh, size: CELL, n: this.n, grass: true });
+    }
+    const fn = Math.ceil((this.radius * 2) / FCELL) + 1;
+    for (let j = 0; j < fn; j++) for (let i = 0; i < fn; i++) {
+      const mesh = new THREE.Mesh(fg, this.flowerMat);
+      this.group.add(mesh);
+      this.cells.push({ i, j, mesh, size: FCELL, n: fn, grass: false });
     }
     this.terrain = terrain;
   }
 
   update(camera) {
-    const cam = _v.setFromMatrixPosition(camera.matrixWorld);
-    const n = this.n, bi = Math.floor(cam.x / CELL) - (n >> 1), bj = Math.floor(cam.z / CELL) - (n >> 1);
+    const cam = _v.setFromMatrixPosition(camera.matrixWorld), k = this.scale ?? 1;
     for (const c of this.cells) {
       // Each mesh always serves the cells congruent to its index, so nothing ever reshuffles.
+      const S = c.size, n = c.n, bi = Math.floor(cam.x / S) - (n >> 1), bj = Math.floor(cam.z / S) - (n >> 1);
       const ci = bi + ((((c.i - bi) % n) + n) % n), cj = bj + ((((c.j - bj) % n) + n) % n);
-      const x = ci * CELL, z = cj * CELL;
-      const cx = x + CELL / 2, cz = z + CELL / 2;
+      const x = ci * S, z = cj * S, cx = x + S / 2, cz = z + S / 2;
       const y = this.terrain.heightAt(cx, cz);
       const d = Math.hypot(cx - cam.x, cz - cam.z, y - cam.y);
-      const vis = d < this.radius * (this.scale ?? 1) + CELL && y > 0.5;
-      c.grass.visible = c.flowers.visible = vis;
+      const vis = d < this.radius * k + S && y > 0.5;
+      c.mesh.visible = vis;
       if (!vis) continue;
-      const k = this.scale ?? 1;
-      c.grass.geometry = this.grassGeo[d < 30 * k ? 0 : d < 52 * k ? 1 : 2];
-      for (const m of [c.grass, c.flowers]) {
-        m.position.set(x, y, z);
-        m.updateMatrixWorld();
-      }
+      if (c.grass) c.mesh.geometry = this.grassGeo[d < 30 * k ? 0 : d < 52 * k ? 1 : 2];
+      c.mesh.position.set(x, y, z);
+      c.mesh.updateMatrixWorld();
     }
   }
 }
-
 const _v = new THREE.Vector3();
