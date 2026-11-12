@@ -205,6 +205,13 @@ if (want('tuning')) {
   await sleep(3200); await shot('finale');
   await sleep(6500); await shot('woken');
 }
+if (want('geode')) {
+  // A cluster of song-crystals in the meadow, whole and then broken open.
+  await ev(() => { const g = window.__game, c = g.geodes.list[1] ?? g.geodes.list[0]; window.__dbg.ui(true); g.enemies.list.length = 0; for (let k = 0; k < 6; k++) g.world.stream(c.x, c.z, 8); window.__tour.tp(c.x - 1.5, c.y + 0.1, c.z, 1.57, -0.3, 3.6); });
+  await sleep(1200); await shot('geode_whole');
+  await page.mouse.down(); await page.mouse.up(); await sleep(240); await shot('geode_break');
+  console.log('geodes placed:', await ev(() => window.__game.geodes.list.length), 'broken:', await ev(() => window.__game.geodes.brokenCount));
+}
 if (want('chime')) {
   // A set of chimes: as found, one struck, and all three answering.
   await ev(() => { const g = window.__game, c = g.chimes.list[0]; window.__dbg.ui(true); window.__tour.tune(['petal']); g.enemies.list.length = 0; for (let k = 0; k < 6; k++) g.world.stream(c.x, c.z, 8); const x = c.x + Math.sin(c.yaw) * 2.0, z = c.z + Math.cos(c.yaw) * 2.0; window.__tour.tp(x, g.world.floorBelow(x, c.y + 3, z, 8) + 0.1, z, c.yaw + Math.PI, -0.12, 5.2); });

@@ -22,6 +22,7 @@ import { Bells } from './bells.js';
 import { Reliquaries } from './reliquaries.js';
 import { Wildlife } from '../world/wildlife.js';
 import { Chimes } from './chimes.js';
+import { Geodes } from './geodes.js';
 import { POOLS } from '../world/layout.js';
 
 // What each spire teaches when it is tuned.
@@ -216,6 +217,7 @@ export class Game {
     this.people = new People(this, pipe);
     this.quests = new Quests(this, pipe);
     this.trials = new Trials(this, pipe);
+    this.geodes = new Geodes(this, pipe);
     this._skills(); this._charms();
     this.respawnAtCheckpoint();
     this._refreshObjective();
@@ -403,7 +405,7 @@ export class Game {
 
   save() {
     if (this.cine) return;        // the film must never overwrite a player's progress
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, outro: !!this.outroSeen, elites: this.elitesDown ?? [], charms: this.charmsFound ?? [], worn: this.charmsWorn ?? [], slain: this.slain ?? {}, echoes: this.echoes ?? [], cape: this.cape ?? 'red', falls: this.falls ?? 0, chimes: this.chimesDone ?? [], time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, outro: !!this.outroSeen, elites: this.elitesDown ?? [], charms: this.charmsFound ?? [], worn: this.charmsWorn ?? [], slain: this.slain ?? {}, echoes: this.echoes ?? [], cape: this.cape ?? 'red', falls: this.falls ?? 0, chimes: this.chimesDone ?? [], geodes: this.geodesBroken ?? [], time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
   }
   load() {
     this.checkpoint = { ...this.sites.spawn };
@@ -413,7 +415,7 @@ export class Game {
       for (const s of this.spires) if (d.tuned?.includes(s.id)) { s.tuned = true; s.power = 1; s.zoneR = 0; s.zone.w = 0; s.crystal.material.uniforms.uPower.value = 1; s.beam.material.uniforms.uPower.value = 1; }
       if (d.checkpoint) this.checkpoint = d.checkpoint;
       this.xp = d.xp ?? 0; this.wildDone = d.wild ?? []; this.bought = d.bought ?? 0;
-      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {}; this.outroSeen = !!d.outro; this.elitesDown = d.elites ?? []; this.charmsFound = d.charms ?? []; this.charmsWorn = d.worn ?? []; this.slain = d.slain ?? {}; this.echoes = d.echoes ?? []; this.cape = d.cape ?? 'red'; this.falls = d.falls ?? 0; this.chimesDone = d.chimes ?? [];
+      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {}; this.outroSeen = !!d.outro; this.elitesDown = d.elites ?? []; this.charmsFound = d.charms ?? []; this.charmsWorn = d.worn ?? []; this.slain = d.slain ?? {}; this.echoes = d.echoes ?? []; this.cape = d.cape ?? 'red'; this.falls = d.falls ?? 0; this.chimesDone = d.chimes ?? []; this.geodesBroken = d.geodes ?? [];
       this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? []; this.notesTaken = d.notes ?? [];
       if (this.spires[1].tuned) { this.bridgeOpen = true; this.bridgeProgress = 1; }
       // A journey that ended when the Vale had three spires goes on now that it has eight.
@@ -525,7 +527,7 @@ export class Game {
       this.particles.update(realDt); this.vfx.update(realDt);
       this.notes.update(realDt, false);
       this.strings.update(realDt, false);
-      this.quests.update(realDt, false); this.people.update(realDt, false); this.trials.update(realDt, false); this.bells.update(realDt, false); this.reliquaries.update(realDt, false); this.chimes.update(realDt, false); this.wildlife.update(realDt);
+      this.quests.update(realDt, false); this.people.update(realDt, false); this.trials.update(realDt, false); this.bells.update(realDt, false); this.reliquaries.update(realDt, false); this.chimes.update(realDt, false); this.geodes.update(realDt, false); this.wildlife.update(realDt);
       this._animateWorld(realDt);
       this.enemies.update(0, this.player, this.time);
       this.hero?.update(realDt, this.player, this);
@@ -573,6 +575,7 @@ export class Game {
     this.bells.update(dt, !this.cine && !busy);
     this.reliquaries.update(dt, !this.cine && !busy);
     this.chimes.update(dt, !this.cine && !busy);
+    this.geodes.update(dt, !this.cine && !busy);
     this.wildlife.update(dt);
     this.notes.update(dt, !this.cine);
     this._animateWorld(dt);
