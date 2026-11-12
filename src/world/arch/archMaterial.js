@@ -28,16 +28,29 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
 }`;
 
 const marble = /* glsl */ `
+// Dressed marble in large blocks: fine joints, a tone of its own for each block, veins that
+// stop at the joints, pitting, and grime gathered along the edges.
 void material(vec2 uv, out float h, out vec3 col, out float rough) {
+  const float rows = 3.0, nb = 2.0;
+  float y = uv.y * rows, row = floor(y), fy = fract(y);
+  float x = uv.x * nb + 0.5 * mod(row, 2.0), bx = floor(x), fx = fract(x);
+  float id = hash12(vec2(mod(bx, nb), row) + 3.0);
+  float dx = min(fx, 1.0 - fx) / nb, dy = min(fy, 1.0 - fy) / rows;
+  float edge = min(dx, dy);
+  float joint = smoothstep(0.0, 0.0026, edge), bevel = smoothstep(0.0, 0.012, edge);
   float warp = pfbm(uv, vec2(3.0), 4, 1.0);
-  float veins = pridge(uv + 0.08 * warp, vec2(3.0), 4, 2.0);
-  float fineVeins = pridge(uv + 0.05 * warp, vec2(9.0), 3, 5.0);
+  float veins = pridge(uv + 0.08 * warp + id * 0.37, vec2(3.0), 4, 2.0);
+  float fineVeins = pridge(uv + 0.05 * warp + id * 0.21, vec2(9.0), 3, 5.0);
   float cloud = pfbm(uv, vec2(5.0), 4, 7.0), grain = pfbm(uv, vec2(120.0), 3, 9.0);
   float v = smoothstep(0.86, 0.99, veins) * 0.55 + smoothstep(0.9, 0.99, fineVeins) * 0.3;
-  h = 0.6 + 0.08 * cloud - 0.1 * v + 0.03 * grain;
-  col = mix(srgb(0.93, 0.91, 0.86), srgb(0.86, 0.83, 0.77), cloud);
+  float pits = smoothstep(0.7, 0.85, pfbm(uv, vec2(60.0), 3, 13.0));
+  h = joint * (0.6 + 0.05 * id + 0.07 * cloud - 0.1 * v + 0.03 * grain - 0.06 * pits) * (0.9 + 0.1 * bevel);
+  col = mix(srgb(0.93, 0.91, 0.86), srgb(0.85, 0.82, 0.76), cloud);
+  col = mix(col, srgb(0.9, 0.86, 0.78), id * 0.55);
   col = mix(col, srgb(0.7, 0.66, 0.58), v * 0.5) * (0.96 + 0.08 * grain);
-  rough = 0.34 + 0.2 * cloud + 0.2 * v;
+  col *= 1.0 - 0.1 * pits;
+  col = mix(srgb(0.52, 0.49, 0.43), col, 0.4 + 0.6 * smoothstep(0.0, 0.02, edge));
+  rough = mix(0.9, 0.36 + 0.2 * cloud + 0.2 * v + 0.2 * pits, joint);
 }`;
 
 const gold = /* glsl */ `
@@ -142,7 +155,7 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
 
 export const ARCH_MATERIALS = [
   { name: 'ashlar', code: ashlar, bump: 5 },
-  { name: 'marble', code: marble, bump: 3 },
+  { name: 'marble', code: marble, bump: 5 },
   { name: 'gold', code: gold, bump: 4 },
   { name: 'roof', code: roof, bump: 10 },
   { name: 'paving', code: paving, bump: 8 },
