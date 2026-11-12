@@ -68,9 +68,13 @@ void main() {
 const TRAIL_FRAG = /* glsl */ `
 in vec2 vUv;
 void main() {
-  // Only the outer part of the blade leaves a streak, sharpest at the leading edge.
-  float a = pow(vUv.x, 3.0) * smoothstep(0.3, 0.85, vUv.y) * (1.0 - smoothstep(0.93, 1.0, vUv.y)) * 0.55;
-  gl_FragColor = vec4(vec3(0.75, 0.92, 1.0) * a * 1.6, a);
+  // An arc of light behind the blade: a soft band along the outer half and a bright line
+  // where the tip passed, hottest at the leading edge and cooling to gold along the tail.
+  float lead = pow(vUv.x, 2.2);
+  float band = smoothstep(0.25, 0.8, vUv.y) * (1.0 - smoothstep(0.94, 1.0, vUv.y));
+  float tip = smoothstep(0.8, 0.93, vUv.y) * (1.0 - smoothstep(0.95, 1.0, vUv.y));
+  float a = lead * (band * 0.16 + tip * 1.9);
+  gl_FragColor = vec4(mix(vec3(1.0, 0.7, 0.34), vec3(1.0, 0.95, 0.82), lead) * a * 4.5, 1.0);
 }`;
 
 // name -> [albedo rgb, rough, metal, sheen, emissive]
