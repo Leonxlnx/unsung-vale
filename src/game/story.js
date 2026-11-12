@@ -210,7 +210,7 @@ export class Story {
     // Arriving at things.
     const m = g.marker;
     if (m?.arrive && Math.hypot(p.pos.x - m.x, p.pos.z - m.z) < m.arrive) {
-      this.say('lookout', 'Three spires stood over the Vale. All three are silent. The nearest waits below, on the Petal Court.', 8);
+      this.say('lookout', 'Eight spires stood over the Vale, and every one is silent. The nearest waits below, on the Petal Court.', 8);
       this._goal();
     } else if (m?.arrive && Math.hypot(p.pos.x - m.x, p.pos.z - m.z) > 70) {
       // Wandered off without visiting the lookout: let it go and point down the path.

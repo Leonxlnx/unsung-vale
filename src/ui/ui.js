@@ -471,7 +471,7 @@ export class UI {
   _renderHero() {
     const g = this.game, p = g.player, cost = g.benchCost;
     const val = { health: p.healthMax, stamina: p.staminaMax, blade: `${Math.round(p.power * 100)}%` };
-    const rows = Object.entries(UPS).map(([k, [name, what, step]]) => `<div class="up"><div><b>${name}</b><span>${what}</span></div><div class="pips">${Array.from({ length: 6 }, (_, i) => `<i class="${i < p.up[k] ? 'on' : ''}"></i>`).join('')}</div><em>${val[k]}</em>${this.bench ? `<button data-buy="${k}" ${g.xp < cost || p.up[k] >= 6 ? 'disabled' : ''}>${p.up[k] >= 6 ? 'Full' : `${step} for ${cost}`}</button>` : ''}</div>`).join('');
+    const rows = Object.entries(UPS).map(([k, [name, what, step]]) => `<div class="up"><div><b>${name}</b><span>${what}</span></div><div class="pips">${Array.from({ length: 8 }, (_, i) => `<i class="${i < p.up[k] ? 'on' : ''}"></i>`).join('')}</div><em>${val[k]}</em>${this.bench ? `<button data-buy="${k}" ${g.xp < cost || p.up[k] >= 8 ? 'disabled' : ''}>${p.up[k] >= 8 ? 'Full' : `${step} for ${cost}`}</button>` : ''}</div>`).join('');
     const skills = g.spires.map((s) => { const k = SKILLS[s.id]; if (!k) return ''; return s.tuned ? `<div class="sk on"><i></i><div><b>${k.name}</b><span>${k.how}</span></div></div>` : `<div class="sk"><i></i><div><b>${cap(NAMES[s.id])} is silent</b><span>Its spire has something to teach.</span></div></div>`; }).join('');
     const lead = this.atBench ? 'Odo can work what the Mute were holding of the song into you and your blade. Each step costs more than the last.'
       : this.bench ? 'Odo showed you how to work resonance into yourself and your blade. It can be done anywhere; each step costs more than the last.'

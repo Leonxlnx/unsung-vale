@@ -211,7 +211,7 @@ export class Game {
   // A gift: one step of life, breath or edge, and some of the song (resonance).
   grant({ up = null, xp = 0 } = {}) {
     const p = this.player;
-    if (up) p.up[up] = Math.min(6, p.up[up] + 1);
+    if (up) p.up[up] = Math.min(8, p.up[up] + 1);
     this.xp += xp; p.health = p.healthMax; p.stamina = p.staminaMax;
     this.emit('grant', { up, xp });
     this.save();
@@ -220,7 +220,7 @@ export class Game {
   get benchCost() { return 100 + 60 * this.bought; }
   buy(kind) {
     const p = this.player;
-    if (this.xp < this.benchCost || p.up[kind] >= 6) return false;
+    if (this.xp < this.benchCost || p.up[kind] >= 8) return false;
     this.xp -= this.benchCost; this.bought++; p.up[kind]++;
     p.health = p.healthMax; p.stamina = p.staminaMax;
     this.emit('grant', { up: kind, xp: 0, bought: true });

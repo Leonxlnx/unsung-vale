@@ -439,7 +439,7 @@ window.__dbg = {
       b.sideT -= dt;
       if (g.trials.run) b.trialOn = g.trials.run.t;
       else if (b.trialOn) { b.log.push(`${Math.round(b.t)}s ${b.trialOn.def.name} ${b.trialOn.done ? 'won' : 'lost'}`); if (!b.trialOn.done) (b.failed ??= []).push(b.trialOn.def.id); b.trialOn = null; }
-      if (g.state === 'menu') { if (g.menu === 'bench') { let k; while ((k = ['blade', 'health', 'stamina'].find((u) => p.up[u] < 6)) && g.buy(k)) b.log.push(`${Math.round(b.t)}s bought ${k}`); } g.closeMenu(); g.input.enabled = true; g.input.puppet = pu; }
+      if (g.state === 'menu') { if (g.menu === 'bench') { let k; while ((k = ['blade', 'health', 'stamina'].find((u) => p.up[u] < 8)) && g.buy(k)) b.log.push(`${Math.round(b.t)}s bought ${k}`); } g.closeMenu(); g.input.enabled = true; g.input.puppet = pu; }
       const foe = g.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.pos.distanceTo(p.pos) < 26);
       const T = g.tuning;
       let mode = 'story';
@@ -486,6 +486,37 @@ window.__dbg = {
     const tr = g.tracker();
     return { trials: g.trials.list.filter((t) => t.done).map((t) => t.def.id), seconds: Math.round(b.t), done: (!!g.ended && !Q.active.length) || b.stuck >= 14, ended: !!g.ended, tuned: g.spires.filter((q) => q.tuned).map((q) => q.id), pos: p.pos.toArray().map(Math.round), health: Math.round(p.health), deaths: b.deaths, xp: g.xp, up: { ...p.up },
       quests: Object.fromEntries(Object.entries(Q.state).map(([k, v]) => [k, v.s])), side: tr ? `${tr.title}: ${tr.text} ${tr.count ?? ''}` : null, notes: g.notes.count, time: Object.fromEntries(Object.entries(b.time).map(([k, v]) => [k, Math.round(v)])), objective: g.objective, log: b.log.slice(-12) };
+  },
+  // Random input at a list of places [x, z], without drawing: looks for falls through the
+  // world, places the hero cannot get out of, and broken numbers.
+  fuzz(places, seconds = 30, seed = 1) {
+    const g = game, p = g.player, pu = director.puppet, dt = 1 / 30, out = [];
+    let r = seed * 9301 + 49297; const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+    g.state = 'playing'; g.cine = false; g.input.enabled = true; g.input.puppet = pu;
+    const save = g.save; g.save = () => {};
+    for (const [x, z] of places) {
+      g.world.stream(x, z, 8);
+      const y0 = g.world.floorBelow(x, g.world.groundHeight(x, z) + 40, z, 80);
+      p.spawn(x, y0 + 0.2, z, rnd() * 6.28); p.invulnerable = 1e9; g.rig.snap(p);
+      let under = 0, stuck = 0, still = 0, nan = false, last = p.pos.clone(), minY = 1e9, far = 0, mx = 0, my = 1;
+      for (let t = 0, k = 0; t < seconds; t += dt, k++) {
+        pu.pressed.clear(); pu.held.clear();
+        if (k % 18 === 0) { const a = rnd() * 6.28; mx = Math.sin(a); my = Math.cos(a); g.rig.yaw = rnd() * 6.28; }
+        pu.move.x = mx; pu.move.y = my;
+        if (rnd() < 0.02) pu.pressed.add('jump'); if (rnd() < 0.015) pu.pressed.add('dodge'); if (rnd() < 0.02) pu.pressed.add('attack'); if (rnd() < 0.5) pu.held.add('sprint');
+        g.update(dt);
+        if (!Number.isFinite(p.pos.x + p.pos.y + p.pos.z)) { nan = true; break; }
+        const gh = g.world.groundHeight(p.pos.x, p.pos.z);
+        if (p.pos.y < gh - 1.5 && p.state !== 'swim') under++;
+        minY = Math.min(minY, p.pos.y - gh);
+        if (k % 45 === 44) { if (p.pos.distanceTo(last) < 0.25 && p.state === 'move') { still++; if (still >= 3) stuck++; } else still = 0; last.copy(p.pos); }
+        far = Math.max(far, Math.hypot(p.pos.x - x, p.pos.z - z));
+        if (p.state === 'dead') { p.spawn(x, y0 + 0.2, z, 0); p.invulnerable = 1e9; }
+      }
+      if (under || stuck || nan) out.push({ at: [x, z], under, stuck, nan, minY: +minY.toFixed(1), end: p.pos.toArray().map(Math.round), far: Math.round(far) });
+    }
+    g.save = save; g.input.puppet = null; g.input.enabled = false; p.invulnerable = 0;
+    return { places: places.length, bad: out };
   },
   // A contact sheet of the film: one pass through the timeline, a still at each given time.
   reel(times = [3, 9, 14.5, 19.5, 25, 32, 38, 43.5], cols = 4) {
