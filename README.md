@@ -11,6 +11,13 @@ stone textures, every tree, flower, building and enemy. No models or image textu
 imported. The hero is produced by a Blender Python script. Only the music and sound effects
 come from outside; they are credited in [CREDITS.md](CREDITS.md).
 
+| | |
+| --- | --- |
+| ![The Cantor at the Dawn Terrace](docs/media/film-45.jpg) | ![The Petal Court after its spire is tuned](docs/media/film-363.jpg) |
+| ![Crossing the bridge of light to the Choir](docs/media/film-412.jpg) | ![The valley at day's end](docs/media/film-445.jpg) |
+
+Stills from the in-game cinematic (draft render).
+
 ## Run it
 
 ```bash
