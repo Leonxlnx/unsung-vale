@@ -52,20 +52,22 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
 }`;
 
 const grass = /* glsl */ `
+// Turf seen between the blades: fine fibres lying every way, soft tufts, no hard lumps.
 void material(vec2 uv, out float h, out vec3 col, out float rough) {
   float big = pfbm(uv, vec2(3.0), 4, 1.0);
   float mid = pfbm(uv, vec2(11.0), 4, 2.0);
-  float b1 = pfbm(uv + 0.02 * mid, vec2(120.0, 22.0), 3, 3.0), b2 = pfbm(uv, vec2(22.0, 120.0), 3, 4.0);
-  float blades = mix(b1, b2, smoothstep(0.4, 0.6, pfbm(uv, vec2(7.0), 2, 5.0)));
-  vec4 tuft = pworley(uv, vec2(26.0), 6.0);
-  float clump = 1.0 - smoothstep(0.0, 0.7, tuft.x);
-  h = 0.5 * clump + 0.35 * blades + 0.15 * mid;
+  float b1 = pfbm(uv + 0.02 * mid, vec2(130.0, 20.0), 3, 3.0), b2 = pfbm(uv, vec2(20.0, 130.0), 3, 4.0);
+  float b3 = pfbm(uv + 0.03 * big, vec2(70.0, 70.0), 3, 6.0);
+  float blades = mix(mix(b1, b2, smoothstep(0.4, 0.6, pfbm(uv, vec2(7.0), 2, 5.0))), b3, 0.35);
+  vec4 tuft = pworley(uv, vec2(19.0), 6.0);
+  float clump = 1.0 - smoothstep(0.0, 0.8, tuft.x);
+  h = 0.18 * clump + 0.62 * blades + 0.2 * mid;
   vec3 deep = srgb(0.17, 0.31, 0.08), lush = srgb(0.35, 0.51, 0.15), dry = srgb(0.56, 0.54, 0.26), dark = srgb(0.09, 0.16, 0.05);
-  col = mix(deep, lush, smoothstep(0.25, 0.75, big * 0.8 + blades * 0.2));
-  col = mix(col, dry, smoothstep(0.62, 0.85, mid) * 0.45);
-  col = mix(mix(dark, col, 0.8), col, smoothstep(0.1, 0.55, h));
-  col *= 0.85 + 0.3 * tuft.z;
-  rough = 0.82;
+  col = mix(deep, lush, smoothstep(0.25, 0.75, big * 0.6 + blades * 0.4));
+  col = mix(col, dry, smoothstep(0.62, 0.85, mid) * 0.4);
+  col = mix(mix(dark, col, 0.8), col, smoothstep(0.2, 0.6, blades));
+  col *= 0.92 + 0.16 * tuft.z;
+  rough = 0.84;
 }`;
 
 const soil = /* glsl */ `
@@ -203,27 +205,27 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
 }`;
 
 const meadowFar = /* glsl */ `
-// Meadow seen from tens of metres away: patchy greens, bare spots and wildflower specks.
+// Meadow seen from tens of metres away: soft swathes laid over by the wind, broad patches of
+// tone and a dusting of wildflowers. Nothing in it should read as a lump.
 void material(vec2 uv, out float h, out vec3 col, out float rough) {
-  float big = pfbm(uv, vec2(3.0), 5, 1.0), mid = pfbm(uv, vec2(9.0), 4, 2.0), fine = pfbm(uv, vec2(40.0), 4, 3.0);
-  vec4 tuft = pworley(uv, vec2(38.0), 4.0);
-  float clump = 1.0 - smoothstep(0.0, 0.6, tuft.x);
-  h = 0.5 * clump + 0.3 * fine + 0.2 * mid;
+  float big = pfbm(uv, vec2(3.0), 5, 1.0), mid = pfbm(uv, vec2(9.0), 4, 2.0), fine = pfbm(uv, vec2(48.0), 4, 3.0);
+  float swathe = pfbm(uv + 0.05 * big, vec2(7.0, 26.0), 3, 5.0);
+  float tips = pfbm(uv, vec2(120.0, 60.0), 3, 7.0);
+  h = 0.4 * swathe + 0.3 * fine + 0.2 * mid + 0.1 * tips;
   vec3 deep = srgb(0.17, 0.31, 0.08), lush = srgb(0.36, 0.52, 0.15), dry = srgb(0.56, 0.54, 0.26);
   col = mix(deep, lush, smoothstep(0.3, 0.7, big * 0.5 + mid * 0.5));
-  col = mix(col, dry, smoothstep(0.6, 0.8, pfbm(uv, vec2(5.0), 4, 6.0)) * 0.5);
-  col = mix(col, srgb(0.34, 0.26, 0.17), smoothstep(0.74, 0.86, mid) * 0.7);
-  col *= 0.72 + 0.45 * clump + 0.2 * fine;
+  col = mix(col, dry, smoothstep(0.6, 0.8, pfbm(uv, vec2(5.0), 4, 6.0)) * 0.45);
+  col *= 0.84 + 0.2 * swathe + 0.12 * tips;
   vec4 fl = pworley(uv, vec2(120.0), 9.0);
   float patchy = smoothstep(0.52, 0.7, pfbm(uv, vec2(4.0), 3, 8.0));
   float speck = (1.0 - smoothstep(0.1, 0.22, fl.x)) * step(0.45, fl.z) * patchy;
   vec3 fc = fl.w < 0.3 ? srgb(0.95, 0.93, 0.88) : fl.w < 0.55 ? srgb(0.78, 0.5, 0.86) : fl.w < 0.8 ? srgb(0.96, 0.6, 0.72) : srgb(0.98, 0.84, 0.3);
-  col = mix(col, fc, speck * 0.85);
-  rough = 0.85;
+  col = mix(col, fc, speck * 0.8);
+  rough = 0.86;
 }`;
 
 export const TERRAIN_MATERIALS = [
-  { name: 'grass', code: grass, bump: 2.5 },
+  { name: 'grass', code: grass, bump: 2 },
   { name: 'soil', code: soil, bump: 7 },
   { name: 'rock', code: rock, bump: 24, aoStrength: 0.4 },
   { name: 'moss', code: moss, bump: 6 },
@@ -231,5 +233,5 @@ export const TERRAIN_MATERIALS = [
   { name: 'litter', code: litter, bump: 5 },
   { name: 'snow', code: snow, bump: 3 },
   { name: 'rockFar', code: rockFar, bump: 22, aoRadius: 4, aoStrength: 0.33 },
-  { name: 'meadowFar', code: meadowFar, bump: 5 },
+  { name: 'meadowFar', code: meadowFar, bump: 2.2 },
 ];
