@@ -85,7 +85,13 @@ const forest = new Forest(pipe, terrain);
 window.__forest = forest;
 // Keep trees off the paved sites and the routes between them.
 const clear = [...POOLS.map((p) => [p.x, p.z, p.r + 5]), [-512, -70, 34], [-540, -22, 9], [-372, -392, 24], [66, -498, 27], [96, -590, 34], [98, -336, 13], [150, -15, 44], [-146, -459, 34]];
-forest.populate((x, z) => clear.some(([cx, cz, r]) => (x - cx) * (x - cx) + (z - cz) * (z - cz) < r * r), [
+// ...and off the walking routes: a trunk in the middle of a path is in the way.
+const onRoute = (x, z) => routes.some((r) => r.some((a, i) => {
+  if (i === 0) return false;
+  const b = r[i - 1], dx = a[0] - b[0], dz = a[1] - b[1], t = Math.max(0, Math.min(1, ((x - b[0]) * dx + (z - b[1]) * dz) / (dx * dx + dz * dz)));
+  return Math.hypot(x - b[0] - dx * t, z - b[1] - dz * t) < 6;
+}));
+forest.populate((x, z) => onRoute(x, z) || clear.some(([cx, cz, r]) => (x - cx) * (x - cx) + (z - cz) * (z - cz) < r * r), [
   { x: -531, z: -93, species: 'ember', scale: 1.3 }, { x: -533, z: -46, species: 'blossom', scale: 1.25 }, { x: -549, z: -34, species: 'elder', scale: 1.0 },
   { x: -356, z: -420, species: 'blossom', scale: 1.2 }, { x: -392, z: -376, species: 'ember', scale: 1.15 }, { x: 40, z: -520, species: 'blossom', scale: 1.2 },
   // A few old giants that stand well above the canopy and mark the sites from afar.
@@ -101,11 +107,6 @@ const cover = new GroundCover(pipe, terrain, forest.leafAtlas, forest.wind);
 pipe.scene.add(cover.group);
 // Boulders under the cliffs and along the shore, stones in the meadows; none on the sites
 // or across the routes between them.
-const onRoute = (x, z) => routes.some((r) => r.some((a, i) => {
-  if (i === 0) return false;
-  const b = r[i - 1], dx = a[0] - b[0], dz = a[1] - b[1], t = Math.max(0, Math.min(1, ((x - b[0]) * dx + (z - b[1]) * dz) / (dx * dx + dz * dz)));
-  return Math.hypot(x - b[0] - dx * t, z - b[1] - dz * t) < 6;
-}));
 const offLimits = (x, z) => onRoute(x, z) || clear.some(([cx, cz, r]) => (x - cx) * (x - cx) + (z - cz) * (z - cz) < (r + 4) * (r + 4));
 const rocks = new Rocks(pipe, terrain, offLimits);
 forest.addShrubs(offLimits);
