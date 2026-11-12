@@ -72,8 +72,8 @@ void main() {
     // Buildings and trees: one unfiltered tap of the static map is enough for shafts.
     vec4 sc = uStaticMat * vec4(p, 1.0);
     if (max(abs(sc.x), abs(sc.y)) < 0.995) vis *= shadowTap(uShadowStatic, vec3(sc.xy * 0.5 + 0.5, sc.z + 0.004));
-    vec3 S = (uSunColor * phase * vis * 2.6 + skyCol * 0.2 + ambient * 0.22) * dn.x
-           + (uSunColor * (0.03 + phase * 0.9) * vis * 2.6 + ambient * 0.85) * dn.y;
+    vec3 S = (uSunColor * phase * vis * 1.7 + skyCol * 0.2 + ambient * 0.22) * dn.x
+           + (uSunColor * (0.03 + phase * 0.9) * vis * 1.7 + ambient * 0.85) * dn.y;
     float e = exp(-sigma * dt);
     L += T * S * (1.0 - e) / sigma;
     T *= e;

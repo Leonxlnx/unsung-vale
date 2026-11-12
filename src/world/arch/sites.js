@@ -50,6 +50,20 @@ export class Architecture {
     this.citadelOn(byId.south1, { seed: 13, scale: 0.85, detail: 0, along: -60, inset: 0.4 });
     this.citadelOn(byId.south3, { seed: 14, scale: 0.95, detail: 0, along: 20, inset: 0.35 });
     this.citadelOn(byId.elder, { seed: 15, scale: 1.5, detail: 0, inset: 0.55 });
+    // The Evenspan: a two-tier viaduct striding across the lake east of the Choir, and
+    // watchtowers on the pinnacles that stand in the water.
+    {
+      const b = new MeshBuilder(), a = [592, -262], c = [628, 252];
+      const deck = Math.min(this.terrain.heightAt(a[0], a[1]), this.terrain.heightAt(c[0], c[1])) - 1.5;
+      viaduct(b, (x, z) => this.terrain.heightAt(x, z), a[0], a[1], c[0], c[1], deck, { width: 11, span: 46, detail: 0 });
+      this.add(b);
+      for (const id of ['pin1', 'pin3', 'pin6', 'pin5']) {
+        const m = byId[id], t = new MeshBuilder();
+        const y = this.terrain.heightAt(m.x, m.z);
+        t.at(m.x, y, m.z, 0, (q) => tower(q, { r: m.r * 0.22 + 1.5, h: 22 + m.r * 0.6, sides: 8, stages: 2, top: 'spire', spireH: 20 + m.r * 0.5, detail: 0, foot: 12 }));
+        this.add(t);
+      }
+    }
     // Smaller holds scattered over the outer mesas.
     const chosen = [];
     for (const m of this.mesas) {
