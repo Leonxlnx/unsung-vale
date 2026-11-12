@@ -231,7 +231,7 @@ export class GroundCover {
       const cx = x + CELL / 2, cz = z + CELL / 2;
       const y = this.terrain.heightAt(cx, cz);
       const d = Math.hypot(cx - cam.x, cz - cam.z, y - cam.y);
-      const vis = d < this.radius + CELL && y > 0.5;
+      const vis = d < this.radius * (this.scale ?? 1) + CELL && y > 0.5;
       c.grass.visible = c.flowers.visible = vis;
       if (!vis) continue;
       const k = this.scale ?? 1;

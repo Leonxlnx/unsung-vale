@@ -478,10 +478,12 @@ export class Forest {
       if (!c) { c = { cx: Math.floor(t.x / C), cz: Math.floor(t.z / C), list: [] }; this.chunks.set(key, c); }
       c.list.push(t);
     }
-    // Far billboards: one instanced mesh per 512 m block, culled by its bounding sphere.
-    const B = 512, blocks = new Map();
+    // Far billboards: one instanced mesh per block (smaller blocks in the core where culling
+    // matters most, big ones outside to keep the draw count down).
+    const blocks = new Map();
     for (const t of this.trees) {
-      const key = Math.floor(t.x / B) + ',' + Math.floor(t.z / B);
+      const B = Math.max(Math.abs(t.x), Math.abs(t.z)) < 1024 ? 512 : 1536;
+      const key = B + ':' + Math.floor(t.x / B) + ',' + Math.floor(t.z / B);
       (blocks.get(key) ?? blocks.set(key, []).get(key)).push(t);
     }
     for (const list of blocks.values()) {
