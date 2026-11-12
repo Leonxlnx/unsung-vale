@@ -115,6 +115,7 @@ Conventions that matter:
   in `sceneT` (one jittered mirror ray per pixel, blended into a soft reflection by TAA;
   setting `reflections`, on for High, Ultra and the film).
   `arch/sites.js`: where things are built.
+- `boats.js`: a handful of white-and-gold barges on the lake, lofted from quads.
 - `landmarks.js`: the Lattice rings. `dressing.js`: banners, wisteria, drifting petals,
   butterflies over the meadows, birds, and dust motes that blaze when the sun is behind
   them (additive, in `sceneT`).
@@ -122,10 +123,12 @@ Conventions that matter:
 ## Performance targets
 
 Developed on an AMD Radeon 780M (integrated). Budget is roughly 16 ms at 1080p with the
-render scale around 0.65 and TAA. Measured there with nothing else running: Low about 70
-fps, Medium about 58, High about 50, Ultra about 42. The scene itself is cheap; shadows
-were the largest single cost, so Low and Medium redraw the two cascades on alternate frames
-(`shadows.rate = 2`). Measure with `node tools/perf.mjs` and `node tools/profile.mjs` on an
+render scale around 0.65 and TAA. Measured there with nothing else running (1080p window):
+Low about 60 fps, Medium about 52, High about 45, Ultra about 39. About half of a Medium
+frame is fixed post-processing at display resolution (anti-aliasing, bloom, tone map), the
+rest the scene. Shadows are the largest single cost, so Low and Medium redraw the two
+cascades on alternate frames (`shadows.rate = 2`) and Medium keeps soft penumbrae to the
+near cascade (`shadows.soft = 'near'`). Measure with `node tools/perf.mjs` and `node tools/profile.mjs` on an
 idle machine only: other GPU work makes the numbers meaningless.
 
 ## Game (`src/game`, `src/ui`)
