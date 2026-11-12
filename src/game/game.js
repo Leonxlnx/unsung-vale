@@ -397,7 +397,8 @@ export class Game {
       this.bridge.visible = true;
       this.bridgeProgress = Math.min(1, this.bridgeProgress + dt / 4.5);
       this.bridgeMat.uniforms.uProgress.value = this.bridgeProgress;
-      if (this.bridgeProgress >= 1 && !this.bridgeSolid) { this.world.addGeometry(this.bridgeSlab); this.bridgeSolid = true; }
+      // Solid from the first moment, so nobody can step onto the visible part and fall through.
+      if (!this.bridgeSolid) { this.world.addGeometry(this.bridgeSlab); this.bridgeSolid = true; }
     }
   }
 }

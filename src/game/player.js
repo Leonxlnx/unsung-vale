@@ -188,8 +188,20 @@ export class Player {
       const onTerrain = this.pos.y - g0 < 0.5;
       if (onTerrain && run > 1e-5 && (g1 - g0) / run > 1.25) { this.vel.x *= 0.2; this.vel.z *= 0.2; }
       else { this.pos.x = nx; this.pos.z = nz; }
+      const px = this.pos.x - (onTerrain && run > 1e-5 && (g1 - g0) / run > 1.25 ? 0 : this.vel.x * h), pz = this.pos.z - (onTerrain && run > 1e-5 && (g1 - g0) / run > 1.25 ? 0 : this.vel.z * h), py = this.pos.y;
       this.pos.y += this.vel.y * h;
       if (W.resolveCapsule(this.pos, T.radius, T.height, this.vel.y)) grounded = true;
+      // Step up: if a low ledge stopped us, try again from half a metre higher and settle
+      // onto whatever floor is there (kerbs, plinths, the lips of paved platforms).
+      const moved = Math.hypot(this.pos.x - px, this.pos.z - pz);
+      if (wasGrounded && run > 1e-4 && moved < run * 0.5 && this.vel.y <= 0.01) {
+        const sx = this.pos.x, sy = this.pos.y, sz = this.pos.z;
+        this.pos.set(nx, py + 0.5, nz);
+        W.resolveCapsule(this.pos, T.radius, T.height, 0);
+        const floor = W.floorBelow(this.pos.x, this.pos.y + 0.1, this.pos.z, 0.8);
+        if (Math.hypot(this.pos.x - px, this.pos.z - pz) > run * 0.7 && floor > py - 0.05 && floor <= py + 0.52) { this.pos.y = floor; grounded = true; }
+        else this.pos.set(sx, sy, sz);
+      }
       const g = W.groundHeight(this.pos.x, this.pos.z);
       if (this.pos.y <= g) { this.pos.y = g; grounded = true; }
     }
