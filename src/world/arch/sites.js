@@ -160,9 +160,11 @@ export class Architecture {
     // --- High viaduct: Dawn -> Petal ---
     {
       const b = new MeshBuilder();
-      const a = [-566, -161], c = [-450, -286], ya = 210.2, yc = 178.5;
+      // Both ends reach well back from the rim, so the deck meets solid ground a step high.
+      const a = [-573.5, -152.9], c = [-446.6, -289.7], ya = H(a[0], a[1]) + 0.3, yc = H(c[0], c[1]) + 0.3;
       const L = Math.hypot(c[0] - a[0], c[1] - a[1]);
       viaduct(b, H, a[0], a[1], c[0], c[1], ya, { width: 6.4, span: 28, detail: 1, slope: (yc - ya) / L });
+      out.viaduct = { a, c, ya, yc };
       finish(b);
     }
 

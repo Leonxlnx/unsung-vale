@@ -92,7 +92,8 @@ export class Director {
     const T = this.terrain, H = (x, z) => T.heightAt(x, z);
     const terrace = [-512, 210.4, -70];
     const petal = this.sites.spires[0], cantor = this.sites.spires[1], choir = this.sites.spires[2];
-    const va = [-566, -161], vc = [-450, -286], vyaw = Math.atan2(vc[0] - va[0], vc[1] - va[1]);
+    const vd = this.sites.viaduct, va = vd.a, vc = vd.c, vyaw = Math.atan2(vc[0] - va[0], vc[1] - va[1]);
+    const vLen = Math.hypot(vc[0] - va[0], vc[1] - va[1]), vStart = 25;      // metres along the deck where the run begins
     const vdir = [Math.sin(vyaw), Math.cos(vyaw)];
     const br = this.sites.bridge;
     return [
@@ -118,7 +119,7 @@ export class Director {
       },
       { // 3. Sprinting the high viaduct, backlit.
         dur: 5,
-        setup: (d) => d.game.cineSetup({ tuned: [], player: [va[0] + vdir[0] * 14, 210.4 - 14 * 0.186, va[1] + vdir[1] * 14, vyaw] }),
+        setup: (d) => d.game.cineSetup({ tuned: [], player: [va[0] + vdir[0] * vStart, vd.ya + ((vd.yc - vd.ya) * vStart) / vLen + 0.2, va[1] + vdir[1] * vStart, vyaw] }),
         update: (d, t, k) => {
           const p = d.game.player.pos;
           d.walkTo(vc[0], vc[1], { sprint: true, stop: 6 });

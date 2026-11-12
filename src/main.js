@@ -46,8 +46,8 @@ pipe.sceneT.add(water.group);
 
 // Walking routes between the sites, worn into the turf.
 const routes = [
-  [[-538, -70], [-551, -100], [-562, -138], [-566, -159]],
-  [[-450, -288], [-427, -320], [-398, -358], [-380, -378]],
+  [[-538, -70], [-551, -100], [-562, -138], [-572, -151]],
+  [[-447, -291], [-427, -320], [-398, -358], [-380, -378]],
   [[-358, -402], [-300, -424], [-232, -449], [-180, -459]],
   [[-110, -459], [-60, -470], [8, -488], [46, -496]],
   [[72, -478], [85, -420], [96, -362], [98, -344]],
@@ -298,6 +298,46 @@ window.__dbg = {
     while (director.time < t) { director.advance(dt); lattice.update(dt); game.update(dt); }
     for (let i = 0; i < 6; i++) { director.advance(1 / 240); lattice.update(1 / 240); game.update(1 / 240); pipe.render(1 / 240); }
     return { time: +director.time.toFixed(2), shot: director.index + 1, player: game.player.pos.toArray().map((v) => Math.round(v)) };
+  },
+  // Plays the whole game with a simple bot, without drawing: it walks the route, fights
+  // whatever wakes and tunes each spire. Call it repeatedly (each call simulates `seconds`
+  // of play) until `done` is true. An end-to-end check of routes, collision and rules.
+  bot(seconds = 120) {
+    const d = director, g = game, p = g.player, dt = 1 / 30;
+    let b = this._bot;
+    if (!b || b.done) {
+      g.cineSetup({ tuned: [] }); d.begin();           // cinematic mode: nothing is saved
+      p.spawn(sites.spawn.x, sites.spawn.y, sites.spawn.z, sites.spawn.yaw);
+      b = this._bot = { i: 0, t: 0, stuck: 0, last: p.pos.clone(), log: [], done: false, route: [
+        [-538, -70], [-551, -100], [-562, -138], [-573, -152], [-447, -290], [-427, -320], [-398, -358], [-380, -378], [-372, -386.5, 'petal'],
+        [-358, -402], [-300, -424], [-232, -449], [-180, -459], [-118, -459], [-60, -470], [8, -488], [46, -496], [63.5, -494, 'cantor'],
+        [72, -478], [85, -420], [96, -362], [98, -344], [98, -330], [150, -84], [150, -40], [150, -20.5, 'choir']] };
+    }
+    const until = b.t + seconds;
+    while (b.t < until && b.i < b.route.length && b.stuck < 8) {
+      const [x, z, spire] = b.route[b.i];
+      d.puppet.pressed.clear(); d.puppet.held.clear(); d.puppet.move.x = d.puppet.move.y = 0;
+      const foe = g.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.pos.distanceTo(p.pos) < 26);
+      if (p.state !== 'dead') {
+        if (foe) d.fight(dt);
+        else if (spire) {
+          const s = g.spires.find((q) => q.id === spire);
+          const guard = g.enemies.list.find((e) => e.alive && e.group === spire);
+          if (s.tuned) { b.log.push(`${Math.round(b.t)}s tuned ${spire}`); b.i++; }
+          else if (guard) d.walkTo(guard.pos.x, guard.pos.z, { stop: 3 });      // wake whoever still sleeps
+          else if (d.walkTo(x, z, { stop: 1.5 })) d.puppet.held.add('interact');
+        } else if (d.walkTo(x, z, { sprint: true, stop: 2.2 })) b.i++;
+      }
+      g.update(dt); b.t += dt;
+      if (Math.round(b.t / dt) % 120 === 0) {
+        if (p.pos.distanceTo(b.last) < 0.6 && !foe && p.state !== 'dead') { b.stuck++; b.log.push(`${Math.round(b.t)}s stuck at ${p.pos.toArray().map(Math.round)} before waypoint ${b.i}`); d.puppet.pressed.add('jump'); } else b.stuck = Math.max(0, b.stuck - 1);
+        b.last.copy(p.pos);
+      }
+    }
+    b.done = b.i >= b.route.length || b.stuck >= 8 || b.t > 1500;
+    const res = { seconds: Math.round(b.t), waypoint: `${b.i}/${b.route.length}`, done: b.done, ended: !!g.ended, tuned: g.spires.filter((s) => s.tuned).map((s) => s.id), pos: p.pos.toArray().map(Math.round), health: Math.round(p.health), log: b.log.slice(-10) };
+    if (b.done) d.end();
+    return res;
   },
   // A contact sheet of the film: one pass through the timeline, a still at each given time.
   reel(times = [3, 9, 14.5, 19.5, 26, 34.5, 40.5, 44], cols = 4) {
