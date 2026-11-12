@@ -137,7 +137,7 @@ export class Architecture {
           }
         });
         // Side arcades framing the view.
-        for (const sx of [-1, 1]) q.at(sx * 17.5, 0, -11, -Math.PI / 2, (g) => arcade(g, 20, { bay: 5, colH: 5.2, detail: 1 }));
+        for (const sx of [-1, 1]) q.at(sx * 17.5, 0, -11, -Math.PI / 2, (g) => arcade(g, 20, { bay: 5, colH: 5.2, detail: 1, colR: 0.36, grand: true }));
         // Benches in the shade of the arcades, looking in across the terrace.
         for (const sx of [-1, 1]) for (const bz of [-8.5, -3.5, 1.5, 6.5]) q.at(sx * 19.2, 0, bz, Math.PI / 2, (g) => bench(g, 2.4));
         // Armillary spheres either side of the way out to the lookout, and urns of flowers.

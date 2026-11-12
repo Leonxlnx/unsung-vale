@@ -98,8 +98,11 @@ void main() {
   float vis = sunVisibility(vWorld + vec3(0.0, 0.3, 0.0));
   vec3 skyUp = shIrradiance(vec3(0.0, 1.0, 0.0));
   vec3 light = uSunColor * max(uSunDir.y, 0.0) * vis * 0.3183 + skyUp;
-  vec3 absorb = exp(-depth * vec3(0.42, 0.11, 0.085));
-  vec3 scatter = vec3(0.012, 0.085, 0.082) * light;
+  vec3 absorb = exp(-depth * vec3(0.4, 0.1, 0.08));
+  // Light scattered back out of the water: bright turquoise where it is a few metres deep
+  // over pale sand, settling to a deeper teal in open water.
+  float shallow = exp(-depth * 0.16);
+  vec3 scatter = mix(vec3(0.014, 0.1, 0.105), vec3(0.05, 0.2, 0.17), shallow) * light;
   vec3 body = refr * absorb + scatter * (1.0 - absorb.g);
 
   // Screen-space reflection against the linear depth, falling back to the sky.
@@ -132,7 +135,7 @@ void main() {
   }
 
   float ndv = saturate(dot(N, V));
-  float fres = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
+  float fres = 0.035 + 0.965 * pow(1.0 - ndv, 5.0);
   // Sun glitter.
   vec3 H = normalize(V + uSunDir);
   float ndh = saturate(dot(N, H));

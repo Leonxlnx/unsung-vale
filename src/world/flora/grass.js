@@ -85,14 +85,16 @@ void main() {
 
   float t = position.y;
   // Taller where the meadow is lush, cropped short in the clover.
-  float height = (0.16 + 0.28 * gi.z + 0.16 * (1.0 - gi.w) + 0.3 * rr.x * rr.x) * (0.55 + 0.45 * scale) * mix(1.0, 0.6, gClover);
-  float width = 0.027 * (1.0 + dist * 0.075) * mix(1.0, 1.5, gClover);
+  float height = (0.13 + 0.22 * gi.z + 0.13 * (1.0 - gi.w) + 0.3 * rr.x * rr.x * rr.x) * (0.55 + 0.45 * scale) * mix(1.0, 0.6, gClover);
+  float width = 0.019 * (1.0 + dist * 0.11) * mix(1.0, 1.6, gClover);
   float yaw = rr.y * 6.2831853;
   vec2 dir = vec2(cos(yaw), sin(yaw));
-  vec2 bend = (dir * (0.12 + 0.3 * rr.x) + windBend(xz, 1.0)) * t * t;
-  float droop = 1.0 - 0.28 * dot(bend, bend);
+  // Blades arch over under their own weight, the tall ones most.
+  vec2 bend = (dir * (0.28 + 0.6 * rr.x) + windBend(xz, 1.0)) * t * t;
+  float droop = 1.0 - 0.3 * min(dot(bend, bend), 1.6);
   vec3 p = vec3(xz.x, gi.x, xz.y) + vec3(bend.x, t * droop, bend.y) * height;
-  p += vec3(-dir.y, 0.0, dir.x) * position.x * width * (1.0 - t * 0.85);
+  // Full for most of its length, drawn to a point only at the tip.
+  p += vec3(-dir.y, 0.0, dir.x) * position.x * width * (1.0 - t * t * 0.9);
 
   // Lighting per vertex: sun through and onto the blade, sky from above, dark at the root.
   vec3 base = vec3(xz.x, gi.x + 0.15, xz.y);
@@ -190,7 +192,7 @@ export class GroundCover {
     const pos = [], idx = [];
     for (let b = 0; b < 3; b++) {
       const o = b * 5;
-      pos.push(-1, 0, b, 1, 0, b, -1, 0.5, b, 1, 0.5, b, 0, 1, b);
+      pos.push(-1, 0, b, 1, 0, b, -1, 0.58, b, 1, 0.58, b, 0, 1, b);
       idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2, o + 2, o + 3, o + 4);
     }
     const perCell = Math.round(CELL * CELL * (opts.density ?? 15));

@@ -260,7 +260,7 @@ void main() {
       float band = smoothstep(0.87, 0.87 + aa, r) * (1.0 - smoothstep(0.985 - aa, 0.985, r));
       float ring = smoothstep(0.655, 0.655 + aa, r) * (1.0 - smoothstep(0.7 - aa, 0.7, r));
       float core = 1.0 - smoothstep(0.1 - aa, 0.1, r);
-      vec3 cream = vec3(0.86, 0.81, 0.72), rose = vec3(0.6, 0.42, 0.37), slate = vec3(0.27, 0.31, 0.36);
+      vec3 cream = vec3(0.86, 0.81, 0.72), rose = vec3(0.57, 0.44, 0.39), slate = vec3(0.27, 0.31, 0.36);
       alb = mix(alb, slate * tone, band * 0.8);
       alb = mix(alb, cream * tone, max(ring, in1) * 0.85);
       alb = mix(alb, rose * tone, in2 * 0.85);

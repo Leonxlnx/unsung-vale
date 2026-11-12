@@ -30,17 +30,17 @@ export const SPECIES = {
   ember: {       // broad crimson maple
     height: [11, 17], trunkR: 0.42, lean: 0.12, branchStart: 0.28, n1: [10, 13], n2: [6, 8], n3: [4, 5],
     spread: 0.62, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.92 + 0.08)), 0.55), tropism: 0.1, droop: 0.0,
-    wiggle: 0.34, cardSize: [1.5, 2.3], cardsPerTwig: 4, leaf: 0,
+    wiggle: 0.34, cardSize: [1.3, 2.0], cardsPerTwig: 5, leaf: 0,
   },
   blossom: {     // spreading pink cherry with drooping tips
     height: [6.5, 10], trunkR: 0.3, lean: 0.22, branchStart: 0.3, n1: [9, 12], n2: [6, 8], n3: [4, 5],
     spread: 0.82, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.8 + 0.2)), 0.45), tropism: 0.02, droop: 0.42,
-    wiggle: 0.42, cardSize: [1.2, 1.8], cardsPerTwig: 4, leaf: 1,
+    wiggle: 0.42, cardSize: [1.05, 1.6], cardsPerTwig: 5, leaf: 1,
   },
   elder: {       // tall pale-lilac tree
     height: [15, 23], trunkR: 0.55, lean: 0.08, branchStart: 0.36, n1: [12, 15], n2: [6, 8], n3: [4, 5],
     spread: 0.5, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.9 + 0.1)), 0.7), tropism: 0.16, droop: 0.12,
-    wiggle: 0.3, cardSize: [1.7, 2.5], cardsPerTwig: 4, leaf: 2,
+    wiggle: 0.3, cardSize: [1.5, 2.2], cardsPerTwig: 5, leaf: 2,
   },
   cypress: {     // slender dark column
     height: [13, 24], trunkR: 0.26, lean: 0.03, branchStart: 0.06, n1: [26, 34], n2: [2, 3], n3: [0, 0],
@@ -60,7 +60,7 @@ export const SPECIES = {
   green: {       // generic green broadleaf for forest mass
     height: [10, 16], trunkR: 0.4, lean: 0.1, branchStart: 0.3, n1: [10, 13], n2: [6, 7], n3: [4, 5],
     spread: 0.56, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.9 + 0.1)), 0.6), tropism: 0.12, droop: 0.05,
-    wiggle: 0.34, cardSize: [1.5, 2.2], cardsPerTwig: 4, leaf: 4,
+    wiggle: 0.34, cardSize: [1.3, 1.95], cardsPerTwig: 5, leaf: 4,
   },
 };
 
@@ -245,12 +245,12 @@ export function buildLeaves(tree, keep = 1, sizeMul = 1) {
       // every card: part the crown as a whole, part the billow this bough carries, and only a
       // trace of the card itself. Flat cards then shade as one soft, lobed canopy.
       const fromCrown = sub(p, cc), dC = len(fromCrown);
-      let n = mul(norm(fromCrown), 0.55), inner = 1 - Math.min(1, dC / tree.crownRadius);
+      let n = mul(norm(fromCrown), 0.45), inner = 1 - Math.min(1, dC / tree.crownRadius);
       if (c.lobe) {
         const fromLobe = sub(p, c.lobe.c), dL = len(fromLobe);
-        n = add(n, mul(norm(fromLobe), 0.6));
+        n = add(n, mul(norm(fromLobe), 0.8));
         inner = Math.min(1, inner * 0.75 + (1 - Math.min(1, dL / c.lobe.r)) * 0.45);
-      } else n = add(n, mul(norm(fromCrown), 0.45));
+      } else n = add(n, mul(norm(fromCrown), 0.55));
       n = norm(add(n, mul(c.n, 0.14)));
       if (c.fill) inner = Math.max(inner, 0.72);
       pos.push(p[0], p[1], p[2]);

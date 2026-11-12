@@ -172,8 +172,8 @@ void main() {
     if (dot(q, q) > 1.6) continue;
     vec4 l; bool bloom = false;
     if (uKind == 0) l = maple(q, id);
-    else if (uKind == 1) { bloom = id < 0.8; l = bloom ? flower(q, id, mix(srgb(0.97, 0.8, 0.84), srgb(0.93, 0.64, 0.72), h1(fi * 4.7)), srgb(0.82, 0.42, 0.54), 5.0) : ovate(q, id, srgb(0.32, 0.4, 0.14), srgb(0.5, 0.36, 0.2), 0.3); }
-    else if (uKind == 2) { bloom = id < 0.86; l = bloom ? flower(q, id, mix(srgb(0.95, 0.9, 0.92), srgb(0.87, 0.79, 0.92), h1(fi * 4.7)), srgb(0.72, 0.6, 0.82), 4.0) : ovate(q, id, srgb(0.36, 0.5, 0.22), srgb(0.5, 0.58, 0.3), 0.3); }
+    else if (uKind == 1) { bloom = id < 0.8; l = bloom ? flower(q, id, mix(srgb(0.92, 0.75, 0.79), srgb(0.88, 0.6, 0.68), h1(fi * 4.7)), srgb(0.82, 0.42, 0.54), 5.0) : ovate(q, id, srgb(0.32, 0.4, 0.14), srgb(0.5, 0.36, 0.2), 0.3); }
+    else if (uKind == 2) { bloom = id < 0.86; l = bloom ? flower(q, id, mix(srgb(0.9, 0.85, 0.87), srgb(0.83, 0.75, 0.88), h1(fi * 4.7)), srgb(0.72, 0.6, 0.82), 4.0) : ovate(q, id, srgb(0.36, 0.5, 0.22), srgb(0.5, 0.58, 0.3), 0.3); }
     else if (uKind == 3) l = ovate(q, id, srgb(0.07, 0.17, 0.08), srgb(0.16, 0.3, 0.12), 0.11);
     else l = ovate(q, id, id > 0.9 ? srgb(0.42, 0.5, 0.13) : srgb(0.14, 0.31, 0.075), srgb(0.34, 0.48, 0.12), 0.34);
     // How this leaf leans, plus the fold along its midrib and the droop of its tip (a flower

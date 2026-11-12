@@ -412,7 +412,7 @@ export class Sky {
         uDensity: { value: 0.045 },
         uSeed: { value: 0 },
         uSteps: { value: opts.cloudSteps ?? 44 },
-        uCloudTint: { value: new THREE.Vector3(1.12, 0.86, 0.62) },   // evening light: peach rather than white
+        uCloudTint: { value: new THREE.Vector3(1.45, 1.0, 0.66) },   // evening light: the lit sides glow peach and gold
         uAmbTop: { value: this.ambTop },
         uAmbBottom: { value: this.ambBottom },
         uNoiseBase: { value: this.noiseBase.texture },
