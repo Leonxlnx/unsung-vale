@@ -70,19 +70,34 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
 }`;
 
 const paving = /* glsl */ `
-// Irregular flagstones with mossy joints.
+// Coursed flagstones: long slabs of uneven width laid in rows, with fine joints that hold a
+// little moss, worn smooth along the middle of each stone.
 void material(vec2 uv, out float h, out vec3 col, out float rough) {
-  vec2 q = uv + 0.03 * (vec2(pfbm(uv, vec2(4.0), 2, 1.0), pfbm(uv, vec2(4.0), 2, 2.0)) - 0.5);
-  vec4 w = pworley(q, vec2(5.0), 3.0);
-  float edge = w.y - w.x;
-  float stone = smoothstep(0.015, 0.05, edge);
-  float face = pfbm(uv, vec2(30.0), 4, 4.0), fine = pfbm(uv, vec2(100.0), 3, 5.0);
-  h = stone * (0.6 + 0.2 * w.z + 0.15 * face) + (1.0 - stone) * 0.15 * face;
-  vec3 base = mix(srgb(0.78, 0.75, 0.69), srgb(0.66, 0.63, 0.58), w.z) * (0.88 + 0.24 * face) * (0.95 + 0.1 * fine);
-  base = mix(base, base * vec3(0.84, 0.86, 0.76), smoothstep(0.5, 0.8, pfbm(uv, vec2(3.0), 4, 8.0)));
-  vec3 gap = mix(srgb(0.3, 0.27, 0.2), srgb(0.24, 0.33, 0.12), smoothstep(0.4, 0.7, pfbm(uv, vec2(9.0), 3, 6.0)));
-  col = mix(gap, base, stone);
-  rough = mix(0.95, 0.78, stone);
+  const float rows = 5.0;
+  float y = uv.y * rows, row = floor(y), fy = fract(y);
+  // Each row is cut into stones of three widths; the cuts shift from row to row.
+  float x = uv.x * 2.0 + hash12(vec2(row, 3.0)) * 2.0, cell = floor(x), fx = fract(x);
+  float split = 0.34 + 0.32 * hash12(vec2(mod(cell, 2.0), row));
+  float left = step(fx, split);
+  float sx = left > 0.5 ? fx / split : (fx - split) / (1.0 - split), wx = left > 0.5 ? split : 1.0 - split;
+  vec2 id = vec2(mod(cell, 2.0) * 2.0 + left, row);
+  float r1 = hash12(id + 0.37), r2 = hash12(id * 1.7 + 5.1);
+  float dx = min(sx, 1.0 - sx) * wx / 2.0, dy = min(fy, 1.0 - fy) / rows;
+  float wob = 0.0012 * (pfbm(uv, vec2(40.0), 2, 9.0) - 0.5);
+  float edge = min(dx, dy) + wob;
+  float joint = smoothstep(0.0012, 0.0042, edge);
+  float bevel = smoothstep(0.0, 0.016, edge);
+  float face = pfbm(uv, vec2(26.0), 4, 4.0), fine = pfbm(uv, vec2(110.0), 3, 5.0);
+  float pit = smoothstep(0.62, 0.8, pfbm(uv, vec2(48.0), 3, 13.0));
+  h = joint * (0.62 + 0.1 * r1 + 0.1 * face + 0.04 * fine - 0.1 * pit) * (0.86 + 0.14 * bevel);
+  vec3 base = mix(srgb(0.8, 0.77, 0.71), srgb(0.68, 0.66, 0.62), r1);
+  base = mix(base, srgb(0.74, 0.68, 0.58), step(0.8, r2) * 0.7);
+  base *= (0.9 + 0.2 * face) * (0.96 + 0.08 * fine) * (1.0 - 0.12 * pit);
+  base = mix(base, base * vec3(0.84, 0.86, 0.78), smoothstep(0.5, 0.8, pfbm(uv, vec2(3.0), 4, 8.0)));
+  vec3 gap = mix(srgb(0.27, 0.25, 0.2), srgb(0.2, 0.3, 0.11), smoothstep(0.4, 0.7, pfbm(uv, vec2(9.0), 3, 6.0)));
+  col = mix(gap, base, joint);
+  // Feet have polished the middle of each stone; the margins stay matt.
+  rough = mix(0.95, 0.8 - 0.22 * bevel * (1.0 - pit), joint);
 }`;
 
 const frieze = /* glsl */ `
