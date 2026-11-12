@@ -20,6 +20,7 @@ import { FilmOutput } from './cine/output.js';
 import { Rocks } from './world/rocks.js';
 import { CliffVines } from './world/flora/cliffVines.js';
 import { FloorGloss } from './world/arch/floorGloss.js';
+import { FILM } from './engine/quality.js';
 
 const canvas = document.getElementById('view');
 const params = new URLSearchParams(location.search);
@@ -33,7 +34,7 @@ const stage = (p, text) => new Promise((resolve) => {
   requestAnimationFrame(() => { clearTimeout(t); setTimeout(resolve, 0); });
 });
 
-const pipe = new Pipeline(canvas, { renderScale: Number(params.get('scale')) || 1, sky: { ...WORLD.sun } });
+const pipe = new Pipeline(canvas, { renderScale: Number(params.get('scale')) || 1, sky: { ...WORLD.sun }, shadows: FILM ? { size: 3072, staticSize: [8192, 2048] } : {} });
 window.__pipe = pipe;
 const settings = new Settings(pipe.renderer);
 
@@ -103,7 +104,8 @@ forest.populate((x, z) => onRoute(x, z) || clear.some(([cx, cz, r]) => (x - cx) 
 ]);
 forest.addGreatTree(2750, terrain.heightAt(2750, 1480) - 6, 1480);
 pipe.scene.add(forest.group);
-const cover = new GroundCover(pipe, terrain, forest.leafAtlas, forest.wind);
+const cover = new GroundCover(pipe, terrain, forest.leafAtlas, forest.wind, FILM ? { radius: 120 } : {});
+if (FILM) cover.lodBoost = 1.6;       // full blade density further out as well
 pipe.scene.add(cover.group);
 // Boulders under the cliffs and along the shore, stones in the meadows; none on the sites
 // or across the routes between them.
@@ -144,6 +146,8 @@ const updateAudio = connectAudio(audio, game, ui, falls);
 audio.init().then((ok) => { if (ok) apply(); });
 for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, () => audio.resume());
 if (params.get('scale')) settings.values.renderScale = Number(params.get('scale'));
+// Previewing the film look outside a capture: the capture's own quality settings.
+if (FILM) Object.assign(settings.values, { renderScale: 1, shadows: true, volumetrics: true, cover: 1, reflections: true, shadowRate: 1 });
 apply();
 
 pipe.onBeforeScene.push((cam) => { terrain.bakeStep(2); terrain.select(cam); forest.update(cam); cover.update(cam); rocks.update(cam); dressing.update(cam); });

@@ -157,7 +157,7 @@ export class Shadows {
     this.soft = true;             // soft penumbrae on surfaces that ask for them
     this.rate = 1;                // 1: near cascade every frame; 2: cascades take turns
     this.softness = 0.012;        // penumbra radius per metre between blocker and receiver
-    this.staticSize = [4096, 1024];
+    this.staticSize = opts.staticSize ?? [4096, 1024];
     this.static = depthTarget(...this.staticSize);
 
     this.cams = [new THREE.OrthographicCamera(), new THREE.OrthographicCamera()];

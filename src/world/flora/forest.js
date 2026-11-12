@@ -12,6 +12,7 @@ import { TERRAIN_SAMPLING } from '../terrain.js';
 import { SPECIES, generateTree, buildWood, buildLeaves } from './treegen.js';
 import { bakeLeafAtlas } from './leafAtlas.js';
 import { fbm, mulberry32, smoothstep } from '../../util/noise.js';
+import { FILM } from '../../engine/quality.js';
 
 const BARK = /* glsl */ `
 // Furrowed bark: long interlacing ridges running up the trunk, narrow plates split across
@@ -38,7 +39,7 @@ const VARIANTS = [
   ['ember', 1], ['ember', 2], ['ember', 3], ['blossom', 1], ['blossom', 2], ['elder', 1], ['elder', 2],
   ['cypress', 1], ['cypress', 2], ['green', 1], ['green', 2], ['green', 3],
 ];
-const NEAR = 56, MID = 160;      // metres: near -> mid -> billboard hand-over distances
+const NEAR = FILM ? 96 : 56, MID = FILM ? 300 : 160;      // metres: near -> mid -> billboard hand-over distances
 const FRAMES = 8, CELL = 256;
 
 const TREE_VERT_COMMON = /* glsl */ `
@@ -295,7 +296,7 @@ function geometryFrom(data, extra = {}) {
   return g;
 }
 
-const SHRUB_FAR = 84, SHRUB_CELL = 48;
+const SHRUB_FAR = FILM ? 150 : 84, SHRUB_CELL = 48;
 const BARK_TINT = { ember: [0.8, 0.72, 0.7], blossom: [0.62, 0.52, 0.52], elder: [1.25, 1.2, 1.15], cypress: [0.95, 0.72, 0.6], green: [0.9, 0.85, 0.75] };
 
 export class Forest {
@@ -304,7 +305,7 @@ export class Forest {
     const r = pipe.renderer, g = pipe.globals;
     this.group = new THREE.Group();
     this.wind = new THREE.Vector3(0.7, 0, 0.35);
-    const atlas = bakeLeafAtlas(r, 512);
+    const atlas = bakeLeafAtlas(r, FILM ? 1024 : 512);
     this.leafAtlas = atlas.a; this.leafAtlasB = atlas.b;
     this.bark = new TextureForge(r).bake([{ name: 'bark', code: BARK, bump: 12 }], 512);
 
@@ -333,9 +334,9 @@ export class Forest {
       const tree = generateTree(species, seed * 17 + vi);
       const layer = SPECIES[species].leaf;
       const lods = [
-        { max: 96, wood: buildWood(tree, 2, [9, 6, 4, 3]), leaves: buildLeaves(tree, 1, 1), fade: [0, NEAR - 10] },
-        { max: 768, wood: buildWood(tree, 1, [6, 4, 3, 3]), leaves: buildLeaves(tree, 0.2, 1.75), fade: [NEAR, MID - 10] },
-      ].map((l) => {
+        { max: FILM ? 260 : 96, wood: buildWood(tree, 2, [9, 6, 4, 3]), leaves: buildLeaves(tree, 1, 1), fade: [0, NEAR - 10] },
+        { max: FILM ? 2400 : 768, wood: buildWood(tree, 1, [6, 4, 3, 3]), leaves: buildLeaves(tree, 0.2, 1.75), fade: [NEAR, MID - 10] },
+      ].map((l, li) => {
         const iTree = new THREE.InstancedBufferAttribute(new Float32Array(l.max * 4), 4);
         const iParam = new THREE.InstancedBufferAttribute(new Float32Array(l.max * 4), 4);
         iTree.setUsage(THREE.DynamicDrawUsage); iParam.setUsage(THREE.DynamicDrawUsage);
@@ -348,7 +349,7 @@ export class Forest {
           this.group.add(m);
           // Only the near meshes cast real shadows; everything farther is drawn into the
           // shadow maps as a sun-facing billboard, which costs two triangles per tree.
-          if (l.max === 96) pipe.shadows.addCaster(m, k === 0 ? woodDepth : leafDepth(layer));
+          if (li === 0) pipe.shadows.addCaster(m, k === 0 ? woodDepth : leafDepth(layer));
           return m;
         });
         return { ...l, iTree, iParam, meshes, count: 0 };
@@ -543,7 +544,7 @@ export class Forest {
     // [leaf layer, share of all shrubs]
     const kinds = [[4, 0.62], [1, 0.2], [2, 0.18]];
     this.shrubs = kinds.map(([layer], k) => {
-      const tree = generateTree('shrub', 301 + k * 7), max = 320;
+      const tree = generateTree('shrub', 301 + k * 7), max = FILM ? 900 : 320;
       const iTree = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4);
       const iParam = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4);
       iTree.setUsage(THREE.DynamicDrawUsage); iParam.setUsage(THREE.DynamicDrawUsage);

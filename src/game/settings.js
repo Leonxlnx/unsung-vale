@@ -44,7 +44,7 @@ export function applySettings(settings, { pipe, game, cover, audio, gloss }) {
   if (pipe.volumetrics) pipe.volumetrics.enabled = v.volumetrics;
   // Settings saved before this option existed fall back to what their preset would choose.
   if (gloss) gloss.group.visible = v.reflections ?? (v.preset === 'high' || v.preset === 'ultra');
-  if (cover) { cover.fade.value = cover.radius * v.cover; cover.scale = v.cover; }
+  if (cover) { cover.fade.value = cover.radius * v.cover; cover.scale = v.cover * (cover.lodBoost ?? 1); }
   pipe.sky.setCloudQuality(v.cloudRes ?? 1024, v.cloudRes > 1024 ? 56 : 44);
   // Larger panoramas get more tiles per frame so a refresh takes about as long either way.
   pipe.sky.tilesPerFrame = (v.clouds === 0 ? 0 : v.clouds === 2 ? 2 : 1) * (v.cloudRes > 1024 ? 3 : 1);
