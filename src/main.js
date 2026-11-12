@@ -102,6 +102,7 @@ const onRoute = (x, z) => routes.some((r) => r.some((a, i) => {
 const offLimits = (x, z) => onRoute(x, z) || clear.some(([cx, cz, r]) => (x - cx) * (x - cx) + (z - cz) * (z - cz) < (r + 4) * (r + 4));
 const rocks = new Rocks(pipe, terrain, offLimits);
 forest.addShrubs(offLimits);
+sites.planters.forEach(([x, y, z], i) => forest.addShrubAt(x, y - 0.1, z, 0.55 + 0.1 * (i % 3), 1 + (i % 2)));
 pipe.scene.add(rocks.group);
 
 // Banners and wisteria on the Dawn Terrace arcades, petals on the wind, birds over the valley.

@@ -568,6 +568,15 @@ export class Forest {
     return n;
   }
 
+  // One shrub at an exact spot (a planter, say). kind: 0 green, 1 pink blossom, 2 lilac.
+  addShrubAt(x, y, z, scale = 0.6, kind = 1) {
+    const key = Math.floor(x / SHRUB_CELL) + ',' + Math.floor(z / SHRUB_CELL);
+    let c = this.shrubCells.get(key);
+    if (!c) this.shrubCells.set(key, c = []);
+    c.push({ x, y, z, s: scale, yaw: (x * 12.9898 + z * 78.233) % 6.283, seed: Math.abs(Math.sin(x * 3.7 + z * 1.3)), k: kind });
+    this._listPos = null;
+  }
+
   _updateShrubs(cam) {
     for (const s of this.shrubs) s.count = 0;
     const C = SHRUB_CELL, R = Math.ceil((SHRUB_FAR + 4) / C);

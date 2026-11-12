@@ -266,6 +266,36 @@ export function lantern(b, h = 3.2) {
   b.lathe([[0.22, h - 0.56], [0.28, h - 0.5], [0.22, h - 0.46]], 4, { smooth: false, phase: Math.PI / 4 });
 }
 
+// A stone urn for a flowering shrub (the plant itself is added by the forest). Returns the
+// height of the soil.
+export function planter(b, r = 0.75) {
+  b.mat_(M.MARBLE).lathe([[r * 0.62, 0], [r * 0.7, 0.08], [r * 0.5, 0.16], [r * 0.42, 0.36], [r * 0.9, 0.8], [r, 1.0], [r * 1.07, 1.04], [r * 1.07, 1.12], [r * 0.9, 1.12], [r * 0.86, 1.04]], 14);
+  b.mat_(M.GOLD).lathe([[r * 0.94, 0.83], [r * 1.0, 0.87], [r * 0.96, 0.91]], 14);
+  b.mat_(M.DARK).lathe([[r * 0.88, 1.05], [0, 1.07]], 14);
+  return 1.05;
+}
+
+// An armillary sphere on a pedestal: gilded rings at different tilts around a small orb,
+// echoing the great rings of the Lattice out over the valley.
+export function armillary(b, R = 1.3) {
+  const flat = { smooth: false, phase: Math.PI / 8 };
+  b.mat_(M.MARBLE).lathe([[0.95, 0], [0.95, 0.22], [0.74, 0.32], [0.62, 1.15], [0.76, 1.25], [0.76, 1.36], [0, 1.36]], 8, flat);
+  b.mat_(M.FRIEZE).prism(0.66, 0.64, 0.5, 1.0, 8);
+  b.mat_(M.GOLD).lathe([[0.2, 1.36], [0.09, 1.46], [0.07, 1.95], [0.14, 2.0]], 8);
+  const cy = 2.0 + R;
+  const ring = (r, t) => b.lathe([[r - t, -t], [r + t, -t], [r + t, t], [r - t, t], [r - t, -t]], 40);
+  b.push().translate(0, cy, 0);
+  ring(R, 0.05);                                             // horizon ring
+  b.push().rotateX(Math.PI / 2); ring(R * 0.98, 0.045); b.pop();       // meridian
+  b.push().rotateZ(0.41).rotateX(0.2); ring(R * 0.86, 0.04); b.pop();   // ecliptic, tilted
+  b.push().rotateY(0.9).rotateX(Math.PI / 2 - 0.5); ring(R * 0.72, 0.035); b.pop();
+  // The axis and the orb at the centre.
+  b.push().rotateZ(0.41); b.lathe([[0.022, -R * 1.08], [0.022, R * 1.08]], 6); b.pop();
+  b.lathe([[0, -0.24], [0.17, -0.17], [0.24, 0], [0.17, 0.17], [0, 0.24]], 12);
+  b.pop();
+  return cy + R;
+}
+
 // A Tuning Spire: stepped dais, slender shaft, and four gilded prongs cradling a crystal
 // (the crystal itself is a separate glowing mesh owned by the game). Returns the crystal height.
 // Radius of the spire's shaft (to its corners) at height y, for a spire of height h.

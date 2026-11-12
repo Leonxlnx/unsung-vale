@@ -2,7 +2,7 @@
 // link them, and (in sites added below) the hand-laid places the player walks through.
 import * as THREE from 'three';
 import { MeshBuilder } from './builder.js';
-import { citadel, viaduct, terrace, arcade, pavilion, lantern, tuningSpire, tower, hall, cliffTiers } from './kit.js';
+import { citadel, viaduct, terrace, arcade, pavilion, lantern, tuningSpire, tower, hall, cliffTiers, planter, armillary } from './kit.js';
 import { M, column, balustrade, stairs, archWall, archRise } from './builder.js';
 import { createArchMaterial } from './archMaterial.js';
 import { Shadows } from '../../engine/shadows.js';
@@ -108,7 +108,7 @@ export class Architecture {
   // Returns the gameplay anchors (spawn, spires, bridge ends) and the collision geometry.
   buildPlayable() {
     const T = this.terrain, H = (x, z) => T.heightAt(x, z);
-    const out = { spires: [], solids: [], lanterns: [] };
+    const out = { spires: [], solids: [], lanterns: [], planters: [] };
     const finish = (b) => { const m = this.add(b, { near: true }); out.solids.push(m.geometry); return m; };
     const lamp = (b, x, y, z) => { b.at(x, y, z, 0, (q) => lantern(q)); out.lanterns.push([x, y + 2.95, z]); };
 
@@ -135,6 +135,14 @@ export class Architecture {
         });
         // Side arcades framing the view.
         for (const sx of [-1, 1]) q.at(sx * 17.5, 0, -11, -Math.PI / 2, (g) => arcade(g, 20, { bay: 5, colH: 5.2, detail: 1 }));
+        // Armillary spheres either side of the way out to the lookout, and urns of flowers.
+        for (const sx of [-1, 1]) q.at(sx * 12.6, 0, 7.4, sx * 0.5, (g) => armillary(g, 1.25));
+        for (const [px, pz] of [[-20, 11.4], [20, 11.4], [-8.6, 11.4], [8.6, 11.4], [-7.2, -11.6], [7.2, -11.6], [-13.4, -2.5], [13.4, -2.5]]) {
+          let top = 0;
+          q.at(px, 0, pz, 0, (g) => { top = planter(g, 0.72); });
+          // Terrace frame: local +z is east, local +x is north (world -z).
+          out.planters.push([cx + pz, y + top, cz - px]);
+        }
         // Broad steps down to the meadow behind (the stair frame rises toward the terrace).
         const rise = y - H(cx - 13 - 7, cz) + 0.3, run = rise * 2.3;
         q.at(0, -rise, -13 - run, -Math.PI / 2, (g) => stairs(g, run, rise, 18));
