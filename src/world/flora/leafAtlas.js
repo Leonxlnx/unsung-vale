@@ -114,7 +114,8 @@ void main() {
       float t = pow(h1(fi * 6.1), 0.8);
       float wdt = 0.075 * (1.0 - 0.8 * t) + 0.008;
       vec2 c = vec2(rx + (h1(fi * 8.3) - 0.5) * 2.0 * wdt + 0.018 * sin(t * 5.0 + rc * 2.0), 0.985 - t * rl);
-      float s = mix(0.034, 0.014, t), id = h1(fi * 9.1), ang = h1(fi * 3.1) * 6.283;
+      // Florets large enough to overlap, so each raceme is a solid tapering tail, not a string of dots.
+      float s = mix(0.052, 0.022, t), id = h1(fi * 9.1), ang = h1(fi * 3.1) * 6.283;
       vec2 q = rot(-ang) * (uv - c) / s;
       if (dot(q, q) > 1.6) continue;
       vec3 pale = mix(srgb(0.8, 0.72, 0.93), srgb(0.66, 0.55, 0.9), id), deep = srgb(0.42, 0.28, 0.66);

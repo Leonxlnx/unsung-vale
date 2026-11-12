@@ -173,8 +173,14 @@ void main() {
 #if defined(BAKE_ALBEDO) || defined(BAKE_NORMAL)
   if (t.a < 0.22) discard;
 #elif defined(FIXED_ALPHA)
-  // Hanging curtains keep their ragged outline at any distance instead of filling in.
-  if (t.a < 0.36) discard;
+  // Hanging curtains: the outline is torn by noise in world space rather than by the texture,
+  // so with distance the sprays can fill in (no speckle from minified cut-outs) without the
+  // ribbon turning into a rectangle.
+  float tilesPerPixel = length(dux) + length(duy);
+  float side = min(vUv.x - 0.1, 0.9 - vUv.x) * 2.5;
+  float rag = vnoise(vWorld.xy * 0.9 + vWorld.z * 0.7);
+  if (side < 0.12 + 0.55 * rag * rag) discard;
+  if (t.a < mix(0.36, 0.08, smoothstep(0.006, 0.03, tilesPerPixel))) discard;
 #else
   if (t.a < mix(0.4, 0.2, saturate(vTreeDist / 110.0))) discard;
 #endif
