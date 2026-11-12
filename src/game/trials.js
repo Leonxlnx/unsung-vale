@@ -20,6 +20,8 @@ void main() {
 
 // fight: waves of [kind, count, elite?]; run: gates as offsets from the ring, and seconds.
 export const TRIALS = [
+  // kind 'return': lancers keep coming; the ring is won by sending their bolts back at them.
+  { id: 'answers', name: 'Trial of Answers', kind: 'return', at: [212, -8], need: 5, seconds: 80, reward: { up: 'blade', xp: 120 }, waves: [[['lancer', 3]]] },
   { id: 'blades', name: 'Trial of Blades', kind: 'fight', at: [-300, -440], reward: { up: 'blade', xp: 80 },
     waves: [[['thrall', 3]], [['hound', 3], ['thrall', 1]], [['warden', 1], ['thrall', 2]]] },
   { id: 'ringer', name: "The Ringer's Run", kind: 'run', at: [150, -470], seconds: 34, reward: { up: 'stamina', xp: 80 },
@@ -51,6 +53,8 @@ function flatNear(W, x, z, reach = 24) {
 
 export class Trials {
   constructor(game, pipe) {
+    // A bolt struck back while the Trial of Answers is on counts toward it.
+    game.on((type, d) => { const r = this.run; if (type === 'enemy' && d.type === 'returned' && r?.t.def.kind === 'return') { r.count++; game.emit('trial', { phase: 'gate', name: r.t.def.name, index: r.count, total: r.t.def.need, pitch: [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2][Math.min(4, r.count - 1)] }); } });
     this.g = game; this.pipe = pipe; this.run = null;
     const W = game.world, time = pipe.globals.uTime;
     const geo = new THREE.TorusGeometry(1.25, 0.075, 6, 28).translate(0, 1.85, 0);
@@ -90,6 +94,7 @@ export class Trials {
     const r = this.run; if (!r) return null;
     const t = r.t, d = t.def;
     if (d.kind === 'fight') return { title: d.name, text: 'Stand against the waves', count: `${r.wave + 1} / ${d.waves.length}`, mark: null };
+    if (d.kind === 'return') return { title: d.name, text: `Strike their bolts back  ·  ${Math.max(0, r.left).toFixed(0)} s`, count: `${r.count} / ${d.need}`, mark: null, urgent: r.left < 12 };
     const gt = t.gates[r.gate];
     return { title: d.name, text: 'Run the gates', count: `${Math.max(0, r.left).toFixed(1)} s`, mark: { x: gt.x, y: gt.y + 0.6, z: gt.z, name: `Gate ${r.gate + 1} of ${t.gates.length}` }, urgent: r.left < 8 };
   }
@@ -106,10 +111,10 @@ export class Trials {
 
   begin(t) {
     const g = this.g;
-    this.run = { t, wave: 0, gate: 0, left: t.seconds ?? 0, wait: 0, time: 0 };
-    if (t.def.kind === 'fight') this._spawn(t, 0);
+    this.run = { t, wave: 0, gate: 0, left: t.seconds ?? t.def.seconds ?? 0, wait: 0, time: 0, count: 0 };
+    if (t.def.kind !== 'run') this._spawn(t, 0);
     g.vfx.wave(t.x, t.y + 0.1, t.z, { r0: 1, r1: 14, life: 0.9, strength: 1.2, width: 0.06, color: [3.2, 2.3, 1.0] });
-    g.emit('trial', { phase: 'begin', name: t.def.name, kind: t.def.kind, total: t.def.kind === 'fight' ? t.def.waves.length : t.gates.length });
+    g.emit('trial', { phase: 'begin', name: t.def.name, kind: t.def.kind, total: t.def.kind === 'fight' ? t.def.waves.length : t.def.kind === 'return' ? t.def.need : t.gates.length });
   }
 
   _end(won) {
@@ -149,7 +154,18 @@ export class Trials {
     const t = r.t, d = t.def;
     r.time += dt;
     if (p.state === 'dead' || Math.hypot(p.pos.x - t.x, p.pos.z - t.z) > (d.kind === 'fight' ? 46 : 130)) { this._end(false); return; }
-    if (d.kind === 'fight') {
+    if (d.kind === 'return') {
+      // Three lancers at all times; five of their bolts sent back before the count runs out.
+      r.left -= dt;
+      if (r.count >= d.need) { this._end(true); return; }
+      if (r.left <= 0) { this._end(false); return; }
+      if (g.enemies.aliveIn(`trial:${d.id}`) < 3 && (r.wait += dt) > 1.8) {
+        r.wait = 0;
+        const a = Math.random() * 6.283, e = g.enemies.spawn('lancer', t.x + Math.cos(a) * 9, t.z + Math.sin(a) * 9, `trial:${d.id}`, null, t.y);
+        e.state = 'rise'; e.t = 0; e.home.set(t.x, t.y, t.z);
+        g.vfx.wave(e.pos.x, e.pos.y + 0.08, e.pos.z, { r0: 3, r1: 0.4, life: 0.8, strength: 0.9, width: 0.08, color: [2.4, 1.15, 4.6] });
+      }
+    } else if (d.kind === 'fight') {
       if (g.enemies.aliveIn(`trial:${d.id}`) > 0) return;
       if (r.wave >= d.waves.length - 1) { this._end(true); return; }
       if ((r.wait += dt) > 1.6) { r.wait = 0; r.wave++; this._spawn(t, r.wave); g.emit('trial', { phase: 'wave', name: d.name, index: r.wave, total: d.waves.length }); }

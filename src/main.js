@@ -32,6 +32,7 @@ const boot = document.getElementById('boot');
 const TIPS = ['A bolt met with the blade goes back where it came from.', 'Blows landed without one taken build cadence. One hit and it is lost.', 'R hums the refrain and mends you. It comes back at spires, bells and pylons.', 'A blow slipped at the last instant opens a riposte.', 'A chorister\'s ward goes when the singer is broken.', 'There is a reliquary on every mesa, off the paths.', 'Light blows ring off a warden\'s wall of shards. A heavy one cracks it.', 'H holds the world still for a picture.'];
 let tipN = Math.floor(Math.random() * TIPS.length);
 const stage = (p, text) => new Promise((resolve) => {
+  (window.__boot ??= []).push([text, Math.round(performance.now())]);
   boot.querySelector('i').style.transform = `scaleX(${p})`;
   boot.querySelector('p').textContent = text;
   const tip = boot.querySelector('.tip'); if (tip && !FILM && p < 0.84) tip.textContent = TIPS[tipN++ % TIPS.length];

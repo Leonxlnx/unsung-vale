@@ -259,7 +259,7 @@ export class UI {
     }
     if (type === 'charm' && d.phase === 'found') { this.toast(d.name, d.what); if (!this._charmHint) { this._charmHint = true; this.card('Charms', 'What a reliquary held is yours to wear: two at a time, chosen under Hero (J). There is one on every mesa.'); } }
     if (type === 'trial') {
-      if (d.phase === 'begin') this.toast(d.name, d.kind === 'run' ? 'Run the gates before the count is out' : 'Three waves. Stay near the ring');
+      if (d.phase === 'begin') this.toast(d.name, d.kind === 'run' ? 'Run the gates before the count is out' : d.kind === 'return' ? 'Strike five of their bolts back at them' : 'Three waves. Stay near the ring');
       if (d.phase === 'wave') this.toast(d.index === d.total - 1 ? 'Last wave' : 'Second wave');
       if (d.phase === 'fail') this.toast('The trial is lost', 'The ring will wait');
       if (d.phase === 'done') this.toast(`${d.name} is won`, d.reward ? [GIFT[d.reward.up], `${d.reward.xp} resonance`].join('  ·  ') : null);
