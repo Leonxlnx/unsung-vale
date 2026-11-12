@@ -365,6 +365,12 @@ export class Game {
 
   _combat() {
     const p = this.player;
+    // Every swing shoves the air ahead of the blade: a quick bubble of bent light.
+    if (p.attackActive && !this._swinging) {
+      const big = p.comboStep >= 2;
+      this.vfx.wave(p.pos.x + p.facing.x * 1.5, p.pos.y + 1.15, p.pos.z + p.facing.z * 1.5, { kind: 1, r0: 0.3, r1: big ? 2.4 : 1.7, life: big ? 0.26 : 0.2, strength: big ? 0.9 : 0.6, width: 0.2, color: [1.6, 1.25, 0.7] });
+    }
+    this._swinging = p.attackActive;
     if (!p.attackActive) return;
     const a = p.attack, f = p.facing.clone();
     for (const e of this.enemies.list) {
@@ -425,6 +431,11 @@ export class Game {
       this.vfx.wave(en.pos.x, en.pos.y + 0.08, en.pos.z, { r0: 0.5, r1: 7 * big, life: 0.8 * big, strength: 1.0, width: 0.08, color: [3.4, 1.6, 6.5] });
       this.particles.burst(c.x, c.y, c.z, en.def.boss ? 140 : 46, { speed: 2.6 * big, life: 2.2, size: 0.06, color: [4.5, 2.6, 8], gravity: -1.6, drag: 0.9, up: 1.2 });
       this.flash = Math.max(this.flash, en.def.boss ? 0.9 : 0.25);
+      if (en.def.boss) {
+        // The colossus goes out like a struck bell: echo after echo, and a column of its light.
+        for (const [dl, r] of [[0.3, 26], [0.65, 34], [1.05, 42]]) this.vfx.wave(en.pos.x, en.pos.y + 0.1, en.pos.z, { r0: 1, r1: r, life: 1.6, strength: 1.3, width: 0.06, color: [3.4, 1.6, 6.5], delay: dl });
+        for (let k = 0; k < 160; k++) { const a = Math.random() * 6.283, r = Math.random() * 2.5; this.particles.spawn(c.x + Math.cos(a) * r, c.y + Math.random() * 3, c.z + Math.sin(a) * r, { vel: [Math.cos(a) * 1.5, 9 + Math.random() * 16, Math.sin(a) * 1.5], life: 2.4, size: 0.12, color: [5, 3, 9], drag: 0.7, streak: 0.08 }); }
+      }
       if (e.enemy === this.boss) { this.boss = null; this.emit('boss', { enemy: null }); }
       if (e.enemy === this.player.lockTarget) { this.player.lockTarget = null; this.emit('lock', { target: null }); }
       this._refreshObjective();
@@ -444,6 +455,9 @@ export class Game {
         this.prompt = { key: 'E', text: 'Hold to tune the spire', progress: s.tuning / 1.5 };
         if (this.input.held.has('interact')) {
           s.tuning += dt;
+          // Rings of light close in on the spire while he holds the note.
+          this._gather = (this._gather ?? 0) - dt;
+          if (this._gather <= 0) { this._gather = 0.22; this.vfx.wave(s.x, s.base + 0.2, s.z, { r0: 10, r1: 2.2, life: 0.7, strength: 0.6, width: 0.07, color: [3.2, 2.4, 1.1] }); }
           if (Math.random() < dt * 30) this.particles.spawn(s.x + (Math.random() - 0.5) * 5, s.base + Math.random() * 3, s.z + (Math.random() - 0.5) * 5, { vel: [(s.x - p.pos.x) * 0.2, 5 + Math.random() * 4, (s.z - p.pos.z) * 0.2], life: 1.1, size: 0.1, color: [4, 3, 1.4], drag: 0.6 });
           if (s.tuning >= 1.5) this._tune(s);
         } else s.tuning = Math.max(0, s.tuning - dt * 2);
