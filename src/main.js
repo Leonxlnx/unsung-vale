@@ -78,6 +78,12 @@ const clear = [[-512, -70, 34], [-540, -22, 9], [-372, -392, 24], [66, -498, 27]
 forest.populate((x, z) => clear.some(([cx, cz, r]) => (x - cx) * (x - cx) + (z - cz) * (z - cz) < r * r), [
   { x: -531, z: -93, species: 'ember', scale: 1.3 }, { x: -533, z: -46, species: 'blossom', scale: 1.25 }, { x: -549, z: -34, species: 'elder', scale: 1.0 },
   { x: -356, z: -420, species: 'blossom', scale: 1.2 }, { x: -392, z: -376, species: 'ember', scale: 1.15 }, { x: 40, z: -520, species: 'blossom', scale: 1.2 },
+  // A few old giants that stand well above the canopy and mark the sites from afar.
+  { x: -582, z: -96, species: 'elder', scale: 1.9 }, { x: -604, z: -28, species: 'blossom', scale: 2.0 },
+  { x: -300, z: -452, species: 'elder', scale: 1.8 }, { x: 18, z: -562, species: 'blossom', scale: 2.0 },
+  { x: 192, z: 22, species: 'blossom', scale: 1.8 }, { x: 100, z: -30, species: 'elder', scale: 1.7 },
+  { x: 40, z: 600, species: 'elder', scale: 2.4 }, { x: -420, z: 360, species: 'blossom', scale: 2.6 }, { x: -330, z: 470, species: 'elder', scale: 2.3 },
+  { x: 600, z: -400, species: 'elder', scale: 2.4 }, { x: 600, z: 470, species: 'blossom', scale: 2.6 }, { x: -900, z: -160, species: 'elder', scale: 2.6 },
 ]);
 forest.addGreatTree(2750, terrain.heightAt(2750, 1480) - 6, 1480);
 pipe.scene.add(forest.group);
