@@ -85,13 +85,13 @@ void main() {
   vec3 base = vec3(xz.x, gi.x + 0.15, xz.y);
   vec3 V = normalize(cameraPosition - p);
   float vis = coverShadow(base + uSunDir * 0.3);
-  vec3 root = vec3(0.035, 0.07, 0.015), tip = mix(vec3(0.1, 0.21, 0.03), vec3(0.24, 0.27, 0.07), smoothstep(0.45, 0.85, gi.w + rr.x * 0.3));
+  vec3 root = vec3(0.045, 0.088, 0.018), tip = mix(vec3(0.1, 0.21, 0.03), vec3(0.24, 0.27, 0.07), smoothstep(0.45, 0.85, gi.w + rr.x * 0.3));
   vec3 alb = mix(root, tip, t) * mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), gi.z);
   vec3 N = normalize(vec3(bend.x * 0.6, 1.0, bend.y * 0.6));
   float ndl = saturate(dot(N, uSunDir)) * 0.55 + 0.25;
   float back = pow(saturate(dot(-V, uSunDir)), 2.0) * t;
   vec3 col = alb * uSunColor * 0.3183 * vis * (ndl + back * 1.3);
-  col += alb * shIrradiance(vec3(0.0, 1.0, 0.0)) * mix(0.3, 1.0, t);
+  col += alb * shIrradiance(vec3(0.0, 1.0, 0.0)) * mix(0.58, 1.0, t);
   vColor = col;
   gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
 }`;
