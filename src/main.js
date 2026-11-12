@@ -165,7 +165,7 @@ await stage(0.82, 'Waking the valley');
 const game = new Game({ pipe, terrain, arch, sites, canvas, forest, rocks });
 // The floors of the trial rings and the steps of the bells are cleared of grass as well, now
 // that the game has set them down.
-const allClear = [...clearings, ...game.trials.list.map((t) => [t.x, t.z, t.x, t.z, 4.75]), ...game.bells.list.map((b) => [b.x, b.z, b.x, b.z, 3.45]), ...game.reliquaries.list.map((r) => [r.x, r.z, r.x, r.z, 3.25])];
+const allClear = [...clearings, ...game.trials.list.map((t) => [t.x, t.z, t.x, t.z, 4.75]), ...game.bells.list.map((b) => [b.x, b.z, b.x, b.z, 3.45]), ...game.reliquaries.list.map((r) => [r.x, r.z, r.x, r.z, 3.25]), ...game.chimes.list.map((c) => [c.x, c.z, c.x, c.z, 4.0])];
 terrain.bakePaths(routes, allClear);
 window.__game = game;
 window.__parts = { terrain, water, falls, forest, cover, rocks, dressing, arch, lattice, vines, gloss, boats };
@@ -440,7 +440,7 @@ window.__dbg = {
         for (const sp of g.spires) { sp.tuned = false; sp.power = 0; sp.zoneR = sp.zoneR0; sp.zone.z = sp.zoneR; sp.zone.w = 1; }
         g.enemies.list.length = 0; g.wildDone = []; g.xp = 0; g.bought = 0; g.ended = false; g.outroSeen = false; g.story.mode = null; g.story.endT = 0; g.elitesDown = []; g.hasMap = false; g.metPeople = [];
         Object.assign(p.up, { health: 0, stamina: 0, blade: 0 }); g._skills();
-        g.quests.state = {}; for (const it of g.quests.items) g.quests.group.remove(it.mesh); g.quests.items = []; g.trials.run = null; g.trials.list.forEach((t) => { t.done = false; }); g.trialsDone = []; g.bellsRung = {}; g.charmsFound = []; g.charmsWorn = []; g.slain = {}; g.echoes = []; g.encounters.echo = null; g.encounters.reached = {}; g.cape = 'red'; g.falls = 0; g.reliquaries.list.forEach((r) => { r.open = false; }); g._charms(); g.bells.list.forEach((q) => { q.rung = false; }); g.notes.list.forEach((n) => { n.taken = false; n.k = 1; }); g.notes.count = 0;
+        g.quests.state = {}; for (const it of g.quests.items) g.quests.group.remove(it.mesh); g.quests.items = []; g.trials.run = null; g.trials.list.forEach((t) => { t.done = false; }); g.trialsDone = []; g.bellsRung = {}; g.charmsFound = []; g.charmsWorn = []; g.slain = {}; g.echoes = []; g.encounters.echo = null; g.encounters.reached = {}; g.cape = 'red'; g.falls = 0; g.chimesDone = []; g.chimes.list.forEach((c) => { c.done = false; c.next = 0; c.bells.forEach((b) => { b.lit = false; }); }); g.reliquaries.list.forEach((r) => { r.open = false; }); g._charms(); g.bells.list.forEach((q) => { q.rung = false; }); g.notes.list.forEach((n) => { n.taken = false; n.k = 1; }); g.notes.count = 0;
         for (const n of g.people.list) { n.awake = !n.spire; n.k = n.awake ? 1 : 0; g.people._dye(n); }
         g._spawnEncounters(); g.story.said.add('lookout'); p.spawn(sites.spawn.x, sites.spawn.y, sites.spawn.z, sites.spawn.yaw); g.story.leg = null; g.story._goal();
       }

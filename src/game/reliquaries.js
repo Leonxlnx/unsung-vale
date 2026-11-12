@@ -33,7 +33,7 @@ const PLACES = [
 const VETERAN = { scale: 1.16, hp: 1.7, dmg: 1.2, tint: 0.6 };
 
 // The most level dry spot within a few paces that no tree or wall already stands on.
-function settle(W, x0, z0, reach = 12) {
+export function settle(W, x0, z0, reach = 12) {
   const C = W.caps;
   let best = [x0, z0], bs = 1e9;
   for (let dx = -reach; dx <= reach; dx += 2) for (let dz = -reach; dz <= reach; dz += 2) {

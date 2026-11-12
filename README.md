@@ -112,6 +112,8 @@ turns exactly as far as the hand moves, whatever the system's pointer settings.
   charm. Two are worn at a time (three once five spires sing), chosen on the Hero screen:
   a stronger refrain, faster breath, longer cadence, guard-breaking heavy blows, mending on
   a slipped blow, thorns, more resonance, bolts that burst when struck back.
+- Chimes on the mesas: three small bells to a set, to be struck with the blade from the
+  lowest voice to the highest; each set gives back resonance and a line of the Vale's memory.
 - Dyes for the cape, each earned by seeing one thing through: every trial, every reliquary,
   sixty notes, every request, an echo at every court.
 - Swimming, a sword that is sheathed when there is nothing to fight, a falling strike with
