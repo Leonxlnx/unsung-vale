@@ -20,8 +20,6 @@ void main() {
 
 // fight: waves of [kind, count, elite?]; run: gates as offsets from the ring, and seconds.
 export const TRIALS = [
-  // kind 'return': lancers keep coming; the ring is won by sending their bolts back at them.
-  { id: 'answers', name: 'Trial of Answers', kind: 'return', at: [212, -8], need: 5, seconds: 80, reward: { up: 'blade', xp: 120 }, waves: [[['lancer', 3]]] },
   { id: 'blades', name: 'Trial of Blades', kind: 'fight', at: [-300, -440], reward: { up: 'blade', xp: 80 },
     waves: [[['thrall', 3]], [['hound', 3], ['thrall', 1]], [['warden', 1], ['thrall', 2]]] },
   { id: 'ringer', name: "The Ringer's Run", kind: 'run', at: [150, -470], seconds: 34, reward: { up: 'stamina', xp: 80 },
@@ -36,6 +34,8 @@ export const TRIALS = [
     gates: [[-18, -22], [-44, -34], [-70, -18], [-84, 12], [-66, 40], [-36, 48], [-12, 28], [0, 0]] },
   { id: 'crown', name: 'Trial of the Crown', kind: 'fight', at: [-1100, -230], reward: { up: 'blade', xp: 200 },
     waves: [[['thrall', 3, 'veteran'], ['hound', 2]], [['brute', 2], ['chorister', 1]], [['thrall', 1, 'champion'], ['hound', 4]]] },
+  // kind 'return': lancers keep coming; the ring is won by sending their bolts back at them.
+  { id: 'answers', name: 'Trial of Answers', kind: 'return', at: [212, -8], need: 5, seconds: 80, reward: { up: 'blade', xp: 120 }, waves: [[['lancer', 3]]] },
 ];
 const ELITE = { veteran: { scale: 1.16, hp: 1.7, dmg: 1.2, tint: 0.6 }, champion: { scale: 1.5, hp: 4, dmg: 1.45, elite: true, name: 'The Crown Champion' } };
 
