@@ -189,6 +189,13 @@ the opaque scene at the far plane with the depth test on, so it is only shaded w
 - `bells.js`: three bells on each outer mesa, each with a guard (`bell:<court>:<i>` groups).
   `bells.done(id)` gates the court: its waves are only called up (`encounters.callCourt`)
   when the third has rung, and `cleared(id)` needs it too.
+- `game.addProp(builder)`: stonework that belongs to the rules rather than to a site (bell
+  frames, trial floors, pylon feet), built with the courts' kit and material, solid, shadowed,
+  hidden in the film. `game._motes` (resonance flying from a fallen construct to the hero) and
+  `game._dust` are the small effects of play. Inside a mute zone the fog pass spares a small
+  sphere round the hero (`pipe.fog.hero`): his island of colour.
+- `story.outro()`: the closing flight (state `intro` with `mode: 'outro'`, legs in `OUTRO`),
+  started once the last spire has opened; it ends in state `ending` and the closing card.
 - `people.js`: the people of the Vale, built from turned shapes and shaded with the hero's
   material. Each has its own materials so it can go from stone to dyed cloth while waking
   (`_dye`). `speak(n, lines, done)` runs a conversation: an over-the-shoulder camera, lines
@@ -262,10 +269,17 @@ contact sheet of the film), `filmStill(t)` (one graded film frame with depth of 
 talks to people, does their quests, begins trials, rides the strings and strikes the notes
 of each spire); call it in chunks until it reports `ended`, and read `time`, `quests` and
 `log` in what it returns. A full run is about 43 simulated minutes. `node tools/tour.mjs`
+(`--only a,b` picks scenes: title, terrace, menus, talk, journal, map, elite, boss, trial,
+item, swim, moves, courts, bell, brute, tuning, outro, film)
 opens a real Chrome window, sets up one situation after another (talk, map, ride, waves,
 elite, boss, trial, bell, swimming, tuning) and saves a screenshot of each to
 `tools/out/tour/`: the quickest way to look at everything. Call `pipe.setRenderScale(1)` before judging detail: the Medium preset renders at
 two thirds scale. `tools/profile.mjs` times a frame with parts of the scene switched off.
+`__dbg.fuzz(places, seconds, seed)` walks random input at a list of places and reports falls,
+stuck spots and broken numbers. `tools/hitch.mjs` breaks slow frames down by part.
+`tools/render-at.ps1 -At 09:00` waits for a time of day, snapshots the last commit into
+`renders/_film`, builds it and renders the film from that (so work in the tree cannot touch a
+running render).
 `?perf=1` benchmarks the presets (`tools/perf.mjs`),
 `?capture=1...` is used by the film capture. Editing files under `src/` while a capture is
 running makes Vite reload the page and ruins the render.
