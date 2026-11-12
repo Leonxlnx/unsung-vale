@@ -41,7 +41,9 @@ const echoWaves = (tier) => [
 ];
 
 export class Encounters {
-  constructor(game) { this.g = game; this.wave = {}; this.wait = {}; }
+  // reached: the furthest wave fought at each court. Falling there does not send the fight
+  // back to its beginning: he comes back to the wave he fell in.
+  constructor(game) { this.g = game; this.wave = {}; this.wait = {}; this.reached = {}; }
 
   _ring(list, cx, cz, r, group, a0 = 0, near = null) {
     const E = this.g.enemies, flat = [];
@@ -70,8 +72,8 @@ export class Encounters {
       if (tuned(id)) continue;
       // A court stirs only once its three bells have been rung (see bells.js).
       if (g.bells && !g.bells.done(id)) continue;
-      const s = g.spires.find((q) => q.id === id);
-      this.wave[id] = 0; this._ring(waves[0], s.x, s.z, 9, id, 0.5, s.base);
+      const s = g.spires.find((q) => q.id === id), w = Math.min(waves.length - 1, this.reached[id] ?? 0);
+      this.wave[id] = w; this._ring(waves[w], s.x, s.z, 9, id, 0.5 + w * 1.3, s.base);
     }
     g.bells?.spawnGuards();
     g.reliquaries?.spawnGuards();
@@ -155,7 +157,7 @@ export class Encounters {
       // A breath, then the next wave pulls itself out of the paving.
       this.wait[id] = (this.wait[id] ?? 0) + dt;
       if (this.wait[id] < 1.8) continue;
-      this.wait[id] = 0; this.wave[id] = i + 1;
+      this.wait[id] = 0; this.wave[id] = i + 1; this.reached[id] = i + 1;
       const foes = this._ring(waves[i + 1], s.x, s.z, 10, id, i * 1.3 + 0.9, s.base);
       for (const e of foes) {
         g.vfx.wave(e.pos.x, e.pos.y + 0.08, e.pos.z, { r0: 3.2, r1: 0.4, life: 0.9, strength: 0.9, width: 0.08, color: e.elite ? [4.2, 1.4, 0.8] : [2.4, 1.15, 4.6] });

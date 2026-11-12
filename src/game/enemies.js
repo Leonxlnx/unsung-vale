@@ -226,7 +226,7 @@ export class Enemies {
         dmg *= 0.5;
       }
     }
-    if (e.shelled) { dmg *= 0.3; this.events.push({ type: 'warded', enemy: e }); }
+    if (e.shelled) { dmg *= 0.38; this.events.push({ type: 'warded', enemy: e }); }
     if (e.ward > 0 && !(heavy && this.anvil)) { dmg *= heavy ? 0.6 : 0.35; this.events.push({ type: 'warded', enemy: e }); }
     // Caught off balance, it takes a heavy blow half as hard again, and everyone hears it.
     if (heavy && e.state === 'stagger' && !e.def.boss) { dmg *= 1.5; this.events.push({ type: 'rung', enemy: e }); }
