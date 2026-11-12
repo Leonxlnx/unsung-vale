@@ -108,17 +108,18 @@ void main() {
   float fade = 1.0 - smoothstep(uFadeDist * 0.75, uFadeDist, dist);
   if (gi.y < 0.5 || iBlade.z > want || fade < 0.02) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
 
-  float size = (0.34 + 0.4 * rr.x) * fade;
+  // Colour families share whole drifts: lupin, poppy, daisy, bellflower.
+  float fam = fract(textureLod(uNoise, xz / 131.0 + 0.2, 0.0).g * 3.7 + rr.z * 0.25);
+  float layer = fam < 0.34 ? 5.0 : fam < 0.6 ? 7.0 : fam < 0.82 ? 6.0 : 8.0;
+  float size = (layer == 5.0 ? 0.62 + 0.4 * rr.x : 0.38 + 0.3 * rr.x) * fade;
   float yaw = rr.y * 6.2831853 + position.z * 1.5708;      // second card at right angles
   vec2 dir = vec2(cos(yaw), sin(yaw));
   float t = position.y;
   vec2 bend = windBend(xz, 0.6) * t * t * 0.5;
   vec3 p = vec3(xz.x, gi.x - 0.03, xz.y) + vec3(dir.x * position.x * 0.5, t, dir.y * position.x * 0.5) * size + vec3(bend.x, 0.0, bend.y);
 
-  // Colour families: lilac, pink, white, gold, with whole drifts sharing a family.
-  float fam = fract(textureLod(uNoise, xz / 131.0 + 0.2, 0.0).g * 3.7 + rr.z * 0.25);
-  vTint = fam < 0.34 ? vec3(0.8, 0.62, 1.25) : fam < 0.6 ? vec3(1.2, 0.72, 0.85) : fam < 0.82 ? vec3(1.25, 1.2, 1.1) : vec3(1.35, 1.05, 0.35);
-  vUvl = vec3(position.x * 0.5 + 0.5, t, fam < 0.34 ? 2.0 : 1.0);
+  vTint = vec3(0.9 + 0.2 * rr.z);
+  vUvl = vec3(position.x * 0.5 + 0.5, t, layer);
   vec3 base = vec3(xz.x, gi.x + 0.2, xz.y);
   vec3 V = normalize(cameraPosition - p);
   float vis = sunVisibility(base + uSunDir * 0.3);

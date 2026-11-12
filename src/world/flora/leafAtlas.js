@@ -44,8 +44,55 @@ vec4 flower(vec2 p, float id, vec3 petal, vec3 heart, float n) {
   return vec4(c, cov);
 }
 
+// Whole flowering plants for the meadow (kinds 5-8): stems rising from the bottom centre of
+// the card, a few leaves, and blooms. p is the card uv.
+vec4 plant(vec2 uv, int kind) {
+  vec3 col = vec3(0.0); float alpha = 0.0;
+  float k = float(kind) * 13.0;
+  int stems = kind == 5 ? 3 : kind == 6 ? 7 : kind == 7 ? 4 : 6;
+  vec3 green = srgb(0.2, 0.36, 0.1), green2 = srgb(0.3, 0.46, 0.14);
+  // Basal leaves: a tuft of narrow blades.
+  for (int i = 0; i < 9; i++) {
+    float fi = float(i) + k;
+    float ang = 1.5708 + (h1(fi * 2.3) - 0.5) * 2.0;
+    vec2 q = rot(-ang) * (uv - vec2(0.5 + (h1(fi * 4.1) - 0.5) * 0.1, 0.0)) / (0.24 + 0.2 * h1(fi * 6.7));
+    vec4 l = ovate(q * 2.0 - vec2(1.0, 0.0), h1(fi), green, green2, 0.16);
+    col = mix(col * (1.0 - 0.25 * l.a), l.rgb, l.a); alpha = max(alpha, l.a);
+  }
+  for (int i = 0; i < 7; i++) {
+    if (i >= stems) break;
+    float fi = float(i) + k;
+    vec2 base = vec2(0.5 + (h1(fi * 1.3) - 0.5) * 0.08, 0.0);
+    float spread = kind == 5 ? 0.3 : 0.74, lo = kind == 5 ? 0.78 : 0.42;
+    vec2 top = vec2(0.5 + (h1(fi * 3.1) - 0.5) * spread, lo + (0.93 - lo) * h1(fi * 5.7));
+    float bend = (h1(fi * 7.9) - 0.5) * 0.12;
+    float t = clamp((uv.y - base.y) / (top.y - base.y), 0.0, 1.0);
+    float sx = mix(base.x, top.x, t) + sin(t * 3.14159) * bend;
+    float stem = (1.0 - smoothstep(0.005, 0.011, abs(uv.x - sx))) * step(uv.y, top.y);
+    col = mix(col, green * 0.8, stem); alpha = max(alpha, stem);
+    if (kind == 5) {
+      // Lupin-like spike: florets packed up the top half of the stem, smaller toward the tip.
+      for (int j = 0; j < 14; j++) {
+        float tj = 0.42 + 0.58 * float(j) / 13.0;
+        vec2 c = vec2(mix(base.x, top.x, tj) + sin(tj * 3.14159) * bend + (mod(float(j), 2.0) - 0.5) * 0.05 * (1.2 - tj), mix(base.y, top.y, tj));
+        float s = 0.05 * (1.25 - tj * 0.75);
+        vec4 f = flower((uv - c) / s, h1(fi + float(j)), mix(srgb(0.58, 0.44, 0.9), srgb(0.42, 0.32, 0.8), h1(float(j) * 1.7 + fi)), srgb(0.3, 0.2, 0.6), 4.0);
+        col = mix(col, f.rgb, f.a); alpha = max(alpha, f.a);
+      }
+    } else {
+      float s = kind == 6 ? 0.075 : kind == 7 ? 0.11 : 0.062;
+      vec3 petal = kind == 6 ? srgb(0.97, 0.96, 0.92) : kind == 7 ? mix(srgb(0.93, 0.36, 0.46), srgb(0.86, 0.22, 0.26), h1(fi * 9.3)) : srgb(0.98, 0.78, 0.22);
+      vec3 heart = kind == 6 ? srgb(0.95, 0.75, 0.2) : kind == 7 ? srgb(0.25, 0.08, 0.1) : srgb(0.85, 0.5, 0.1);
+      vec4 f = flower(rot(h1(fi * 11.0) * 6.283) * (uv - top) / s, h1(fi * 2.1), petal, heart, kind == 6 ? 9.0 : kind == 7 ? 5.0 : 6.0);
+      col = mix(col, f.rgb, f.a); alpha = max(alpha, f.a);
+    }
+  }
+  return vec4(mix(green, col, step(0.01, alpha)), alpha);
+}
+
 void main() {
   vec2 uv = vUv;
+  if (uKind >= 5) { outColor = plant(uv, uKind); return; }
   vec3 col = vec3(0.0); float alpha = 0.0;
   vec3 mean = vec3(0.1);
   int count = 380; float sMin = 0.034, sMax = 0.056;
@@ -86,7 +133,7 @@ void main() {
 }`;
 
 export function bakeLeafAtlas(renderer, size = 512) {
-  const n = 5;
+  const n = 9;
   const rt = new THREE.WebGLArrayRenderTarget(size, size, n, { depthBuffer: false });
   const t = rt.texture;
   t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType;

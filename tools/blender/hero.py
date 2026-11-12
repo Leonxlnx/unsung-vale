@@ -135,15 +135,36 @@ def norm_w(w):
     return {k: v / s for k, v in items}
 
 
+# Proportion pass.  The body tables below were authored for a slightly
+# short-legged figure; every part except the arms is passed through this
+# monotonic height remap (longer legs, shorter waist) when it is emitted, and
+# so are the bones.  Heights inside the builders are therefore "authoring"
+# heights; zw() gives the final height.
+_ZW = [(-1.0, -1.0), (0.085, 0.085), (0.50, 0.525), (0.94, 0.985), (1.10, 1.135), (1.33, 1.335),
+       (1.40, 1.40), (3.0, 3.0)]
+
+
+def zw(z):
+    for (a, fa), (b, fb) in zip(_ZW, _ZW[1:]):
+        if z <= b:
+            return fa + (fb - fa) * (z - a) / (b - a)
+    return z
+
+
+def zwp(p):
+    return V(p.x, p.y, zw(p.z))
+
+
 class Geo:
-    def __init__(self):
+    def __init__(self, warp=True):
         self.v, self.w = [], []
         self.f, self.fm, self.fs = [], [], []
         self.parts = []
-        self._mark = (0, 0, '')
+        self.default_warp = warp
+        self._mark = (0, 0, '', warp)
 
-    def begin(self, name):
-        self._mark = (len(self.v), len(self.f), name)
+    def begin(self, name, warp=None):
+        self._mark = (len(self.v), len(self.f), name, self.default_warp if warp is None else warp)
 
     def vert(self, p, w):
         self.v.append(Vector(p))
@@ -156,7 +177,10 @@ class Geo:
         self.fs.append(sharp)
 
     def end(self, mirror=None, closed=True):
-        v0, f0, name = self._mark
+        v0, f0, name, warp = self._mark
+        if warp:
+            for i in range(v0, len(self.v)):
+                self.v[i].z = zw(self.v[i].z)
         if closed:   # make the winding point outward (positive signed volume)
             vol = 0.0
             for f in self.f[f0:]:
@@ -402,13 +426,13 @@ SUP_N = 2.5
 TORSO = Table([(0.84, 0.135, 0.085, 0.090, 0.010),
                (0.90, 0.158, 0.098, 0.105, 0.010),
                (0.96, 0.160, 0.100, 0.105, 0.008),
-               (1.03, 0.142, 0.092, 0.092, 0.004),
-               (1.10, 0.122, 0.086, 0.080, 0.000),
-               (1.18, 0.132, 0.094, 0.086, 0.000),
-               (1.26, 0.148, 0.104, 0.098, 0.002),
-               (1.33, 0.160, 0.110, 0.106, 0.004),
-               (1.40, 0.165, 0.102, 0.108, 0.008),
-               (1.45, 0.158, 0.090, 0.104, 0.012),
+               (1.03, 0.138, 0.090, 0.090, 0.004),
+               (1.10, 0.114, 0.083, 0.078, 0.002),
+               (1.18, 0.128, 0.094, 0.086, 0.000),
+               (1.26, 0.150, 0.107, 0.099, -0.002),
+               (1.33, 0.166, 0.114, 0.108, -0.002),
+               (1.40, 0.170, 0.106, 0.110, 0.004),
+               (1.45, 0.160, 0.092, 0.104, 0.010),
                (1.49, 0.125, 0.072, 0.092, 0.015),
                (1.52, 0.078, 0.060, 0.074, 0.012),
                (1.55, 0.056, 0.055, 0.060, 0.008),
@@ -557,7 +581,7 @@ def build_body(g):
     ss = [-0.035, -0.01, 0.02, 0.06, 0.10, 0.14, 0.18, 0.22, 0.255, 0.28, 0.30, 0.32, 0.345, 0.38, 0.43,
           0.48, 0.52, 0.56]
     n = 12
-    g.begin('body_arms')
+    g.begin('body_arms', warp=False)
     loft(g, [[arm_pt(s, 2 * pi * k / n) for k in range(n)] for s in ss], 'Undersuit', w_arm)
     g.end(mirror='both')
 
@@ -584,22 +608,36 @@ REF_HIPS = V(0, 0.005, 0.98)
 def build_cuirass(g):
     us = [0, .07, .14, .21, .28, .35, .41, .46, .5, .54, .59, .65, .72, .79, .86, .93, 1]
 
+    def v_edge(a):                                           # V-pointed lower edge
+        return 1.132 - 0.050 * (1 - abs(a)) ** 1.7
+
+    def breast_off(phi, z):
+        off = 0.013
+        off += 0.013 * tent(phi, 0.17, 1.25) * smooth(1.085, 1.17, z) * (1 - 0.75 * smooth(1.33, 1.43, z))
+        off += 0.010 * gauss(z - 1.315, 0.075) * max(0.0, cos(phi)) ** 2
+        return off
+
     def front(u, v):
         a = 2 * u - 1
-        zb = 1.132 - 0.050 * (1 - abs(a)) ** 1.7            # V-pointed lower edge
-        zt = 1.44
-        z = lerp(zb, zt, v)
+        z = lerp(v_edge(a) + 0.012, 1.44, v)
         half = radians(99) * (1 - 0.58 * smooth(1.35, 1.44, z))
         phi = a * half
-        off = 0.013
-        off += 0.012 * tent(phi, 0.17, 1.25) * smooth(1.085, 1.17, z) * (1 - 0.75 * smooth(1.33, 1.43, z))
-        off += 0.008 * gauss(z - 1.315, 0.075) * max(0.0, cos(phi)) ** 2
-        off += 0.010 * (1 - smooth(0.0, 0.14, v)) ** 2
-        return torso_pt(phi, z, off)
+        return torso_pt(phi, z, breast_off(phi, z))
 
     g.begin('cuirass_front')
-    shell(g, front, 16, 12, us=us, thick=0.005, eu0='bevel', eu1='bevel', ev0='trim', ev1='bevel',
-          w='Chest', ref=REF_CHEST)
+    shell(g, front, 16, 11, us=us, thick=0.005, w='Chest', ref=REF_CHEST)
+    g.end()
+
+    def plack(u, v):          # gothic plackart: a second plate rising to a point on the chest
+        a = 2 * u - 1
+        zb = v_edge(a)
+        z = lerp(zb, 1.166 + 0.120 * (1 - abs(a)) ** 1.3, v)
+        phi = a * radians(97)
+        off = breast_off(phi, z) + 0.0062 + 0.010 * (1 - smooth(0.0, 0.035, z - zb)) ** 2
+        return torso_pt(phi, z, off)
+
+    g.begin('cuirass_plackart')
+    shell(g, plack, 16, 5, us=us, thick=0.005, ev0='trim', ev1='trim', w='Chest', ref=REF_CHEST)
     g.end()
 
     def back(u, v):
@@ -789,25 +827,22 @@ def build_legs(g):
 # ----------------------------------------------------------------------------
 # arms: pauldrons, couters, vambraces
 # ----------------------------------------------------------------------------
-PAULDRON_RHO = Table([(-0.060, 0.062), (-0.035, 0.080), (-0.005, 0.090), (0.030, 0.094), (0.075, 0.097)])
+PAULDRON_RHO = Table([(-0.075, 0.052), (-0.055, 0.071), (-0.030, 0.084), (0.000, 0.091), (0.040, 0.092),
+                      (0.080, 0.086), (0.120, 0.076), (0.150, 0.071)])
 
 
 def build_arms(g):
-    def dome(scale, crest):
-        s0, s1 = -0.056 * scale, 0.050 * scale
-
+    def dome(scale):
         def S(u, v):
             a = 2 * u - 1
-            amax = radians(lerp(84, 112, smooth(0.0, 0.55, v)))
+            s0 = (-0.068 + 0.022 * a * a) * scale
+            s1 = (0.070 + 0.050 * (1 - abs(a) ** 1.6)) * scale          # pointed lower tip
+            s = lerp(s0, s1, v)
+            amax = radians(lerp(66, 106, smooth(0.0, 0.5, v)) * (1 - 0.12 * smooth(0.7, 1.0, v)))
             ang = a * amax
-            s_end = s1 + 0.024 * scale * (1 - a * a)
-            s = lerp(s0, s_end, v)
             rho = PAULDRON_RHO(s / scale)[0] * scale
-            p = SH + AD * s + (AN * cos(ang) + AF * sin(ang)) * rho
-            if crest:
-                k = (1 - smooth(0.0, 0.42, v)) ** 2 * max(0.0, cos(ang * 0.95)) ** 0.8
-                p += (UP * 0.9 + AN * 0.45).normalized() * (crest * k)
-            return p
+            rho *= 1 + 0.035 * tent(ang, 0.55, 1.3)                        # soft dorsal ridge
+            return SH + AD * s + (AN * cos(ang) + AF * sin(ang)) * rho
         return S
 
     def lame(s0, s1, o0, o1, amax_deg, point):
@@ -816,33 +851,33 @@ def build_arms(g):
         def S(u, v):
             a = 2 * u - 1
             ang = a * A
-            s_end = s1 + point * (1 - a * a)
+            s_end = s1 + point * (1 - abs(a) ** 1.6)
             s = lerp(s0, s_end, v)
-            off = lerp(o0, o1, v) + 0.004 * smooth(0.82, 1.0, v) ** 2
+            off = lerp(o0, o1, v) + 0.003 * smooth(0.82, 1.0, v) ** 2 + 0.003 * tent(ang, 0.5, 1.3)
             return arm_pt(s, ang, off)
         return S
 
     ref = SH + AD * 0.02
-    # left: large, with an upswept crest and three lames
-    g.begin('pauldron_L_dome')
-    shell(g, dome(1.14, 0.050), 10, 8, thick=0.005, eu0='trim', eu1='trim', ev0='trim', ev1='trim',
+    # left: large, three lames
+    g.begin('pauldron_L_dome', warp=False)
+    shell(g, dome(1.13), 10, 9, thick=0.005, eu0='trim', eu1='trim', ev0='trim', ev1='trim',
           w='Shoulder.L', ref=ref)
     g.end()
-    for i, (s0, s1, o0, o1, A, pt) in enumerate(((0.030, 0.118, 0.038, 0.027, 114, 0.024),
-                                                 (0.098, 0.176, 0.028, 0.020, 106, 0.022),
-                                                 (0.156, 0.226, 0.021, 0.015, 98, 0.020))):
-        g.begin('pauldron_L_lame%d' % i)
+    for i, (s0, s1, o0, o1, A, pt) in enumerate(((0.065, 0.158, 0.022, 0.016, 106, 0.030),
+                                                 (0.132, 0.212, 0.016, 0.012, 99, 0.027),
+                                                 (0.192, 0.256, 0.012, 0.009, 92, 0.022))):
+        g.begin('pauldron_L_lame%d' % i, warp=False)
         shell(g, lame(s0, s1, o0, o1, A, pt), 10, 4, thick=0.0045, ev1='trim', w='UpperArm.L',
-              ref=SH + AD * 0.12)
+              ref=SH + AD * 0.15)
         g.end()
-    # right: compact
-    g.begin('pauldron_R_dome')
-    shell(g, dome(0.97, 0.0), 10, 7, thick=0.005, eu0='trim', eu1='trim', ev0='trim', ev1='trim',
+    # right: compact, two lames
+    g.begin('pauldron_R_dome', warp=False)
+    shell(g, dome(0.95), 10, 8, thick=0.005, eu0='trim', eu1='trim', ev0='trim', ev1='trim',
           w='Shoulder.L', ref=ref)
     g.end(mirror='only')
-    for i, (s0, s1, o0, o1, A, pt) in enumerate(((0.028, 0.104, 0.027, 0.020, 108, 0.020),
-                                                 (0.086, 0.152, 0.021, 0.015, 100, 0.018))):
-        g.begin('pauldron_R_lame%d' % i)
+    for i, (s0, s1, o0, o1, A, pt) in enumerate(((0.052, 0.132, 0.018, 0.013, 102, 0.026),
+                                                 (0.110, 0.180, 0.013, 0.009, 95, 0.022))):
+        g.begin('pauldron_R_lame%d' % i, warp=False)
         shell(g, lame(s0, s1, o0, o1, A, pt), 10, 4, thick=0.0045, ev1='trim', w='UpperArm.L',
               ref=SH + AD * 0.12)
         g.end(mirror='only')
@@ -852,8 +887,9 @@ def build_arms(g):
     ca = radians(28)
     ax_out = back * cos(ca) + AN * sin(ca)
     ax_u = AN * cos(ca) - back * sin(ca)
-    g.begin('couters')
-    shell(g, cap_patch(EL, ax_out, ax_u, AD, 0.056, 0.056, 0.060, radians(84), radians(52), keel=0.06),
+    g.begin('couters', warp=False)
+    shell(g, cap_patch(EL, ax_out, ax_u, AD, 0.051, 0.051, 0.056, radians(82), radians(50), keel=0.09,
+                       pinch=0.55),
           8, 6, thick=0.004, eu0='trim', eu1='trim', ev0='trim', ev1='trim', tw=0.008,
           w='UpperArm.L', ref=EL)
     g.end(mirror='both')
@@ -861,15 +897,14 @@ def build_arms(g):
     def vambrace(u, v):
         ang = 2 * pi * u
         s = lerp(0.338 - 0.012 * cos(ang), 0.548, v)
-        off = 0.0075 + 0.009 * (1 - smooth(0.0, 0.22, v)) ** 2 + 0.004 * tent(wrap_pi(ang), 0.5, 1.4)
-        off += 0.003 * smooth(0.9, 1.0, v)
+        off = 0.0075 + 0.006 * (1 - smooth(0.0, 0.22, v)) ** 2 + 0.004 * tent(wrap_pi(ang), 0.5, 1.4)
+        off += 0.002 * smooth(0.9, 1.0, v)
         return arm_pt(s, ang, off)
 
-    g.begin('vambraces')
+    g.begin('vambraces', warp=False)
     shell(g, vambrace, 14, 7, wrap=True, thick=0.004, ev0='trim', ev1='trim', tw=0.010,
           w='LowerArm.L', ref=SH + AD * 0.45)
     g.end(mirror='both')
-
 
 # ----------------------------------------------------------------------------
 # hands / gauntlets
@@ -949,7 +984,7 @@ def build_hand(g, hp, bone, mirror, fist):
           0.185, 0.193, 0.199]
     n = 14
     rings = [[hp.pt(t, 2 * pi * k / n) for k in range(n)] for t in ts]
-    g.begin(name + '_glove')
+    g.begin(name + '_glove', warp=False)
     loft(g, rings, 'Leather', bone, sharp=50)
     g.end(mirror=mirror)
     ref_of = lambda t: hp.frame(t)[0]
@@ -967,7 +1002,7 @@ def build_hand(g, hp, bone, mirror, fist):
     for i, (t0, t1, off, rt, nv) in enumerate(((0.006, 0.103, 0.0045, 0.094, 5),
                                                (0.097, 0.153, 0.0036, None, 3),
                                                (0.146, 0.198, 0.0030, None, 3))):
-        g.begin('%s_plate%d' % (name, i))
+        g.begin('%s_plate%d' % (name, i), warp=False)
         shell(g, plate(t0, t1, off, rt, 0.0015), 7, nv, thick=0.0035, ev1='trim', tw=0.0055, th=0.0014,
               bev=0.001, rise=0.001, w=bone, ref=ref_of((t0 + t1) / 2))
         g.end(mirror=mirror)
@@ -976,7 +1011,7 @@ def build_hand(g, hp, bone, mirror, fist):
         t = lerp(-0.050, 0.014, v)
         return hp.pt(t, 2 * pi * u, 0.0060 + 0.017 * (1 - v) ** 1.6)
 
-    g.begin(name + '_cuff')
+    g.begin(name + '_cuff', warp=False)
     shell(g, cuff, 14, 4, wrap=True, thick=0.004, ev0='trim', ev1='bevel', tw=0.008, w=bone,
           ref=WR - AD * 0.02)
     g.end(mirror=mirror)
@@ -997,7 +1032,7 @@ def build_hand(g, hp, bone, mirror, fist):
         k = i / 7
         pts.append(p0 * (1 - k) ** 2 + p1 * (2 * k * (1 - k)) + p2 * k ** 2)
         rad.append(lerp(0.0150, 0.0105, k) * (0.62 if i == 7 else 1.0))
-    g.begin(name + '_thumb')
+    g.begin(name + '_thumb', warp=False)
     tube_along(g, pts, rad, 8, 'Armor', bone, sharp=50,
                mats=['Leather', 'Armor', 'Armor', 'Gold', 'Armor', 'Armor', 'Armor'])
     g.end(mirror=mirror)
@@ -1194,7 +1229,7 @@ def build_cloth(g):
     n = 12
     rings = [[SCAB_MOUTH + d * s + up * (ra * cos(2 * pi * k / n)) + side * (rb * sin(2 * pi * k / n))
               for k in range(n)] for s, ra, rb, _ in st]
-    g.begin('scabbard')
+    g.begin('scabbard', warp=False)
     loft(g, rings, 'Leather', 'Hips', mats=[m for _, _, _, m in st[1:]], sharp=30)
     g.end()
     # two suspension straps from the belt
@@ -1204,7 +1239,7 @@ def build_cloth(g):
         b = skirt_pt(phi, 0.940, 0.036)
         mid = (a + b) / 2 + V(0.012, 0, -0.004)
         pts = [b, b.lerp(mid, 0.5), mid, mid.lerp(a, 0.5), a]
-        g.begin('scabbard_strap%d' % i)
+        g.begin('scabbard_strap%d' % i, warp=False)
         tube_along(g, pts, [(0.0025, 0.008)] * 5, 6, 'Leather', 'Hips', sharp=30)
         g.end()
 
@@ -1217,7 +1252,7 @@ SW_GUARD_Z = 0.060
 
 
 def build_sword():
-    g = Geo()
+    g = Geo(warp=False)
     gz = SW_GUARD_Z
 
     def hexring(z, wd, th):

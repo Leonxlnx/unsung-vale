@@ -72,10 +72,12 @@ void main() {
     outColor = vec4(clamp((hf - 0.45) / 0.47, 0.0, 1.0), worleyFbm(p, 6.0), 0.0, 1.0);
   } else {
     // Weather map (2D, tileable): r = coverage field, g = how tall the clouds grow there.
+    // Three scales so the sky holds separate cumulus cells rather than one overcast sheet.
     float a = perlinWorley(vec3(vUv, 0.31), 2.0);
     float b = perlinWorley(vec3(vUv, 0.67), 5.0);
+    float c = perlinWorley(vec3(vUv, 0.89), 11.0);
     float t = perlinFbm(vec3(vUv, 0.13), 3.0, 3) * 0.5 + 0.5;
-    outColor = vec4(clamp((a * 0.74 + b * 0.36 - 0.67) / 0.33, 0.0, 1.0), clamp((t - 0.25) / 0.45, 0.0, 1.0), 0.0, 1.0);
+    outColor = vec4(clamp((a * 0.34 + b * 0.5 + c * 0.26 - 0.7) / 0.27, 0.0, 1.0), clamp((t - 0.25) / 0.45, 0.0, 1.0), 0.0, 1.0);
   }
 }`;
 
@@ -176,7 +178,7 @@ uniform sampler2D uWeather;
 uniform sampler2D uAtmo;
 
 const float CLOUD_BOTTOM = 2300.0;
-const float CLOUD_TOP = 6400.0;
+const float CLOUD_TOP = 5200.0;
 const float INV_2R = 0.5 / 6360.0e3;
 
 float altOf(vec3 p) { return p.y + dot(p.xz, p.xz) * INV_2R; }
@@ -334,7 +336,7 @@ export class Sky {
     this.sunDir = new THREE.Vector3(1, 0.15, 0.3).normalize();
     this.sunIrradiance = new THREE.Vector3(1.0, 0.97, 0.93).multiplyScalar(22);
     this.turbidity = 5.5;
-    this.cloudTime = 0;
+    this.cloudTime = 2600;      // start over a stretch of sky with well-separated cumulus
     this.windSpeed = 1;
     this.sunColor = new THREE.Color();
     this.sh = Array.from({ length: 9 }, () => new THREE.Vector3());
@@ -373,8 +375,8 @@ export class Sky {
         uCamAlt: { value: 350 },
         uCloudTime: { value: 0 },
         uWind: { value: new THREE.Vector2(14, 5) },
-        uCoverage: { value: 0.66 },
-        uDensity: { value: 0.035 },
+        uCoverage: { value: 0.58 },
+        uDensity: { value: 0.045 },
         uSeed: { value: 0 },
         uAmbTop: { value: this.ambTop },
         uAmbBottom: { value: this.ambBottom },
