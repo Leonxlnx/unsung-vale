@@ -73,7 +73,9 @@ export class Director {
   }
 
   advance(dt) {
-    let t = this.time, i = 0;
+    // A hair ahead of the clock, so rounding never leaves the first sub-frame after a cut in
+    // the shot before it.
+    let t = this.time + 1e-5, i = 0;
     while (i < this.shots.length - 1 && t >= this.shots[i].dur) { t -= this.shots[i].dur; i++; }
     const shot = this.shots[i];
     if (i !== this.index) {

@@ -71,6 +71,10 @@ export class SpringChains {
     this.colliders = [];     // { a: Vector3, b: Vector3, r } capsules in world space
   }
 
+  // Forget all motion: the cloth hangs at rest from wherever the body is next updated.
+  // Call after moving the character somewhere else in one step.
+  reset() { for (const s of this.state.values()) s.init = false; }
+
   update(dt, time) {
     const o = this.opts;
     dt = Math.min(dt, 1 / 30);

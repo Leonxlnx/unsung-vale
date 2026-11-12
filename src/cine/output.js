@@ -128,8 +128,12 @@ export class FilmOutput {
     r.setRenderTarget(this.rtAccum);
     r.setClearColor(0x000000, 0); r.clear(true, false, false);
     const sub = (dt * shutter) / subframes;
+    let first = 0;
     for (let i = 0; i < subframes; i++) {
       advance(sub);
+      // A cut inside the open shutter: drop what was gathered before it, so no frame ever
+      // blends two shots (the director asks for an anti-aliasing reset on every cut).
+      if (i > 0 && pipe.taa.reset) { r.setRenderTarget(this.rtAccum); r.clear(true, false, false); first = i; }
       let color = pipe.render(sub, { toScreen: false });
       // pipe.dof = { focus (m), blur (pixels x metres at 2160 lines) } is set by the director.
       const d = pipe.dof;
@@ -140,7 +144,7 @@ export class FilmOutput {
         this.dof.render(r, this.rtDof);
         color = this.rtDof.texture;
       }
-      this.accum.uniforms.uTex.value = color; this.accum.uniforms.uWeight.value = 1 / subframes;
+      this.accum.uniforms.uTex.value = color; this.accum.uniforms.uWeight.value = 1 / (subframes - first);
       this.accum.render(r, this.rtAccum);
     }
     advance(dt * (1 - shutter));          // shutter closed for the rest of the frame

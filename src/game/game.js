@@ -286,7 +286,11 @@ export class Game {
     this._spawnEncounters();
     this.boss = null; this.hitStop = 0;
     const p = this.player;
-    if (player) { p.spawn(player[0], player[1], player[2], player[3] ?? 0); this.rig.yaw = player[3] ?? 0; }
+    if (player) {
+      p.spawn(player[0], player[1], player[2], player[3] ?? 0); this.rig.yaw = player[3] ?? 0;
+      // He was somewhere else a moment ago: no cape whipping across, no blade trail between.
+      this.hero?.cloth?.reset(); if (this.hero?.trailPts) this.hero.trailPts.length = 0;
+    }
     p.lockTarget = null; p.events.length = 0;
   }
 
