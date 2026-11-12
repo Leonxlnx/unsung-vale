@@ -307,6 +307,14 @@ export class Architecture {
           const x0 = Math.cos(a0) * R, z0 = Math.sin(a0) * R, x1 = Math.cos(a1) * R, z1 = Math.sin(a1) * R;
           q.at(x0, 0.1, z0, Math.atan2(-(z1 - z0), x1 - x0), (g) => arcade(g, chord, { bay: chord, colH: 9.5, t: 1.5, top: 2.8, detail: 1, colR: 0.72, grand: true }));
         }
+        // An urn of blossom outside every pier, except either side of the way in.
+        for (let k = 0; k < n; k++) {
+          if (k === 10 || k === 11) continue;
+          const a0 = (k / n) * Math.PI * 2, px = Math.cos(a0) * 37.7, pz = Math.sin(a0) * 37.7;
+          let top = 0;
+          q.at(px, 0.1, pz, 0, (g) => { top = planter(g, 0.85); });
+          out.planters.push([cx + px, y + 0.1 + top, cz + pz]);
+        }
         const cyl = tuningSpire(q, 28);
         out.spires.push({ id: 'choir', x: cx, y: y + cyl, z: cz, base: y, h: 28 });
         out.floors.push({ x: cx, y: y + 0.1, z: cz, r: 40 });
