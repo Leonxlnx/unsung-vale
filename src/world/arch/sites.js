@@ -197,6 +197,13 @@ export class Architecture {
           const a0 = (k / 12) * Math.PI * 2;
           q.at(Math.cos(a0) * 16.5, 0.12, Math.sin(a0) * 16.5, 0, (g) => column(g, 0.42, k % 5 === 0 ? 3.2 : 6.4, { sides: 12 }));
         }
+        // Urns of blossom between the columns and the edge of the paving, clear of the two ways in.
+        for (const a0 of [0.5, 1.3, 3.0, 3.9, 4.8]) {
+          const px = Math.cos(a0) * 17.8, pz = Math.sin(a0) * 17.8;
+          let top = 0;
+          q.at(px, 0.12, pz, 0, (g) => { top = planter(g, 0.8); });
+          out.planters.push([sx + px, y + 0.12 + top, sz + pz]);
+        }
         // What is left of the ring beam: two spans still rest on their columns.
         for (const k of [1, 6]) {
           const a0 = (k / 12) * Math.PI * 2, a1 = ((k + 1) / 12) * Math.PI * 2;
