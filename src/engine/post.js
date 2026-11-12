@@ -1,0 +1,305 @@
+// Post-processing passes: aerial perspective, temporal anti-aliasing, bloom.
+import * as THREE from 'three';
+import { FullscreenPass, makeTarget } from './fullscreen.js';
+import { COMMON, SKYMAP, ATMOSPHERE } from './glsl.js';
+import { SKY_SAMPLE, SH_GLSL } from './sky.js';
+
+// Depth helpers. With the reversed depth buffer NDC z runs 1 (near) to 0 (far) and equals
+// the stored depth; without it NDC z is depth * 2 - 1 and far is 1.
+export const DEPTH_GLSL = /* glsl */ `
+uniform mat4 uProjInv;
+uniform mat4 uCamWorld;
+uniform vec3 uCamPos;
+#ifdef REVERSED_DEPTH
+  bool isSky(float d) { return d <= 0.0; }
+  vec3 viewPosFromDepth(vec2 uv, float d) { vec4 v = uProjInv * vec4(uv * 2.0 - 1.0, d, 1.0); return v.xyz / v.w; }
+#else
+  bool isSky(float d) { return d >= 1.0; }
+  vec3 viewPosFromDepth(vec2 uv, float d) { vec4 v = uProjInv * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); return v.xyz / v.w; }
+#endif
+vec3 worldFromView(vec3 v) { return (uCamWorld * vec4(v, 1.0)).xyz; }
+`;
+
+export const FOG_GLSL = /* glsl */ `
+uniform vec4 uHaze;   // x: extinction at sea level (1/m), y: scale height (m), z: sun glow, w: unused
+uniform vec4 uMist;   // x: extinction at the lake surface, y: scale height, z: base height, w: unused
+float fogOpticalDepth(float beta, float H, float h0, float h1, float dist) {
+  float dh = h1 - h0;
+  float a = exp(-max(h0, -200.0) / H), b = exp(-max(h1, -200.0) / H);
+  float avg = abs(dh) > 0.05 ? (a - b) * H / dh : a;
+  return beta * avg * dist;
+}
+// Returns in-scattered light in rgb and transmittance in a for a view ray segment.
+vec4 fogBetween(vec3 ro, vec3 rd, float dist, vec3 sunDir, vec3 sunColor) {
+  vec3 p1 = ro + rd * dist;
+  float odH = fogOpticalDepth(uHaze.x, uHaze.y, ro.y, p1.y, dist);
+  float odM = fogOpticalDepth(uMist.x, uMist.y, ro.y - uMist.z, p1.y - uMist.z, dist);
+  float mu = dot(rd, sunDir);
+  // Haze takes the colour of the sky at the horizon in this direction, plus a forward glow.
+  vec3 hdir = normalize(vec3(rd.x, 0.05 + max(rd.y, 0.0) * 0.35, rd.z));
+  vec3 hazeCol = sampleEnv(hdir, 1.0) + sunColor * uHaze.z * phaseHG(mu, 0.72);
+  vec3 mistCol = shIrradiance(vec3(0.0, 1.0, 0.0)) * 0.9 + sunColor * (0.035 + 0.5 * uHaze.z * phaseHG(mu, 0.6));
+  float od = odH + odM;
+  float T = exp(-od);
+  vec3 col = (hazeCol * odH + mistCol * odM) / max(od, 1e-6);
+  return vec4(col * (1.0 - T), T);
+}
+`;
+
+const FOG_PASS = /* glsl */ `
+${COMMON}
+${SKYMAP}
+${ATMOSPHERE}
+${SKY_SAMPLE}
+${SH_GLSL}
+${DEPTH_GLSL}
+${FOG_GLSL}
+uniform sampler2D uColor;
+uniform sampler2D uDepth;
+uniform vec3 uSunDir;
+uniform vec3 uSunColor;
+void main() {
+  vec3 col = texture(uColor, vUv).rgb;
+  float d = texture(uDepth, vUv).r;
+  if (!isSky(d)) {
+    vec3 vp = viewPosFromDepth(vUv, d);
+    float dist = length(vp);
+    vec3 rd = normalize(worldFromView(vp) - uCamPos);
+    vec4 f = fogBetween(uCamPos, rd, dist, uSunDir, uSunColor);
+    col = col * f.a + f.rgb;
+  }
+  outColor = vec4(col, 1.0);
+}`;
+
+const TAA_PASS = /* glsl */ `
+${COMMON}
+${DEPTH_GLSL}
+uniform sampler2D uCurrent;
+uniform sampler2D uHistory;
+uniform sampler2D uDepth;
+uniform mat4 uPrevViewProj;
+uniform vec2 uJitter;        // this frame's jitter in uv units
+uniform vec2 uRenderSize;
+uniform vec2 uOutSize;
+uniform float uBlend;
+uniform float uReset;
+
+vec3 toYCoCg(vec3 c) { return vec3(0.25 * c.r + 0.5 * c.g + 0.25 * c.b, 0.5 * c.r - 0.5 * c.b, -0.25 * c.r + 0.5 * c.g - 0.25 * c.b); }
+vec3 fromYCoCg(vec3 c) { return vec3(c.x + c.y - c.z, c.x + c.z, c.x - c.y - c.z); }
+// Tonemapped space keeps bright pixels from dominating the neighbourhood statistics.
+vec3 squash(vec3 c) { return c / (1.0 + luma(c)); }
+vec3 expand(vec3 c) { return c / max(1.0 - luma(c), 1e-4); }
+
+vec3 historyCatmullRom(vec2 uv) {
+  vec2 pos = uv * uOutSize;
+  vec2 tc = floor(pos - 0.5) + 0.5;
+  vec2 f = pos - tc;
+  vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+  vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+  vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+  vec2 w3 = f * f * (-0.5 + 0.5 * f);
+  vec2 w12 = w1 + w2;
+  vec2 t0 = (tc - 1.0) / uOutSize, t3 = (tc + 2.0) / uOutSize, t12 = (tc + w2 / w12) / uOutSize;
+  vec3 c = textureLod(uHistory, vec2(t12.x, t0.y), 0.0).rgb * (w12.x * w0.y)
+         + textureLod(uHistory, vec2(t0.x, t12.y), 0.0).rgb * (w0.x * w12.y)
+         + textureLod(uHistory, vec2(t12.x, t12.y), 0.0).rgb * (w12.x * w12.y)
+         + textureLod(uHistory, vec2(t3.x, t12.y), 0.0).rgb * (w3.x * w12.y)
+         + textureLod(uHistory, vec2(t12.x, t3.y), 0.0).rgb * (w12.x * w3.y);
+  float wsum = w12.x * w0.y + w0.x * w12.y + w12.x * w12.y + w3.x * w12.y + w12.x * w3.y;
+  return max(c / wsum, 0.0);
+}
+
+void main() {
+  vec2 texel = 1.0 / uRenderSize;
+  // The jittered frame is the stable image shifted by uJitter, so look it up there.
+  vec2 cuv = vUv + uJitter;
+
+  // Neighbourhood statistics and the closest depth in a 3x3 for sharper edges.
+  vec3 m1 = vec3(0.0), m2 = vec3(0.0), cur = vec3(0.0);
+  float bestD = -1.0; vec2 bestUv = cuv;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec2 o = vec2(float(x), float(y)) * texel;
+    vec3 c = toYCoCg(squash(textureLod(uCurrent, cuv + o, 0.0).rgb));
+    m1 += c; m2 += c * c;
+    if (x == 0 && y == 0) cur = c;
+    float d = textureLod(uDepth, cuv + o, 0.0).r;
+#ifdef REVERSED_DEPTH
+    if (d > bestD) { bestD = d; bestUv = cuv + o; }
+#else
+    if (bestD < 0.0 || d < bestD) { bestD = d; bestUv = cuv + o; }
+#endif
+  }
+  m1 /= 9.0; m2 /= 9.0;
+  vec3 sigma = sqrt(max(m2 - m1 * m1, 0.0));
+
+  // Reproject with camera motion only.
+  vec2 huv = vUv;
+  if (!isSky(bestD)) {
+    vec3 wp = worldFromView(viewPosFromDepth(bestUv, bestD));
+    vec4 pc = uPrevViewProj * vec4(wp, 1.0);
+    huv = vUv + (pc.xy / pc.w * 0.5 + 0.5 - (bestUv - uJitter));
+  } else {
+    vec4 v = uProjInv * vec4(cuv * 2.0 - 1.0, 0.5, 1.0);
+    vec3 dir = normalize((uCamWorld * vec4(normalize(v.xyz / v.w), 0.0)).xyz);
+    vec4 pc = uPrevViewProj * vec4(dir, 0.0);
+    huv = pc.xy / pc.w * 0.5 + 0.5;
+  }
+  bool offscreen = huv.x < 0.0 || huv.x > 1.0 || huv.y < 0.0 || huv.y > 1.0;
+  vec3 hist = toYCoCg(squash(historyCatmullRom(huv)));
+  // Variance clip of the history toward the current neighbourhood.
+  vec3 lo = m1 - sigma * 1.25, hi = m1 + sigma * 1.25;
+  vec3 clipped = clamp(hist, lo, hi);
+  float blend = (offscreen || uReset > 0.5) ? 1.0 : uBlend;
+  vec3 res = mix(clipped, cur, blend);
+  outColor = vec4(max(expand(fromYCoCg(res)), 0.0), 1.0);
+}`;
+
+const BLOOM_DOWN = /* glsl */ `
+${COMMON}
+uniform sampler2D uTex;
+uniform vec2 uTexel;
+uniform float uFirst;
+vec3 karis(vec3 c) { return c / (1.0 + luma(c)); }
+void main() {
+  vec2 t = uTexel;
+  vec3 a = textureLod(uTex, vUv + t * vec2(-2, 2), 0.0).rgb, b = textureLod(uTex, vUv + t * vec2(0, 2), 0.0).rgb, c = textureLod(uTex, vUv + t * vec2(2, 2), 0.0).rgb;
+  vec3 d = textureLod(uTex, vUv + t * vec2(-2, 0), 0.0).rgb, e = textureLod(uTex, vUv, 0.0).rgb, f = textureLod(uTex, vUv + t * vec2(2, 0), 0.0).rgb;
+  vec3 g = textureLod(uTex, vUv + t * vec2(-2, -2), 0.0).rgb, h = textureLod(uTex, vUv + t * vec2(0, -2), 0.0).rgb, i = textureLod(uTex, vUv + t * vec2(2, -2), 0.0).rgb;
+  vec3 j = textureLod(uTex, vUv + t * vec2(-1, 1), 0.0).rgb, k = textureLod(uTex, vUv + t * vec2(1, 1), 0.0).rgb;
+  vec3 l = textureLod(uTex, vUv + t * vec2(-1, -1), 0.0).rgb, m = textureLod(uTex, vUv + t * vec2(1, -1), 0.0).rgb;
+  vec3 col;
+  if (uFirst > 0.5) {
+    // Karis average on the first step stops single hot pixels from flickering.
+    vec3 g0 = (a + b + d + e) * 0.25, g1 = (b + c + e + f) * 0.25, g2 = (d + e + g + h) * 0.25, g3 = (e + f + h + i) * 0.25, g4 = (j + k + l + m) * 0.25;
+    float w0 = 1.0 / (1.0 + luma(g0)), w1 = 1.0 / (1.0 + luma(g1)), w2 = 1.0 / (1.0 + luma(g2)), w3 = 1.0 / (1.0 + luma(g3)), w4 = 1.0 / (1.0 + luma(g4));
+    col = (g0 * w0 * 0.125 + g1 * w1 * 0.125 + g2 * w2 * 0.125 + g3 * w3 * 0.125 + g4 * w4 * 0.5) / (0.125 * (w0 + w1 + w2 + w3) + 0.5 * w4);
+  } else {
+    col = e * 0.125 + (a + c + g + i) * 0.03125 + (b + d + f + h) * 0.0625 + (j + k + l + m) * 0.125;
+  }
+  outColor = vec4(max(col, 0.0), 1.0);
+}`;
+
+const BLOOM_UP = /* glsl */ `
+uniform sampler2D uTex;      // smaller mip being upsampled
+uniform sampler2D uBase;     // this level's downsampled image
+uniform vec2 uTexel;
+uniform float uRadius;
+void main() {
+  vec2 t = uTexel * uRadius;
+  vec3 s = textureLod(uTex, vUv + vec2(-t.x, t.y), 0.0).rgb + textureLod(uTex, vUv + vec2(t.x, t.y), 0.0).rgb
+         + textureLod(uTex, vUv + vec2(-t.x, -t.y), 0.0).rgb + textureLod(uTex, vUv + vec2(t.x, -t.y), 0.0).rgb;
+  s += 2.0 * (textureLod(uTex, vUv + vec2(0.0, t.y), 0.0).rgb + textureLod(uTex, vUv + vec2(0.0, -t.y), 0.0).rgb
+            + textureLod(uTex, vUv + vec2(t.x, 0.0), 0.0).rgb + textureLod(uTex, vUv + vec2(-t.x, 0.0), 0.0).rgb);
+  s += 4.0 * textureLod(uTex, vUv, 0.0).rgb;
+  outColor = vec4(textureLod(uBase, vUv, 0.0).rgb + s / 16.0, 1.0);
+}`;
+
+export class FogPass {
+  constructor(pipe) {
+    const g = pipe.globals;
+    this.haze = new THREE.Vector4(7.5e-5, 900, 0.06, 0);
+    this.mist = new THREE.Vector4(3.2e-4, 45, 2, 0);
+    this.uniforms = { uHaze: { value: this.haze }, uMist: { value: this.mist } };
+    this.pass = new FullscreenPass({
+      fragment: FOG_PASS,
+      defines: pipe.depthDefines,
+      uniforms: { uColor: { value: null }, uDepth: { value: null }, ...pipe.camUniforms, ...pipe.sky.uniforms, ...this.uniforms, uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH },
+    });
+  }
+  render(renderer, color, depth, target) {
+    this.pass.uniforms.uColor.value = color;
+    this.pass.uniforms.uDepth.value = depth;
+    this.pass.render(renderer, target);
+  }
+}
+
+const HALTON = Array.from({ length: 16 }, (_, i) => {
+  const h = (b) => { let f = 1, r = 0, n = i + 1; while (n > 0) { f /= b; r += f * (n % b); n = Math.floor(n / b); } return r; };
+  return [h(2) - 0.5, h(3) - 0.5];
+});
+
+export class TAAPass {
+  constructor(pipe) {
+    this.pipe = pipe;
+    this.prevViewProj = new THREE.Matrix4();
+    this.jitter = new THREE.Vector2();
+    this.index = 0;
+    this.reset = true;
+    this.enabled = true;
+    this.pass = new FullscreenPass({
+      fragment: TAA_PASS,
+      defines: pipe.depthDefines,
+      uniforms: {
+        uCurrent: { value: null }, uHistory: { value: null }, uDepth: { value: null }, ...pipe.camUniforms,
+        uPrevViewProj: { value: this.prevViewProj }, uJitter: { value: this.jitter },
+        uRenderSize: { value: new THREE.Vector2() }, uOutSize: { value: new THREE.Vector2() }, uBlend: { value: 0.1 }, uReset: { value: 1 },
+      },
+    });
+  }
+  setSize(w, h) {
+    this.history?.forEach((t) => t.dispose());
+    this.history = [makeTarget(w, h), makeTarget(w, h)];
+    this.pass.uniforms.uOutSize.value.set(w, h);
+    this.reset = true;
+  }
+  // Offsets the projection by a sub-pixel amount. Call after camera.updateProjectionMatrix().
+  applyJitter(camera, rw, rh) {
+    if (!this.enabled) { this.jitter.set(0, 0); return; }
+    const [jx, jy] = HALTON[this.index = (this.index + 1) % HALTON.length];
+    const e = camera.projectionMatrix.elements;
+    e[8] += (jx * 2) / rw; e[9] += (jy * 2) / rh;
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+    // Clip-space x = P00 * x + P02 * z with z negative in front, so content shifts by -jx.
+    this.jitter.set(-jx / rw, -jy / rh);
+  }
+  render(renderer, current, depth, rw, rh) {
+    const u = this.pass.uniforms;
+    const [a, b] = this.history;
+    u.uCurrent.value = current; u.uDepth.value = depth; u.uHistory.value = a.texture;
+    u.uRenderSize.value.set(rw, rh);
+    u.uReset.value = this.reset ? 1 : 0;
+    this.pass.render(renderer, b);
+    this.history = [b, a];
+    this.reset = false;
+    return b.texture;
+  }
+}
+
+export class BloomPass {
+  constructor() {
+    this.levels = 6;
+    this.down = new FullscreenPass({ fragment: BLOOM_DOWN, uniforms: { uTex: { value: null }, uTexel: { value: new THREE.Vector2() }, uFirst: { value: 0 } } });
+    this.up = new FullscreenPass({ fragment: BLOOM_UP, uniforms: { uTex: { value: null }, uBase: { value: null }, uTexel: { value: new THREE.Vector2() }, uRadius: { value: 1 } } });
+  }
+  setSize(w, h) {
+    this.mips?.forEach((t) => t.dispose());
+    this.ups?.forEach((t) => t.dispose());
+    this.mips = []; this.ups = [];
+    for (let i = 0; i < this.levels; i++) {
+      w = Math.max(2, Math.floor(w / 2)); h = Math.max(2, Math.floor(h / 2));
+      this.mips.push(makeTarget(w, h));
+      this.ups.push(makeTarget(w, h));
+    }
+  }
+  render(renderer, source) {
+    let src = source, sw = source.image?.width, sh = source.image?.height;
+    for (let i = 0; i < this.levels; i++) {
+      const dst = this.mips[i];
+      this.down.uniforms.uTex.value = src;
+      this.down.uniforms.uTexel.value.set(0.5 / dst.width, 0.5 / dst.height);
+      this.down.uniforms.uFirst.value = i === 0 ? 1 : 0;
+      this.down.render(renderer, dst);
+      src = dst.texture;
+    }
+    let acc = this.mips[this.levels - 1].texture;
+    for (let i = this.levels - 2; i >= 0; i--) {
+      const dst = this.ups[i];
+      this.up.uniforms.uTex.value = acc;
+      this.up.uniforms.uBase.value = this.mips[i].texture;
+      this.up.uniforms.uTexel.value.set(1 / dst.width, 1 / dst.height);
+      this.up.render(renderer, dst);
+      acc = dst.texture;
+    }
+    return acc;
+  }
+}

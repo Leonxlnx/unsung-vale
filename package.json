@@ -1,0 +1,22 @@
+{
+  "name": "unsung-vale",
+  "version": "0.1.0",
+  "description": "Unsung Vale: an original third-person open-world RPG demo rendered in the browser with three.js. Every mesh and texture is generated procedurally.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite --port 5183 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --port 5184 --strictPort",
+    "world": "node tools/build-world.mjs --threads 4 --preview"
+  },
+  "dependencies": {
+    "three": "^0.187.0",
+    "three-mesh-bvh": "^0.9.18"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.17.0",
+    "vite": "^8.3.8"
+  }
+}
