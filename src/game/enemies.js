@@ -301,7 +301,7 @@ export class Enemies {
             // Lancers keep their distance and back off when crowded.
             if (dist < 7) { wantSpeed = d.speed; dirSign = -1; } else if (dist > 14) wantSpeed = d.speed;
             // A chorister first looks to its own: whoever is nearest the fight gets its ward.
-            if (d.caster && !(e.wardCd > 0) && dist < 30) {
+            if (d.caster && !(e.wardCd > 0) && dist < 30 && !this.film) {
               let best = null, bd = 18;
               for (const o of this.list) { if (o === e || !o.alive || o.def.ranged || o.def.boss || o.def.burst || o.ward > 0 || o.state === 'dormant' || o.state === 'rise') continue; const dd = o.pos.distanceTo(e.pos); if (dd < bd) { bd = dd; best = o; } }
               e.wardCd = best ? (e.affix === 'hymn' ? 3.5 : 10) : 2;

@@ -525,7 +525,10 @@ export class Game {
     // While a spire is being tuned the hero stands to it and the camera belongs to the moment.
     const busy = this.tuning.active || !!this.people.talk;
     // How hard the Mute press: more of them at once and brisker on Standard and Hard.
-    this.enemies.crowd = { gentle: 2, hard: 4 }[this.challenge] ?? 3; this.enemies.haste = { gentle: 1, hard: 1.5 }[this.challenge] ?? 1.3;
+    // The film is fought on the numbers it was made with, whatever the player has chosen.
+    const ch = this.cine ? 'gentle' : this.challenge;
+    this.enemies.film = !!this.cine;
+    this.enemies.crowd = { gentle: 2, hard: 4 }[ch] ?? 3; this.enemies.haste = { gentle: 1, hard: 1.5 }[ch] ?? 1.3;
     p.inCombat = this.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.state !== 'return' && e.pos.distanceToSquared(p.pos) < 1600);
     p.refrainMax = TUNE.refrain.charges + (this.spires.filter((s) => s.tuned).length >= 3 ? 1 : 0) + (this.spires.filter((s) => s.tuned).length >= 6 ? 1 : 0);
     // Echo step: for a breath the Mute move as if through water.
@@ -641,7 +644,7 @@ export class Game {
       // The answer to a slipped blow: the first swing after it lands like a heavy one, and harder.
       if (this.riposteT > 0) { this.riposteT = 0; this._ripUntil = this.time + 0.2; }
       const rip = this.time < (this._ripUntil ?? 0), heavy = p.comboStep >= 2 || rip;
-      if (this.enemies.hit(e, a.dmg * p.power * (rip ? 1.7 : 1) * (1 + 0.08 * this.cadenceLevel) * ({ gentle: 1, hard: 0.8 }[this.challenge] ?? 0.9), p.pos, heavy)) {
+      if (this.enemies.hit(e, a.dmg * p.power * (rip ? 1.7 : 1) * (1 + 0.08 * this.cadenceLevel) * ({ gentle: 1, hard: 0.8 }[this.cine ? 'gentle' : this.challenge] ?? 0.9), p.pos, heavy)) {
         if (rip) { const c0 = e.center ?? e.pos; this.vfx.wave(c0.x, c0.y, c0.z, { kind: 1, r0: 0.3, r1: 3.2, life: 0.32, strength: 1.5, width: 0.08, color: [4.2, 3.6, 2.4] }); this.flash = Math.max(this.flash, 0.2); this.emit('riposte', { enemy: e }); }
         this._cadence(heavy ? 2 : 1, e);
         this.hitStop = heavy ? 0.11 : 0.06;
@@ -780,7 +783,7 @@ export class Game {
 
   _onEnemyEvent(e) {
     if (e.type === 'hitPlayer') {
-      const took = this.player.damage(Math.round(e.damage * ({ gentle: 0.75, hard: 1.9 }[this.challenge] ?? 1.5)), e.from ?? e.enemy.pos);
+      const took = this.player.damage(Math.round(e.damage * ({ gentle: 0.75, hard: 1.9 }[this.cine ? 'gentle' : this.challenge] ?? 1.5)), e.from ?? e.enemy.pos);
       if (took && e.enemy?.alive && this.player.charms?.has('thorn')) { this.enemies.hit(e.enemy, Math.round(e.damage * 0.6 * this.player.power), this.player.pos, false); const c = e.enemy.center; this.particles.burst(c.x, c.y, c.z, 12, { speed: 6, life: 0.4, size: 0.05, color: [1.8, 3.0, 1.0], gravity: 8, drag: 1.4, streak: 0.1 }); }
     }
     if (e.type === 'slam') {
