@@ -109,7 +109,9 @@ void main() {
       float g = luma(col);
       // Not plain grey: a cold duotone, indigo in the shade and silver where light still falls.
       vec3 duo = mix(vec3(0.6, 0.67, 0.96), vec3(0.95, 0.97, 1.0), smoothstep(0.0, 1.4, g)) * g * 1.12;
-      col = mix(col, duo, m * 0.92);
+      // Light itself is not drained: sparks, the blade and the waves of the Cantor's craft keep
+      // their colour inside the silence, which is what makes them read as the cure for it.
+      col = mix(col, duo, m * 0.92 * (1.0 - smoothstep(2.5, 8.0, g)));
       float rim = exp(-sq((d - uMute[i].z) / 1.6)) * uMute[i].w;
       col += vec3(1.0, 0.72, 0.35) * rim * (0.05 + g * 0.5);
     }

@@ -184,6 +184,7 @@ uniform sampler2DArray uArchA;
 uniform sampler2DArray uArchB;
 uniform sampler2D uNoise;
 uniform float uGlow;
+uniform vec4 uLattice;      // xyz: centre of the great rings, w: how brightly they are lit (0 = dark)
 uniform vec4 uPlazas[6];    // xy: centre (world xz), z: radius, w: points of the rose (radius 0 = unused)
 in vec3 vWorld; in vec3 vNormal; in float vMat;
 const float TILE[8] = float[8](4.2, 3.0, 1.3, 2.6, 3.4, 2.4, 1.7, 2.0);
@@ -290,6 +291,11 @@ void main() {
   float vis = sunVisibility(vWorld + N * 0.12 + uSunDir * 0.12);
   vec3 col = shadeSurface(alb, rough, metal, Ns, V, vis, ao, 0.0);
   col += alb * (1.0 - metal) * lampLight(vWorld, Ns) * ao;
+  if (uLattice.w > 0.001) {
+    // The Lattice answers every spire that sings: its gilding burns and its stone takes the glow.
+    float on = (1.0 - smoothstep(1950.0, 2250.0, distance(vWorld, uLattice.xyz))) * uLattice.w;
+    col += (m == 2 ? vec3(1.0, 0.7, 0.32) * 5.0 : m == 5 ? vec3(1.0, 0.78, 0.45) * 1.6 : m == 1 ? vec3(1.0, 0.8, 0.5) * 0.35 : vec3(0.0)) * on;
+  }
   if (m == 6) {
     // Lit interiors: the glazing glows warm at dusk.
     // Not every room is lit: each window gets its own brightness, and some stay dark.
@@ -307,6 +313,7 @@ export function createArchMaterial(pipe, terrain) {
       ...pipe.lit(), uArchA: { value: layers.a }, uArchB: { value: layers.b },
       uNoise: terrain.surfaceUniforms.uNoise, uGlow: { value: 3.2 },
       uPlazas: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) },
+      uLattice: { value: new THREE.Vector4(3700, 430, 760, 0) },
     },
   });
   mat.userData.layers = layers;

@@ -379,8 +379,8 @@ export class Game {
         this.hitStop = heavy ? 0.11 : 0.06;
         this.rig.addShake(heavy ? 0.5 : 0.28);
         const c = e.center ?? e.pos, hy = c.y + (e.center ? 0 : 1.2);
-        this.particles.burst(c.x, hy, c.z, heavy ? 34 : 18, { speed: heavy ? 15 : 11, life: 0.3, size: 0.05, color: [9, 6.5, 3], gravity: 14, drag: 1.2, streak: 0.14, dir: [f.x, 0.35, f.z], bias: 5 });
-        this.particles.spawn(c.x, hy, c.z, { life: 0.09, size: heavy ? 2.6 : 1.6, color: [7, 5.5, 3.6], alpha: 0.9 });
+        this.particles.burst(c.x, hy, c.z, heavy ? 60 : 32, { speed: heavy ? 16 : 12, life: 0.5, size: 0.075, color: [12, 8.5, 3.6], gravity: 16, drag: 1.0, streak: 0.16, dir: [f.x, 0.35, f.z], bias: 5 });
+        this.particles.spawn(c.x, hy, c.z, { life: 0.14, size: heavy ? 3.4 : 2.2, color: [10, 7.5, 4], alpha: 0.9 });
         this.vfx.wave(c.x, hy, c.z, { kind: 1, r0: 0.2, r1: heavy ? 3.4 : 2.0, life: heavy ? 0.32 : 0.22, strength: heavy ? 1.3 : 0.8, width: 0.16, color: [2.4, 1.8, 1.0] });
         if (heavy) this.vfx.wave(e.pos.x, e.pos.y + 0.08, e.pos.z, { r0: 0.4, r1: 5.5, life: 0.5, strength: 1.0, width: 0.1, color: [5, 3.6, 1.6] });
         this.emit('hit', { heavy, enemy: e });
@@ -466,7 +466,7 @@ export class Game {
     this.vfx.wave(s.x, s.base + (s.h ?? 24) * 0.5, s.z, { kind: 1, r0: 1, r1: 30, life: 1.3, strength: 1.6, width: 0.07, color: [5, 3.6, 1.6] });
     for (let k = 0; k < 90; k++) { const a = (k / 90) * 6.283; this.particles.spawn(s.x + Math.cos(a) * 3, s.base + 0.5, s.z + Math.sin(a) * 3, { vel: [Math.cos(a) * (16 + Math.random() * 8), 1.5 + Math.random() * 3, Math.sin(a) * (16 + Math.random() * 8)], life: 1.1, size: 0.09, color: [7, 5, 2.2], drag: 1.6, gravity: 2, streak: 0.12 }); }
     s.helix?.start();
-    this.flash = 1;
+    this.flash = 1; this.ringPulse = 1.6;
     if (s.id === 'cantor') this.bridgeOpen = true;
     if (!this.spires.some((x) => !x.tuned)) { this.ended = true; this.emit('ending'); }
     this.save();
@@ -477,6 +477,9 @@ export class Game {
   // Slow world animation that runs in every state: crystals, beams, colour returning, the bridge.
   _animateWorld(dt) {
     const t = this.pipe.time;
+    // The great rings glow a little more for every spire restored, and blaze when one is tuned.
+    const lat = this.arch?.material?.uniforms?.uLattice?.value;
+    if (lat) { this.ringPulse = (this.ringPulse ?? 0) * Math.exp(-dt * 0.45); const lit = this.spires.filter((s) => s.tuned).length / this.spires.length; lat.w += (0.28 * lit + this.ringPulse - lat.w) * Math.min(1, dt * 1.5); }
     this.flash *= Math.exp(-dt * 3.2);
     this.pipe.exposure = this.baseExposure * (1 + 0.45 * this.flash);
     for (const s of this.spires) {
