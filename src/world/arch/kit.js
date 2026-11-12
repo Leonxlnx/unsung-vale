@@ -144,15 +144,31 @@ export function terrace(b, { w = 30, d = 20, depth = 20, rail = 'nsew', detail =
   if (rail.includes('w')) b.at(-w / 2 + 0.25, 0, d / 2, Math.PI / 2, (q) => balustrade(q, d, { detail }));
 }
 
-// Row of columns carrying pointed arches, running along +x from the origin.
-export function arcade(b, length, { bay = 4.4, colH = 4.8, t = 0.9, top = 1.5, detail = 1 } = {}) {
+// Row of columns carrying pointed arches, running along +x from the origin. grand: piers of
+// clustered shafts, moulded arches on both faces, a carved band and pinnacles over each pier.
+export function arcade(b, length, { bay = 4.4, colH = 4.8, t = 0.9, top = 1.5, detail = 1, colR = 0.33, grand = false } = {}) {
   const n = Math.max(1, Math.round(length / bay)), bw = length / n;
-  const rise = archRise(bw - 0.9, 0.85);
-  for (let i = 0; i <= n; i++) b.at(i * bw, 0, 0, 0, (q) => column(q, 0.33, colH, { sides: detail ? 12 : 6 }));
+  const gap = grand ? colR * 2.8 : 0.9, sides = detail ? 12 : 6;
+  const rise = archRise(bw - gap, 0.85), yTop = colH + rise + top;
+  for (let i = 0; i <= n; i++) {
+    b.at(i * bw, 0, 0, 0, (q) => column(q, colR, colH, { sides }));
+    if (grand) {
+      for (const sz of [-1, 1]) b.at(i * bw, 0, sz * colR * 1.2, 0, (q) => column(q, colR * 0.42, colH, { sides: 8 }));
+      b.at(i * bw, yTop + 0.22, 0, 0, (q) => spire(q, colR * 0.6, colR * 5, { sides: 4, mat: M.MARBLE }));
+    }
+  }
   b.mat_(M.MARBLE);
-  for (let i = 0; i < n; i++) archWall(b, i * bw, (i + 1) * bw, colH, colH + rise + top, t, (i + 0.5) * bw, bw - 0.9, colH, 0.85, detail ? 12 : 6);
-  b.mat_(M.GOLD).box(0, colH + rise + top, -t / 2 - 0.12, length, 0.22, t + 0.24);
-  return colH + rise + top + 0.22;
+  for (let i = 0; i < n; i++) archWall(b, i * bw, (i + 1) * bw, colH, yTop, t, (i + 0.5) * bw, bw - gap, colH, 0.85, detail ? 12 : 6);
+  if (grand) {
+    for (let i = 0; i < n; i++) {
+      const cx = (i + 0.5) * bw;
+      b.mat_(M.MARBLE); archFrame(b, cx, colH, t / 2, bw - gap, colH, 0.85, 0.5, 0.24, 12);
+      b.at(cx, 0, 0, Math.PI, (q) => archFrame(q, 0, colH, t / 2, bw - gap, colH, 0.85, 0.5, 0.24, 12));
+    }
+    b.mat_(M.FRIEZE).box(0, yTop - 1.0, -t / 2 - 0.06, length, 0.9, t + 0.12, '+y-y');
+  }
+  b.mat_(M.GOLD).box(0, yTop, -t / 2 - 0.12, length, 0.22, t + 0.24);
+  return yTop + 0.22;
 }
 
 // Arched bridge from (ax, az) to (bx, bz) with its deck at deckY. Piers run down to the

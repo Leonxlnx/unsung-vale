@@ -233,7 +233,7 @@ export class Architecture {
           if (k === 10) continue;                // the way in from the bridge
           const a0 = (k / n) * Math.PI * 2, a1 = ((k + 1) / n) * Math.PI * 2;
           const x0 = Math.cos(a0) * R, z0 = Math.sin(a0) * R, x1 = Math.cos(a1) * R, z1 = Math.sin(a1) * R;
-          q.at(x0, 0.1, z0, Math.atan2(-(z1 - z0), x1 - x0), (g) => arcade(g, chord, { bay: chord, colH: 9.5, t: 1.2, top: 2.4, detail: 1 }));
+          q.at(x0, 0.1, z0, Math.atan2(-(z1 - z0), x1 - x0), (g) => arcade(g, chord, { bay: chord, colH: 9.5, t: 1.5, top: 2.8, detail: 1, colR: 0.72, grand: true }));
         }
         const cyl = tuningSpire(q, 28);
         out.spires.push({ id: 'choir', x: cx, y: y + cyl, z: cz, base: y, h: 28 });
