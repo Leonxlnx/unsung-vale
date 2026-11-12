@@ -57,7 +57,7 @@ void main() {
   vec3 c = uBase + vec3(cos(a) * rad, t * uHeight, sin(a) * rad);
   vec3 tang = normalize(vec3(-sin(a) * rad * turns * 6.2832, uHeight, cos(a) * rad * turns * 6.2832));
   vec3 side = normalize(cross(tang, normalize(cameraPosition - c)));
-  float w = 0.10 + 0.5 * t;
+  float w = 0.16 + 0.85 * t;
   vUv = vec2(t, position.y);
   // The head of each strand climbs with uRise; nothing is drawn above it.
   vHead = uRise * 1.25 - t;
@@ -128,7 +128,7 @@ export class Vfx {
     }));
     m.frustumCulled = false; m.renderOrder = 6; m.visible = false;
     this.group.add(m);
-    const h = { mesh: m, uniforms, rise: 0, power: 0, target: 0, start() { this.rise = 0.0001; this.target = 1; this.power = 1.6; }, set(on) { this.rise = on ? 1 : 0; this.target = on ? 1 : 0; this.power = on ? 0.45 : 0; } };
+    const h = { mesh: m, uniforms, rise: 0, power: 0, target: 0, start() { this.rise = 0.0001; this.target = 1; this.power = 2.1; }, set(on) { this.rise = on ? 1 : 0; this.target = on ? 1 : 0; this.power = on ? 0.45 : 0; } };
     this.helices.push(h);
     return h;
   }
@@ -154,7 +154,7 @@ export class Vfx {
       // The strands climb in about three seconds, flare, then settle to a steady glow.
       if (h.rise > 0 && h.rise < 1) h.rise = Math.min(1, h.rise + dt / 3.2);
       const rest = h.target * 0.45;
-      h.power += (rest - h.power) * Math.min(1, dt * 0.5);
+      h.power += (rest - h.power) * Math.min(1, dt * 0.3);
       h.uniforms.uRise.value = h.rise; h.uniforms.uPower.value = h.power;
       h.mesh.visible = h.rise > 0 && h.power > 0.01;
     }
