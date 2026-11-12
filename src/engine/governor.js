@@ -12,7 +12,7 @@ export class Governor {
     this.max = 1; this.min = 0.55;
     this.scale = 1; this.fps = 0;
     this.t = 0; this.n = 0; this.cool = 0;
-    this.ceiling = 1; this.ceilingT = 0; this.retry = 45;
+    this.ceiling = 1; this.ceilingT = 0; this.retry = 30; this.failAt = -1;
     this.best = 0;                // the highest rate seen: about the display's refresh rate
     this.low = 0; this.high = 0;
   }
@@ -51,8 +51,9 @@ export class Governor {
     if (Math.abs(next - this.scale) < 0.01) return;
     if (next < this.scale) {
       // Backed off: stay at or below this for a while, longer each time the same limit is hit.
-      this.retry = this.ceiling <= next + 0.051 ? Math.min(300, this.retry * 2) : 45;
-      this.ceiling = next; this.ceilingT = this.retry;
+      // Failing at the same place again and again means it is a real limit: ask less often.
+      this.retry = Math.abs(next - (this.failAt ?? -1)) < 0.01 ? Math.min(300, this.retry * 2) : 30;
+      this.failAt = next; this.ceiling = next; this.ceilingT = this.retry;
     }
     this.scale = next; this.cool = 1.2; this.low = this.high = 0;
     this.pipe.setRenderScale(next);

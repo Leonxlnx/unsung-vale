@@ -259,9 +259,36 @@ export class Enemies {
         }
         // Do not walk through the player.
         if (dist < d.radius + 0.5 && e.state !== 'strike') { e.vel.x -= toP.x * 6 * dt * 10; e.vel.z -= toP.z * 6 * dt * 10; }
-        const nx = e.pos.x + e.vel.x * dt, nz = e.pos.z + e.vel.z * dt;
-        const floor = W.floorBelow(nx, e.pos.y + 1.5, nz, 4);
-        if (floor > e.pos.y - 1.6 && floor < e.pos.y + 1.2) { e.pos.x = nx; e.pos.z = nz; e.pos.y += (floor - e.pos.y) * Math.min(1, 10 * dt); } else { e.vel.x *= -0.3; e.vel.z *= -0.3; }
+        // Move, following the floor and never sinking into a step or a dais on the way up it.
+        const tryMove = (vx, vz) => {
+          const nx = e.pos.x + vx * dt, nz = e.pos.z + vz * dt;
+          const floor = W.floorBelow(nx, e.pos.y + 1.5, nz, 4);
+          if (floor <= e.pos.y - 1.6 || floor >= e.pos.y + 1.2) return false;
+          e.pos.x = nx; e.pos.z = nz; e.pos.y = Math.max(e.pos.y + (floor - e.pos.y) * Math.min(1, 10 * dt), floor - 0.12);
+          // Walls, shafts and trunks push a construct aside just as they do the hero.
+          const rad = Math.min(1.0, d.radius * 0.8);
+          W.resolveCapsule(e.pos, rad, Math.max(1.7, rad * 2 + 0.3), 0);
+          return true;
+        };
+        e.avoidT = Math.max(0, (e.avoidT ?? 0) - dt);
+        const sp2 = e.vel.x * e.vel.x + e.vel.z * e.vel.z;
+        if (sp2 < 0.04) tryMove(e.vel.x, e.vel.z);
+        else {
+          // Straight on if the way is clear. If something stops it (a spire, a wall, a ledge)
+          // it goes round: off to one side for a moment, the same side until that fails too.
+          const turned = (turn) => { const c = Math.cos(turn * e.avoidSide), sn = Math.sin(turn * e.avoidSide); return tryMove(e.vel.x * c - e.vel.z * sn, e.vel.x * sn + e.vel.z * c); };
+          const ox = e.pos.x, oz = e.pos.z, want = Math.sqrt(sp2) * dt;
+          let ok;
+          if (e.avoidT > 0) ok = turned(1.25) || turned(1.9);
+          else {
+            ok = tryMove(e.vel.x, e.vel.z);
+            if (!ok || Math.hypot(e.pos.x - ox, e.pos.z - oz) < want * 0.35) {
+              e.avoidSide ||= Math.random() < 0.5 ? 1 : -1; e.avoidT = 0.9;
+              ok = turned(1.25) || turned(1.9) || ok;
+            }
+          }
+          if (!ok) { e.avoidSide = -(e.avoidSide || 1); e.vel.x *= -0.3; e.vel.z *= -0.3; }
+        }
       }
     }
 
