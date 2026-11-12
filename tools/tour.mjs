@@ -55,6 +55,15 @@ if (want('menus')) {
   await ev(() => { document.querySelector('#settings [data-act="back"]').click(); }); await sleep(500);
   await ev(() => document.querySelector('#pause [data-act="resume"]').click()); await sleep(700); await page.mouse.click(W / 2, H / 2); await sleep(300);
 }
+if (want('people')) {
+  // A statue in its silent court, then the same figure waking as the spire is tuned.
+  await ev(() => { const g = window.__game, n = g.people.get('ilse'); window.__tour.clear('petal'); const a = n.yaw; window.__tour.tp(n.x + Math.sin(a) * 3.4 + Math.cos(a) * 1.2, n.y + 0.1, n.z + Math.cos(a) * 3.4 - Math.sin(a) * 1.2, a + Math.PI, -0.04, 3.4); window.__dbg.ui(false); });
+  await sleep(1500); await shot('statue');
+  await ev(() => window.__tour.tune(['petal']));
+  await sleep(3900); await shot('waking');
+  await sleep(2600); await shot('awake');
+  await ev(() => window.__dbg.ui(true));
+}
 if (want('talk')) {
   await ev(() => { const g = window.__game, n = g.people.get('maren'); window.__tour.tp(n.x - 1.8, n.y + 0.1, n.z + 1.6, 2.3); });
   await sleep(700);

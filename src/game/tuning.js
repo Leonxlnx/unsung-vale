@@ -18,7 +18,9 @@ export class Tuning {
     const g = this.g, p = g.player, cam = g.pipe.camera;
     this.s = s; this.active = true; this.phase = 'approach'; this.t = 0; this.beat = 0; this.bt = -0.4; this.ring = false;
     this.total = 4 + Math.min(4, Math.ceil(s.index / 2));  // four notes at the first spire, eight at the last
-    this.period = Math.max(0.82, 1.25 - 0.06 * s.index);
+    this.base = Math.max(0.86, 1.25 - 0.06 * s.index);
+    this.rhythm = s.index < 3 ? [1] : s.index < 6 ? [1, 0.74, 1, 0.74, 1.12] : [1, 0.7, 0.7, 1.1, 0.7, 1];
+    this.period = this.base;
     this.h = s.h ?? 24;
     p.invulnerable = 1e6; p.vel.x = p.vel.z = 0; p.lockTarget = null;
     p.yaw = Math.atan2(s.x - p.pos.x, s.z - p.pos.z);
@@ -60,6 +62,7 @@ export class Tuning {
       const y = this._ringY(), rs = 1.5;
       if (!this.ring && this.bt >= 0) {
         this.ring = true; this.bt = 0;
+        this.period = this.base * this.rhythm[this.beat % this.rhythm.length];
         g.vfx.wave(s.x, y, s.z, { r0: 11, r1: rs, life: this.period, linear: true, rise: true, strength: 0.5, width: 0.035, color: GOLD });
         g.vfx.wave(s.x, y, s.z, { r0: rs + 0.02, r1: rs, life: this.period + 0.25, linear: true, rise: true, strength: 0.2, width: 0.2, color: [1.2, 0.9, 0.4] });
         g.emit('tuning', { phase: 'beat', beat: this.beat, total: this.total, period: this.period });

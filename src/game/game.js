@@ -494,6 +494,12 @@ export class Game {
     this._motes(dt);
     this.particles.update(dt); this.vfx.update(dt);
     // In a cinematic the director owns the camera; the rig only tracks yaw for movement.
+    // A giant pulling itself together draws the eye: the view comes round to it for a moment.
+    if (this.regard && !this.cine) {
+      const r = this.regard; r.t -= realDt;
+      if (r.t <= 0 || !r.e.alive) this.regard = null;
+      else { const want = Math.atan2(r.e.pos.x - p.pos.x, r.e.pos.z - p.pos.z), d = Math.atan2(Math.sin(want - this.rig.yaw), Math.cos(want - this.rig.yaw)); this.rig.yaw += d * Math.min(1, 3.2 * realDt); this.rig.pitch += (-0.02 - this.rig.pitch) * Math.min(1, 2 * realDt); }
+    }
     if (this.tuning.active) this.tuning.update(realDt);
     else if (!this.people.talk && !this.cine) this.rig.update(realDt, p, this.input);
     this.people.update(realDt, !this.cine);
@@ -680,7 +686,7 @@ export class Game {
       const c = e.enemy.center;
       this.particles.burst(c.x, c.y, c.z, 12, { speed: 8, life: 0.3, size: 0.05, color: [3, 2.6, 4], gravity: 12, drag: 1.5, streak: 0.14 });
     }
-    if (e.type === 'wake' && (e.enemy.def.boss || e.enemy.elite)) { this.boss = e.enemy; this.emit('boss', { enemy: e.enemy }); }
+    if (e.type === 'wake' && (e.enemy.def.boss || e.enemy.elite)) { this.boss = e.enemy; this.emit('boss', { enemy: e.enemy }); this.regard = { e: e.enemy, t: e.enemy.def.boss ? 2.4 : 1.2 }; }
     if (e.type === 'phase') {
       // The giant falters, and gathers itself: everything near is thrown back by its voice.
       const q = e.enemy.pos, c = e.enemy.center;
