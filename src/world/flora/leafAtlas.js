@@ -48,23 +48,23 @@ void main() {
   vec2 uv = vUv;
   vec3 col = vec3(0.0); float alpha = 0.0;
   vec3 mean = vec3(0.1);
-  int count = 130; float sMin = 0.06, sMax = 0.1;
-  if (uKind == 0) { mean = srgb(0.55, 0.09, 0.07); }
-  if (uKind == 1) { count = 170; sMin = 0.04; sMax = 0.07; mean = srgb(0.95, 0.68, 0.76); }
-  if (uKind == 2) { count = 190; sMin = 0.034; sMax = 0.055; mean = srgb(0.78, 0.7, 0.93); }
-  if (uKind == 3) { count = 110; sMin = 0.12; sMax = 0.2; mean = srgb(0.1, 0.2, 0.09); }
-  if (uKind == 4) { count = 130; sMin = 0.06; sMax = 0.1; mean = srgb(0.22, 0.38, 0.1); }
-  for (int i = 0; i < 190; i++) {
+  int count = 380; float sMin = 0.034, sMax = 0.056;
+  if (uKind == 0) { mean = srgb(0.5, 0.09, 0.07); }
+  if (uKind == 1) { count = 420; sMin = 0.026; sMax = 0.044; mean = srgb(0.84, 0.54, 0.62); }
+  if (uKind == 2) { count = 460; sMin = 0.022; sMax = 0.036; mean = srgb(0.66, 0.57, 0.8); }
+  if (uKind == 3) { count = 240; sMin = 0.08; sMax = 0.14; mean = srgb(0.1, 0.2, 0.09); }
+  if (uKind == 4) { count = 380; sMin = 0.034; sMax = 0.056; mean = srgb(0.2, 0.36, 0.1); }
+  for (int i = 0; i < 460; i++) {
     if (i >= count) break;
     float fi = float(i) + float(uKind) * 31.0;
     // Leaves sit along a handful of sprigs fanning out from the middle, which gives each
     // card a ragged, gappy outline instead of a disc.
-    float sprig = floor(h1(fi * 1.7) * 7.0) + float(uKind) * 11.0;
+    float sprig = floor(h1(fi * 1.7) * 13.0) + float(uKind) * 17.0;
     float th = h1(sprig * 4.3) * 6.283 + (h1(fi * 2.9) - 0.5) * 0.5;
-    float reach = 0.2 + 0.26 * h1(sprig * 7.7);
+    float reach = 0.22 + 0.25 * h1(sprig * 7.7);
     float along = pow(h1(fi * 6.1), 0.7);
     vec2 sd = vec2(cos(th), sin(th));
-    vec2 c = vec2(0.5) + sd * reach * along + vec2(-sd.y, sd.x) * (h1(fi * 8.3) - 0.5) * 0.12 * (1.0 - 0.5 * along);
+    vec2 c = vec2(0.5) + sd * reach * along + vec2(-sd.y, sd.x) * (h1(fi * 8.3) - 0.5) * 0.15 * (1.0 - 0.4 * along);
     float ang = th + (h1(fi * 3.1) - 0.5) * 2.2;
     float s = mix(sMin, sMax, h1(fi * 5.3));
     float id = h1(fi * 9.1);

@@ -429,8 +429,11 @@ export class Sky {
     const az = THREE.MathUtils.degToRad(azimuthDeg), el = THREE.MathUtils.degToRad(elevationDeg);
     this.sunDir.set(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az));
     const t = sunTransmittanceCPU(350, this.sunDir.toArray(), this.turbidity);
-    // The direct light is pushed a little toward gold beyond what the physics gives.
-    this.sunColor.setRGB(this.sunIrradiance.x * t[0] * 1.08, this.sunIrradiance.y * t[1] * 0.93, this.sunIrradiance.z * t[2] * 0.74);
+    // Sunlight this low is very orange; pull it part-way back toward white so sunlit stone
+    // reads as warm gold rather than rust.
+    const c = [this.sunIrradiance.x * t[0], this.sunIrradiance.y * t[1], this.sunIrradiance.z * t[2]];
+    const lum = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], k = this.sunWarmth ?? 0.62;
+    this.sunColor.setRGB(lum + (c[0] - lum) * k, lum + (c[1] - lum) * k, lum + (c[2] - lum) * k);
     this.invalidate();
   }
 

@@ -114,6 +114,14 @@ export function buildMesas() {
   return out;
 }
 
+// Height fraction across the cliff band (0 at the foot, 1 at the rim): three near-vertical
+// faces separated by two narrow ledges whose positions wander slowly around the mesa.
+function cliffProfile(u, shift, m) {
+  if (m.pinnacle) return smoothstep(0.0, 0.85, u);
+  const a = 0.3 + m.l1 + shift, b = 0.66 + m.l2 - shift;
+  return 0.4 * smoothstep(0.0, a - 0.1, u) + 0.33 * smoothstep(a + 0.03, b - 0.08, u) + 0.27 * smoothstep(b + 0.03, 0.97, u);
+}
+
 function terrace(x, n, s) {
   if (x >= 1) return 1;
   const k = x * n, f = Math.floor(k), t = saturate((k - f) / s);
@@ -130,6 +138,8 @@ export function makeTerrain() {
     m.reach = m.r * Math.max(1, m.ax) * 1.45 + 110;
     m.run = m.pinnacle ? clamp(0.05 * m.h + 3, 4, 9) : clamp(0.085 * m.h + 6, 9, 34);
     m.ledges = m.pinnacle ? 2 : 2 + Math.floor(m.h / 85);
+    m.l1 = (hash2(m.seed, 3, 1) - 0.5) * 0.14; m.l2 = (hash2(m.seed, 5, 2) - 0.5) * 0.12;
+    m.run *= 1.25;
     const x0 = Math.max(0, Math.floor((m.x - m.reach + half) / G)), x1 = Math.min(gn - 1, Math.floor((m.x + m.reach + half) / G));
     const z0 = Math.max(0, Math.floor((m.z - m.reach + half) / G)), z1 = Math.min(gn - 1, Math.floor((m.z + m.reach + half) / G));
     for (let j = z0; j <= z1; j++) for (let i = x0; i <= x1; i++) grid[j * gn + i].push(m);
@@ -157,9 +167,11 @@ export function makeTerrain() {
     const dist = Math.hypot(qx, qz);
     if (dist > m.r * 1.45 + 110) return 1e9;
     const lobe = m.pinnacle ? 0.22 : 0.3;
+    const rib = 1 - Math.abs(gnoise(x / 23, z / 23, m.seed + 7));
     const n = fbm(x / (m.r * 0.6) + m.seed, z / (m.r * 0.6), 3, m.seed) * m.r * lobe
-      + fbm(x / 36, z / 36, 3, m.seed + 3) * (m.pinnacle ? 4 : 10)
-      + gnoise(x / 8.5, z / 8.5, m.seed + 5) * 1.7;
+      + fbm(x / 44, z / 44, 3, m.seed + 3) * (m.pinnacle ? 4 : 13)
+      - rib * rib * (m.pinnacle ? 1.5 : 5.5)
+      + gnoise(x / 8.5, z / 8.5, m.seed + 5) * 1.5;
     return dist - m.r + n;
   }
 
@@ -180,8 +192,7 @@ export function makeTerrain() {
           mh = base + rise * 0.1 * Math.exp(-sd / (0.1 * m.h + 8));       // talus skirt
         } else {
           const u = saturate(-sd / m.run);
-          const warp = 0.11 * fbm(x / 64, z / 64, 2, m.seed + 9);
-          const t = terrace(saturate(Math.pow(u, 0.85) + warp * (1 - u) * u * 4), m.ledges, 0.4);
+          const t = cliffProfile(u, 0.07 * fbm(x / 190, z / 190, 2, m.seed + 9), m);
           const inside = saturate(-sd / (m.r * 0.5));
           const top = m.h + (m.pinnacle ? 5 * inside : 4.5 * fbm(x / 95, z / 95, 3, m.seed + 1) + 1.1 * fbm(x / 21, z / 21, 2, m.seed + 2) + 3 * inside);
           mh = base + (top - base) * (0.1 + 0.9 * t);

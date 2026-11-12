@@ -293,6 +293,7 @@ export class Forest {
       uniforms: { ...shared, uLeaves: { value: this.leafAtlas }, uLeafLayer: { value: layer } },
     }));
 
+    this._mkWood = mkWood; this._mkLeaf = mkLeaf;
     // Build every variant at both mesh levels of detail.
     this.variants = VARIANTS.map(([species, seed], vi) => {
       const tree = generateTree(species, seed * 17 + vi);
@@ -396,6 +397,23 @@ export class Forest {
     q.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, 0, 0, 1, 0, 0, 1, 1, 0, -1, 1, 0]), 3));
     q.setIndex([0, 1, 2, 0, 2, 3]);
     this.impQuad = q;
+  }
+
+  // One colossal tree, drawn as a single always-visible mesh pair.
+  addGreatTree(x, y, z) {
+    const tree = generateTree('great', 4);
+    const one = (arr) => new THREE.InstancedBufferAttribute(new Float32Array(arr), 4);
+    const iTree = one([x, y, z, 1]), iParam = one([0.6, 0.35, SPECIES.great.leaf, 0]);
+    const parts = [[buildWood(tree, 3, [14, 9, 6, 4]), this._mkWood(BARK_TINT.elder, [0, 0])], [buildLeaves(tree, 1, 1), this._mkLeaf(SPECIES.great.leaf, [0, 0])]];
+    for (const [data, mat] of parts) {
+      const geo = geometryFrom(data);
+      geo.setAttribute('iTree', iTree); geo.setAttribute('iParam', iParam);
+      geo.instanceCount = 1;
+      const m = new THREE.Mesh(geo, mat);
+      m.frustumCulled = false; m.matrixAutoUpdate = false;
+      this.group.add(m);
+    }
+    return tree;
   }
 
   // Scatters trees with noise-driven groves. Returns the number placed.
