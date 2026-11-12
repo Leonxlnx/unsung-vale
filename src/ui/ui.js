@@ -283,6 +283,7 @@ export class UI {
     }
     if (type === 'rest') { el.refrain.classList.remove('gain'); void el.refrain.offsetWidth; el.refrain.classList.add('gain'); }
     if (type === 'xp') { el.res.classList.remove('gain'); void el.res.offsetWidth; el.res.classList.add('gain'); }
+    if (type === 'player' && d.type === 'death' && !g.cine) this.toast('The note falters', 'You will wake at the last safe place');
     if (type === 'player' && d.type === 'hurt') { el.hurt.style.transition = 'none'; el.hurt.style.opacity = '1'; requestAnimationFrame(() => { el.hurt.style.transition = ''; el.hurt.style.opacity = '0'; }); el.health.classList.remove('hit'); void el.health.offsetWidth; el.health.classList.add('hit'); }
     if (type === 'echo') { el.hud.classList.add('echo'); setTimeout(() => el.hud.classList.remove('echo'), 1500); }
 
@@ -549,7 +550,7 @@ export class UI {
         <div class="q main"><i></i><div><b>${g.objective}</b><span>${next ? `${g.spires.filter((s) => s.tuned).length} of ${g.spires.length} spires sing` : 'Every spire sings'}</span></div></div>
         <h3>Asked of you</h3>${active.length ? active.map(row).join('') : '<p class="none">Nobody is waiting on you. The people of the Vale wake when their spire is tuned.</p>'}
         ${done.length ? `<h3>Done</h3>${done.map(row).join('')}` : ''}</div>
-      <div class="col"><h3>The Vale</h3><dl><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Reliquaries opened</dt><dd>${g.reliquaries.openCount} / ${g.reliquaries.list.length}</dd>${g.ended ? `<dt>Echoes answered</dt><dd>${(g.echoes ?? []).length} / ${g.spires.length}</dd>` : ''}<dt>Packs cleared</dt><dd>${g.wildDone.length} / 12</dd><dt>People awake</dt><dd>${g.people.list.filter((n) => n.awake).length} / ${g.people.list.length}</dd><dt>Time in the Vale</dt><dd>${this._time(g.playTime ?? 0)}</dd></dl></div>
+      <div class="col"><h3>The Vale</h3><dl><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Reliquaries opened</dt><dd>${g.reliquaries.openCount} / ${g.reliquaries.list.length}</dd>${g.ended ? `<dt>Echoes answered</dt><dd>${(g.echoes ?? []).length} / ${g.spires.length}</dd>` : ''}<dt>Packs cleared</dt><dd>${g.wildDone.length} / 12</dd><dt>Times fallen</dt><dd>${g.falls ?? 0}</dd><dt>People awake</dt><dd>${g.people.list.filter((n) => n.awake).length} / ${g.people.list.length}</dd><dt>Time in the Vale</dt><dd>${this._time(g.playTime ?? 0)}</dd></dl></div>
       <div class="col"><h3>The Mute<small>${met.length} of ${MUTE.length} kinds brought down</small></h3>${mute || '<p class="none">Nothing of them is known yet but that they stand where the song stopped.</p>'}</div>`;
   }
   _time(s) { const m = Math.floor(s / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; }
@@ -573,7 +574,7 @@ export class UI {
   }
   _renderEnding() {
     const g = this.game;
-    this.el.stats.innerHTML = `<dl><dt>Time in the Vale</dt><dd>${this._time(g.playTime ?? 0)}</dd><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Quests done</dt><dd>${g.quests.doneCount} / ${QUESTS.length}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd></dl>`;
+    this.el.stats.innerHTML = `<dl><dt>Time in the Vale</dt><dd>${this._time(g.playTime ?? 0)}</dd><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Quests done</dt><dd>${g.quests.doneCount} / ${QUESTS.length}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Reliquaries opened</dt><dd>${g.reliquaries.openCount} / ${g.reliquaries.list.length}</dd><dt>Times fallen</dt><dd>${g.falls ?? 0}</dd></dl>`;
   }
 
   // --- settings panel ---
