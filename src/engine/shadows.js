@@ -28,7 +28,7 @@ float shadowPcf(sampler2DShadow tex, vec3 c, vec2 texel) {
 }
 #ifdef SOFT_SHADOWS
 uniform sampler2D uShadowRaw;   // the cascades again, readable as plain depth for the blocker search
-uniform vec4 uSoft;             // x: enabled, y: frame index, zw: penumbra (uv) per unit of depth, cascade 0 / 1
+uniform vec4 uSoft;             // x: 0 off, 0.75 near cascade only, 1 both; y: frame index, zw: penumbra (uv) per unit of depth, cascade 0 / 1
 uniform vec4 uSoftLimit;        // xy: widest penumbra (uv) for cascade 0 / 1, z: narrowest (uv), w: unused
 const vec2 DISC[12] = vec2[12](vec2(-0.326, -0.406), vec2(-0.840, -0.074), vec2(-0.696, 0.457), vec2(-0.203, 0.621),
   vec2(0.962, -0.195), vec2(0.473, -0.480), vec2(0.519, 0.767), vec2(0.185, -0.893),
@@ -93,7 +93,7 @@ float objectShadow(vec3 p) {
     float z = n.z * 0.5 + 0.5, zb = bias * 0.5;
 #endif
 #ifdef SOFT_SHADOWS
-    if (uSoft.x > 0.5) {
+    if (uSoft.x > (i == 0 ? 0.5 : 0.9)) {
       // How the receiver's depth changes across the map, from its screen-space slope.
       vec3 sx = mat3(uCsmMat[i]) * dpx, sy = mat3(uCsmMat[i]) * dpy;
       vec2 ux = sx.xy * 0.5, uy = sy.xy * 0.5;
@@ -154,7 +154,7 @@ export class Shadows {
     this.csmRaw.depthTexture = new THREE.DepthTexture(this.size * 2, this.size, THREE.FloatType);
     this.csmRaw.depthTexture.minFilter = this.csmRaw.depthTexture.magFilter = THREE.NearestFilter;
     pipe.renderer.initRenderTarget(this.csmRaw);
-    this.soft = true;             // soft penumbrae on surfaces that ask for them
+    this.soft = true;             // soft penumbrae on surfaces that ask for them: true, 'near' (first cascade only) or false
     this.rate = 1;                // 1: near cascade every frame; 2: cascades take turns
     this.softness = 0.012;        // penumbra radius per metre between blocker and receiver
     this.staticSize = opts.staticSize ?? [4096, 1024];
@@ -256,7 +256,7 @@ export class Shadows {
 
   update(camera) {
     this.uniforms.uShadowInfo.value.w = this.enabled ? 1 : 0;
-    this.uniforms.uSoft.value.x = this.soft ? 1 : 0;
+    this.uniforms.uSoft.value.x = this.soft === 'near' ? 0.75 : this.soft ? 1 : 0;
     this.uniforms.uSoft.value.y = this.pipe.globals.uFrame.value;
     if (!this.enabled) return;
     if (this._staticDirty) this.bakeStatic();

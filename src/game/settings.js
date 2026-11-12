@@ -2,10 +2,10 @@
 const KEY = 'unsung-vale-settings-v1';
 
 export const PRESETS = {
-  low:    { renderScale: 0.55, shadows: false, volumetrics: false, reflections: false, cover: 0.55, clouds: 0, cloudRes: 1024, shadowRate: 2 },
-  medium: { renderScale: 0.63, shadows: true, volumetrics: true, reflections: false, cover: 0.75, clouds: 1, cloudRes: 1024, shadowRate: 2 },
-  high:   { renderScale: 0.8, shadows: true, volumetrics: true, reflections: true, cover: 1.0, clouds: 1, cloudRes: 2048, shadowRate: 1 },
-  ultra:  { renderScale: 1.0, shadows: true, volumetrics: true, reflections: true, cover: 1.0, clouds: 2, cloudRes: 2048, shadowRate: 1 },
+  low:    { renderScale: 0.55, shadows: false, volumetrics: false, reflections: false, cover: 0.55, clouds: 0, cloudRes: 1024, shadowRate: 2, softShadows: 0 },
+  medium: { renderScale: 0.63, shadows: true, volumetrics: true, reflections: false, cover: 0.75, clouds: 1, cloudRes: 1024, shadowRate: 2, softShadows: 1 },
+  high:   { renderScale: 0.8, shadows: true, volumetrics: true, reflections: true, cover: 1.0, clouds: 1, cloudRes: 2048, shadowRate: 1, softShadows: 2 },
+  ultra:  { renderScale: 1.0, shadows: true, volumetrics: true, reflections: true, cover: 1.0, clouds: 2, cloudRes: 2048, shadowRate: 1, softShadows: 2 },
 };
 
 const DEFAULTS = { preset: 'medium', ...PRESETS.medium, fov: 60, sensitivity: 1, invertY: false, master: 0.8, music: 0.55, sfx: 0.85, showFps: false };
@@ -41,6 +41,9 @@ export function applySettings(settings, { pipe, game, cover, audio, gloss }) {
   if (Math.abs(pipe.renderScale - v.renderScale) > 1e-3) pipe.setRenderScale(v.renderScale);
   pipe.shadows.enabled = v.shadows;
   pipe.shadows.rate = v.shadowRate ?? 1;
+  // Soft penumbrae everywhere, only close to the camera (Medium), or not at all.
+  const soft = v.softShadows ?? (v.preset === 'medium' ? 1 : v.preset === 'low' ? 0 : 2);
+  pipe.shadows.soft = soft === 2 ? true : soft === 1 ? 'near' : false;
   if (pipe.volumetrics) pipe.volumetrics.enabled = v.volumetrics;
   // Settings saved before this option existed fall back to what their preset would choose.
   if (gloss) gloss.group.visible = v.reflections ?? (v.preset === 'high' || v.preset === 'ultra');

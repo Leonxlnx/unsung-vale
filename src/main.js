@@ -150,7 +150,7 @@ audio.init().then((ok) => { if (ok) apply(); });
 for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, () => audio.resume());
 if (params.get('scale')) settings.values.renderScale = Number(params.get('scale'));
 // Previewing the film look outside a capture: the capture's own quality settings.
-if (FILM) Object.assign(settings.values, { renderScale: 1, shadows: true, volumetrics: true, cover: 1, reflections: true, shadowRate: 1 });
+if (FILM) Object.assign(settings.values, { renderScale: 1, shadows: true, volumetrics: true, cover: 1, reflections: true, shadowRate: 1, softShadows: 2 });
 apply();
 
 pipe.onBeforeScene.push((cam) => { terrain.bakeStep(2); terrain.select(cam); forest.update(cam); cover.update(cam); rocks.update(cam); dressing.update(cam); });
@@ -202,7 +202,7 @@ async function runCapture() {
   const server = params.get('server'), from = Number(params.get('from')) || 0;
   ui.root.style.display = 'none';
   // Film quality: full resolution, densest detail, clouds refreshed quickly.
-  settings.values.renderScale = 1; settings.values.shadows = true; settings.values.volumetrics = true; settings.values.cover = 1; settings.values.reflections = true;
+  settings.values.renderScale = 1; settings.values.shadows = true; settings.values.volumetrics = true; settings.values.cover = 1; settings.values.reflections = true; settings.values.softShadows = 2;
   apply();
   pipe.setSize(w, h);
   terrain.lodScale = 3;
