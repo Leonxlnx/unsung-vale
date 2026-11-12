@@ -18,6 +18,20 @@ const LINES = [
   [7.4, 12.6, 'Then the Mute came, and the song went out, one voice at a time.'],
   [14.2, 19.2, 'You kept the last note. Carry it back to them.'],
 ];
+// The closing flight: once the last spire sings, the view leaves the hero and crosses the
+// whole Vale. Each leg: seconds, from [x, y, z], to [x, y, z], looking at [x, y, z] (from/to).
+const OUTRO = [
+  [8, [-1040, 300, -230], [-1010, 322, -120], [-1005, 286, -168], [-760, 250, -90]],
+  [9, [-640, 262, -40], [-420, 240, -150], [-372, 196, -392], [66, 176, -498]],
+  [9, [-160, 250, 120], [80, 230, 60], [150, 110, -15], [578, 150, -437]],
+  [10, [260, 300, 200], [420, 360, 120], [900, 160, 500], [2750, 330, 1480]],
+];
+const OUTRO_LINES = [
+  [1.5, 7.5, 'Eight voices. One song.'],
+  [9.5, 16.5, 'It runs along the strings from court to court, and nobody alive has heard it whole before.'],
+  [18.5, 25.5, 'The people of the Vale are awake. The lamps are lit. The bells answer each other across the water.'],
+  [27.5, 35, 'And the one who carried the last note home may put the blade away.'],
+];
 const ease = (t) => t * t * (3 - 2 * t), clamp01 = (x) => Math.max(0, Math.min(1, x));
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0);
 
@@ -46,6 +60,43 @@ export class Story {
   }
 
   skip() { if (this.game.state === 'intro' && this.t > 0.8 && !this.skipping) { this.skipping = 0.001; this.game.emit('fade', { on: true }); } }
+
+  // --- the ending ----------------------------------------------------------------------
+
+  outro() {
+    const g = this.game;
+    if (g.state !== 'playing') return;
+    this.mode = 'outro'; this.t = 0; this.skipping = 0; this.queue = []; this.line = null;
+    g.state = 'intro'; g.input.enabled = false; g.player.vel.set(0, 0, 0);
+    g.emit('caption', { text: null }); g.emit('state', { state: 'intro' });
+  }
+  _outro(dt) {
+    const g = this.game;
+    if (this.skipping) { this.skipping += dt; if (this.skipping > 0.55) this._finishOutro(); return; }
+    this.t += dt;
+    const t = this.t, total = OUTRO.reduce((a, l) => a + l[0], 0);
+    const cur = OUTRO_LINES.find(([a, b]) => t >= a && t < b);
+    if ((cur?.[2] ?? null) !== this.line) { this.line = cur?.[2] ?? null; g.emit('caption', { text: this.line }); }
+    let acc = 0, leg = OUTRO[OUTRO.length - 1], k = 1;
+    for (const l of OUTRO) { if (t < acc + l[0]) { leg = l; k = (t - acc) / l[0]; break; } acc += l[0]; }
+    const e = k * (0.35 + 0.65 * (k * (2 - k)));          // away at speed, settling as the leg ends
+    _a.set(leg[1][0] + (leg[2][0] - leg[1][0]) * e, leg[1][1] + (leg[2][1] - leg[1][1]) * e, leg[1][2] + (leg[2][2] - leg[1][2]) * e);
+    _b.set(leg[3][0] + (leg[4][0] - leg[3][0]) * e, leg[3][1] + (leg[4][1] - leg[3][1]) * e, leg[3][2] + (leg[4][2] - leg[3][2]) * e);
+    const floor = this.terrain.heightAt(_a.x, _a.z) + 12; if (_a.y < floor) _a.y = floor;
+    this._camera(_a, _b, 52);
+    // A dip to black between legs.
+    const edge = Math.min(t - acc, acc + leg[0] - t);
+    const dark = edge < 0.45 && !(acc === 0 && t - acc < 0.45);
+    if (dark !== !!this.dark) { this.dark = dark; g.emit('fade', { on: dark }); }
+    if (t >= total) this._finishOutro();
+  }
+  _finishOutro() {
+    const g = this.game;
+    this.mode = null; this.dark = false; this.line = null;
+    g.emit('caption', { text: null }); g.emit('fade', { on: false });
+    g.rig.snap(g.player); g.rig.yaw = g.player.yaw;
+    g.state = 'ending'; g.emit('state', { state: 'ending' });
+  }
 
   _camera(pos, target, fov) {
     const c = this.pipe.camera;
@@ -198,7 +249,11 @@ export class Story {
 
   update(dt) {
     const g = this.game, p = g.player;
-    if (g.state === 'intro') { this._intro(dt); return; }
+    if (g.state === 'intro') { if (this.mode === 'outro') this._outro(dt); else this._intro(dt); return; }
+    // The last spire has been tuned and its opening watched to the end: the closing flight.
+    if (g.ended && !g.outroSeen && g.state === 'playing' && !g.tuning?.active && !this.line && !this.queue?.length) {
+      if ((this.endT = (this.endT ?? 0) + dt) > 2.5) { g.outroSeen = true; g.save(); this.outro(); return; }
+    }
     if (g.state !== 'playing' || g.tuning?.active || g.people?.talk) return;
     // Lines wait their turn.
     this.lineT = (this.lineT ?? 0) - dt;

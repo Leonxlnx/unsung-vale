@@ -768,7 +768,7 @@ if (this.hurtK > 0.01) {
       }
       if (cutting) { this.trailPts.push({ b: base, t: tip, at: t }); this._cutT = p.stateTime; } else { this._cutT = undefined; this._cutErr = null; }
       if (this.bladeGlow) this.bladeGlow.w += ((cutting ? 3.4 : 1.2) - this.bladeGlow.w) * Math.min(1, dt * 18);
-      const LIFE = 0.13;
+      const LIFE = 0.17;
       while (this.trailPts.length && (t - this.trailPts[0].at > LIFE || this.trailPts.length > this.trailN)) this.trailPts.shift();
       const n = this.trailPts.length;
       this.trail.visible = this.streak.visible = n > 2;

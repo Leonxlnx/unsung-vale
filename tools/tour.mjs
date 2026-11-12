@@ -111,6 +111,14 @@ if (want('swim')) {
   await ev(() => window.__tour.tp(-300, 174.5, -330, 0.6, -0.25, 6));
   await page.keyboard.down('KeyW'); await sleep(2600); await shot('swim'); await page.keyboard.up('KeyW');
 }
+if (want('moves')) {
+  // Frame grids of the hero's moves through the play camera (the page steps them itself).
+  const grid = async (name, opts) => { await ev((o) => { window.__dbg.shots(o); const c = document.getElementById('sheet'); c.style.width = c.style.height = '100%'; }, opts); await sleep(700); await shot('moves_' + name); await ev(() => window.__dbg.hideSheet()); };
+  await grid('combo', { press: ['attack'], again: 1, n: 12, every: 4, zoom: 2.2, dist: 5, pitch: -0.14, yawOff: 0.5, fit: false });
+  await grid('heavy', { press: ['heavy'], n: 12, every: 4, zoom: 2.2, dist: 5, pitch: -0.14, yawOff: 0.5, fit: false });
+  await grid('plunge', { press: ['jump'], again: 0, n: 12, every: 4, zoom: 1.7, dist: 6, pitch: -0.1, yawOff: 0.6, fit: false, hold: [] });
+  await ev(() => window.__dbg.ui(true));
+}
 if (want('courts')) {
   // Each of the outer courts, restored, seen from where the string sets the hero down.
   await ev(() => { window.__tour.tune(['petal', 'cantor', 'choir', 'east', 'south3', 'aurel', 'south1', 'crown']); window.__dbg.ui(false); });
@@ -139,6 +147,11 @@ if (want('tuning')) {
   for (let i = 0; i < 400; i++) { const st = await ev(() => { const T = window.__game.tuning; return T.active ? [T.phase, T.ring, T.bt - T.period] : null; }); if (!st || st[0] !== 'beats') break; if (st[1] && Math.abs(st[2]) < 0.06) { await page.keyboard.press('KeyE'); await sleep(120); } else await sleep(16); }
   await sleep(3200); await shot('finale');
   await sleep(6500); await shot('woken');
+}
+if (want('outro')) {
+  await ev(() => { const g = window.__game; window.__tour.tune(g.spires.map((s) => s.id)); g.ended = true; g.outroSeen = true; window.__dbg.ui(true); window.__story.outro(); });
+  for (const [t, name] of [[4000, 'outro_1'], [8500, 'outro_2'], [9000, 'outro_3'], [10000, 'outro_4']]) { await sleep(t); await shot(name); }
+  await sleep(6500); await shot('ending');
 }
 console.log(errors.length ? `errors (${errors.length}):\n` + [...new Set(errors)].join('\n') : 'no console errors');
 await browser.close();

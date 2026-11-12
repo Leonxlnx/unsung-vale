@@ -180,6 +180,7 @@ export class UI {
     const el = this.el, g = this.game;
     if (type === 'state') {
       if (d.state === 'playing') this.show('hud'); else if (d.state === 'paused') this.show('pause'); else if (d.state === 'home') this.show('home'); else if (d.state === 'intro') this.show('none');
+      else if (d.state === 'ending') { this.show('none'); g.input.enabled = false; g.input.unlockPointer(); this._renderEnding(); el.ending.classList.add('on'); }
       else if (d.state === 'menu') { this.show('journey'); this.atBench = d.menu === 'bench'; this.bench = this.atBench || !!g.metPeople?.includes('odo'); this._journey(d.menu === 'map' ? 'map' : d.menu === 'journal' ? 'journal' : 'hero'); this.onSound?.(d.menu === 'map' ? 'map_open' : 'ui_open'); }
       el.story.classList.toggle('cine', d.state === 'intro');
       // The keys are shown once, when play first begins.
@@ -240,7 +241,7 @@ export class UI {
     if (type === 'xp') { el.res.classList.remove('gain'); void el.res.offsetWidth; el.res.classList.add('gain'); }
     if (type === 'player' && d.type === 'hurt') { el.hurt.style.transition = 'none'; el.hurt.style.opacity = '1'; requestAnimationFrame(() => { el.hurt.style.transition = ''; el.hurt.style.opacity = '0'; }); el.health.classList.remove('hit'); void el.health.offsetWidth; el.health.classList.add('hit'); }
     if (type === 'echo') { el.hud.classList.add('echo'); setTimeout(() => el.hud.classList.remove('echo'), 1500); }
-    if (type === 'ending') setTimeout(() => { g.state = 'ending'; g.input.enabled = false; g.input.unlockPointer(); this._renderEnding(); el.ending.classList.add('on'); }, 9000);
+
   }
 
   // A line across the middle of the view: something has happened.

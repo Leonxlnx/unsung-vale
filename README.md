@@ -23,9 +23,11 @@ Stills from the in-game cinematic (draft render).
 
 | | |
 | --- | --- |
+| ![The Vale with every spire singing](docs/media/play-vale.jpg) | ![Strings of light over the lake](docs/media/play-lake.jpg) |
 | ![Riding a string of light across the lake](docs/media/play-ride.jpg) | ![The map of the Vale](docs/media/play-map.jpg) |
-| ![Speaking with the Keeper of the Terrace](docs/media/play-talk.jpg) | ![The Stillness at the Crown](docs/media/play-boss.jpg) |
-| ![A wave fight in a silent court](docs/media/play-waves.jpg) | ![A spire opening as it is tuned](docs/media/play-finale.jpg) |
+| ![The Aurel Court and its archive](docs/media/play-aurel.jpg) | ![The Lantern Court among ember trees](docs/media/play-lantern.jpg) |
+| ![Speaking with the Keeper of the Terrace](docs/media/play-talk.jpg) | ![Inside a silence the hero keeps an island of colour](docs/media/play-island.jpg) |
+| ![The Stillness at the Crown](docs/media/play-boss.jpg) | ![A spire opening as it is tuned](docs/media/play-finale.jpg) |
 
 Play, as captured by `tools/tour.mjs`.
 
@@ -104,6 +106,7 @@ turns exactly as far as the hand moves, whatever the system's pointer settings.
 - Effects built for the moments that matter: a crescent of light behind every cut, sparks
   off every blow, shockwaves that bend the picture, strands of light climbing a spire as it
   is tuned, the great rings answering.
+- A closing flight over the whole Vale once the last spire sings.
 - An interface drawn around one idea, a string: a compass strip, goals and a side-quest
   tracker, conversations, a map drawn from the terrain itself, a journal, settings.
   Progress is saved in the browser.

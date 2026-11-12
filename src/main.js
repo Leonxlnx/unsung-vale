@@ -429,7 +429,7 @@ window.__dbg = {
         g.cine = false; g.input.puppet = null;
         g.cineSetup({ tuned: [] });
         for (const sp of g.spires) { sp.tuned = false; sp.power = 0; sp.zoneR = sp.zoneR0; sp.zone.z = sp.zoneR; sp.zone.w = 1; }
-        g.enemies.list.length = 0; g.wildDone = []; g.xp = 0; g.bought = 0; g.ended = false; g.hasMap = false; g.metPeople = [];
+        g.enemies.list.length = 0; g.wildDone = []; g.xp = 0; g.bought = 0; g.ended = false; g.outroSeen = false; g.story.mode = null; g.story.endT = 0; g.hasMap = false; g.metPeople = [];
         Object.assign(p.up, { health: 0, stamina: 0, blade: 0 }); g._skills();
         g.quests.state = {}; for (const it of g.quests.items) g.quests.group.remove(it.mesh); g.quests.items = []; g.trials.run = null; g.trials.list.forEach((t) => { t.done = false; }); g.trialsDone = []; g.bellsRung = {}; g.bells.list.forEach((q) => { q.rung = false; }); g.notes.list.forEach((n) => { n.taken = false; n.k = 1; }); g.notes.count = 0;
         for (const n of g.people.list) { n.awake = !n.spire; n.k = n.awake ? 1 : 0; g.people._dye(n); }
@@ -449,6 +449,7 @@ window.__dbg = {
     while (b.t < until && b.stuck < 14) {
       pu.pressed.clear(); pu.held.clear(); pu.move.x = pu.move.y = 0;
       b.sideT -= dt;
+      if (g.state === 'ending') { g.state = 'playing'; g.input.enabled = true; g.input.puppet = pu; }       // past the closing card, back into the Vale
       if (g.trials.run) b.trialOn = g.trials.run.t;
       else if (b.trialOn) { b.log.push(`${Math.round(b.t)}s ${b.trialOn.def.name} ${b.trialOn.done ? 'won' : 'lost'}`); if (!b.trialOn.done) (b.failed ??= []).push(b.trialOn.def.id); b.trialOn = null; }
       if (g.state === 'menu') { if (g.menu === 'bench') { let k; while ((k = ['blade', 'health', 'stamina'].find((u) => p.up[u] < 8)) && g.buy(k)) b.log.push(`${Math.round(b.t)}s bought ${k}`); } g.closeMenu(); g.input.enabled = true; g.input.puppet = pu; }
