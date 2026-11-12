@@ -23,13 +23,23 @@ or image textures; only the audio comes from outside (see `CREDITS.md`).
   water and other transparents (`sceneT`) -> volumetrics -> fog composite -> TAA -> bloom ->
   tone map (AgX) to the canvas. `pipe.lit()` returns every uniform a lit material needs.
 - `sky.js`: atmosphere (single scattering + multi-scatter fill) baked once into a warped
-  panorama; volumetric clouds baked into a second panorama one 32 px tile per frame and
-  cross-faded; a small resolved copy with mips (`uSkyEnv`) for fog colour and reflections;
-  SH9 ambient computed on the CPU after each sweep. `SKY_SAMPLE`, `SH_GLSL` are the GLSL.
-- `lighting.js`: `shadeSurface()` (GGX + sky ambient + env reflection) and
-  `sunVisibility(p)` = terrain shadow x object shadow x cloud shade.
+  panorama; volumetric clouds marched into a second panorama a few 32 px tiles per frame,
+  box-filtered to remove the march dither, and cross-faded. The visible sky reads it with a
+  bicubic lookup. `setCloudQuality(width, steps)` sets the panorama size (1024 in play,
+  2048 on High/Ultra, 4096 for the film); `uCloudTint` warms the sunlight on the clouds.
+  A small resolved copy with mips (`uSkyEnv`) serves fog colour and reflections; SH9
+  ambient is computed on the CPU after each sweep. `SKY_SAMPLE`, `SH_GLSL` are the GLSL.
+- `lighting.js`: `shadeSurface()` (GGX + sky ambient + env reflection), `bounceLight()`
+  (sunlight returned by lit cliffs, strength `uBounce`) and `sunVisibility(p)` = terrain
+  shadow x object shadow x cloud shade.
 - `shadows.js`: static sun shadow map for the whole core (baked once; trees enter as
   sun-facing billboards) plus two camera cascades. `shadows.addCaster(mesh, depthMat, flags)`.
+  Materials compiled with `SOFT_SHADOWS` (terrain, architecture) get percentage-closer soft
+  shadows: a blocker search on `uShadowRaw`, a plain-depth copy of the cascades made with
+  `copyTextureToTexture`, sets the penumbra, and a receiver-plane depth bias keeps sloping
+  receivers from shadowing themselves. Skinned casters copy their source's bind matrix in
+  `_sync()`. `objectShadow()` has one exit on purpose: several returns inside its loop
+  were miscompiled by the D3D backend.
 - `volumetrics.js`: quarter-resolution ray-march of haze and mist with light shafts.
 - `post.js`: fog composite (`FOG_GLSL`, `DEPTH_GLSL`), TAA, bloom.
 - `forge.js`: `TextureForge` bakes tileable PBR layers from GLSL `material()` functions into
@@ -46,6 +56,8 @@ Conventions that matter:
   `textureGrad`, so the D3D shader compiler never has to unroll or flatten them.
 - Heavy one-off GPU work (sky, terrain bakes) is always split into small scissored tiles so
   no single draw can run long on an integrated GPU.
+- A fragment shader may use at most 16 textures. The terrain uses all 16, which is why the
+  two occlusion maps share one array texture; adding a sampler there means merging another.
 - The built-in browser pane throttles `requestAnimationFrame` when hidden; `window.__dbg`
   (`step`, `pos`, `look`, `sheet`, `gpuMs`) drives frames by hand for testing.
 
@@ -53,9 +65,15 @@ Conventions that matter:
 
 - `terrain.js`: CDLOD quadtree of instanced 8x8 patches with vertex morphing. GPU-derived
   normal/curvature/cliff maps, horizon AO and sun-shadow height maps (`terrainSunVis`).
-  Shading blends forge layers by slope, height and noise; cliffs are triplanar with a
-  dedicated far layer. `terrain.heightAt(x, z)` is the CPU height query.
+  Shading blends forge layers by slope, height and noise. Cliffs are triplanar: a far layer
+  of jointed pillars and tilted blocks at every range, a close layer of fracture detail, and
+  a short march through the far layer's height so the relief shadows itself. Where the real
+  face is steeper than the one-metre normal map claims, the screen-space face normal takes
+  over. `bakePaths(paths, clearings)` writes the worn routes and, for paved courts, a mask
+  that removes ground cover and cuts the turf away under the stone.
+  `terrain.heightAt(x, z)` is the CPU height query.
 - `terrainMaterials.js`: GLSL for grass, soil, rock, moss, pebble, litter, snow, far layers.
+  `blocks()` builds fracture cells with a squared-off distance so joints run like real ones.
 - `water.js`: lake at y = 0 and pool discs; refraction, screen-space reflection, sun glitter.
 - `waterfalls.js`: ballistic ribbons hugging the cliffs plus soft spray particles.
 - `flora/treegen.js`: branching skeleton -> wood tubes + leaf cards per species.
@@ -63,7 +81,8 @@ Conventions that matter:
   levels of detail (near mesh, mid mesh, baked billboard) with dithered hand-over.
   `flora/grass.js`: vertex-lit grass and flowers in camera-following cells.
 - `arch/builder.js`: `MeshBuilder` (boxes, lathes, arches) with per-vertex material ids.
-  `arch/kit.js`: lancet, tower, hall, pavilion, terrace, arcade, viaduct, citadel.
+  `arch/kit.js`: lancet, tower, hall, pavilion, terrace, arcade, viaduct, citadel, the
+  tuning spire and the stepped cliff quarters.
   `arch/archMaterial.js`: stone/gold/tile/glass layers and the triplanar shader.
   `arch/sites.js`: where things are built.
 - `landmarks.js`: the Lattice rings.
@@ -102,7 +121,9 @@ work for ground cover, and measure with `__dbg.gpuMs()` after the load-time bake
   location, positional one-shots; everything comes from `public/audio/manifest.json`.
 - `cine/director.js`: the 45 s film as a list of shots (`setup`, `update`), driving the hero
   through `input.puppet` and the story state through `game.cineSetup()`.
-  `cine/output.js`: sub-frame accumulation (motion blur), HDR10 (PQ, BT.2020) and SDR output.
+  Each shot can pass a lens to `d.cam()`: focus distance and blur.
+  `cine/output.js`: depth of field (a gather blur per sub-frame), sub-frame accumulation
+  (motion blur), HDR10 (PQ, BT.2020) and SDR output.
   `tools/capture.mjs` receives frames over HTTP and pipes them into ffmpeg.
   After any raw GL call use `pipe.resetGL()`, never `renderer.resetState()` alone: three's
   reset turns the reversed depth buffer off.
@@ -110,7 +131,12 @@ work for ground cover, and measure with `__dbg.gpuMs()` after the load-time bake
 ## Development helpers
 
 `window.__dbg` in the page: `step(n)`, `pos/look` (free camera), `play(frames, moveY, moveX,
-{ tp, press, hold })` (scripted play), `sheet()` (four test views in one image), `cine(t)`
-(jump the film to a time), `gpuMs()`. `?perf=1` benchmarks the presets (`tools/perf.mjs`),
+{ tp, press, hold })` (scripted play), `sheet()` (four test views in one image), `crop(x, y,
+w, h)` (magnify canvas pixels), `strip({...})` (the hero filmed from the side as a strip of
+snapshots, for judging animation), `cine(t)` (jump the film to a time), `reel(times)` (a
+contact sheet of the film), `filmStill(t)` (one graded film frame with depth of field) and
+`gpuMs()`. Call `pipe.setRenderScale(1)` before judging detail: the Medium preset renders at
+two thirds scale. `tools/profile.mjs` times a frame with parts of the scene switched off.
+`?perf=1` benchmarks the presets (`tools/perf.mjs`),
 `?capture=1...` is used by the film capture. Editing files under `src/` while a capture is
 running makes Vite reload the page and ruins the render.
