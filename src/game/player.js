@@ -17,6 +17,7 @@ export const TUNE = {
   ],
   heavy: { t: 0.86, hit: [0.33, 0.46], dmg: 58, lunge: 5.2, cost: 26, arc: 1.3, reach: 3.2 },
   pulseCooldown: 9, pulseRadius: 8.5,
+  swim: 2.7, swimFast: 4.0, swimCost: 5, swimDepth: 1.18,      // he floats with the water this far up his body
 };
 
 const _v = new THREE.Vector3();
@@ -117,6 +118,14 @@ export class Player {
     if (wishLen > 1e-3) wish.multiplyScalar(1 / wish.length());
 
     if (this.state === 'dead') { this.vel.x *= Math.exp(-6 * dt); this.vel.z *= Math.exp(-6 * dt); this._integrate(dt); return; }
+    // Water deep enough to float in: swim. Shallow water is waded through like ground.
+    const surface = this.world.waterLevel(this.pos.x, this.pos.z);
+    this.water = surface;
+    if (this.state !== 'swim' && this.state !== 'hurt' && surface - this.pos.y > T.swimDepth + 0.1) {
+      if (this.vel.y < -6 || this.airTime > 0.3) this.emit('splash', { speed: -this.vel.y });
+      this.setState('swim'); this.attack = null; this.comboStep = -1; this.sprinting = false;
+    }
+    if (this.state === 'swim') { this._swim(dt, input, wish, wishLen, surface); return; }
     if (input.pressed.has('jump')) this.jumpBuffer = T.buffer;
 
     if (input.pressed.has('walk')) this.walking = !this.walking;
@@ -177,6 +186,37 @@ export class Player {
       if (this.stateTime > 0.42) this.setState('move');
     }
     this._integrate(dt);
+  }
+
+  // Afloat: he rides at the surface, steers like on land but slower, and leaves the water
+  // where the bottom comes up under him or with a kick up onto a low bank.
+  _swim(dt, input, wish, wishLen, surface) {
+    const T = TUNE, W = this.world;
+    const fast = input.held.has('sprint') && wishLen > 0.5 && this.stamina > 1;
+    if (fast) { this.stamina = Math.max(0, this.stamina - T.swimCost * dt); this.staminaWait = 0.25; }
+    const top = (fast ? T.swimFast : T.swim) * wishLen;
+    const k = Math.min(1, 5 * dt);
+    this.vel.x += (wish.x * top - this.vel.x) * k; this.vel.z += (wish.z * top - this.vel.z) * k;
+    if (wishLen > 0.05) { let d = Math.atan2(wish.x, wish.z) - this.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); this.yaw += d * Math.min(1, 5 * dt); }
+    // Buoyancy: a soft spring toward floating height.
+    const floatY = surface - T.swimDepth;
+    this.vel.y += ((floatY - this.pos.y) * 9 - this.vel.y * 3.2) * dt;
+    // A kick: enough to get the hands onto a bank or a low quay.
+    if (input.pressed.has('jump') && this.pos.y > floatY - 0.3 && this.spend(T.jumpCost)) { this.vel.y = 5.6; this.emit('splash', { speed: 3 }); }
+    this.pos.x += this.vel.x * dt; this.pos.z += this.vel.z * dt; this.pos.y += this.vel.y * dt;
+    W.resolveCapsule(this.pos, T.radius, T.height, this.vel.y);
+    const g = W.floorBelow(this.pos.x, this.pos.y + 0.6, this.pos.z, 3);
+    if (this.pos.y < g) { this.pos.y = g; if (this.vel.y < 0) this.vel.y = 0; }
+    this.grounded = false; this.airTime = 0; this.fallStart = this.pos.y; this.coyote = 0;
+    this.speed = Math.hypot(this.vel.x, this.vel.z);
+    if (this.speed > 0.2) this.moveDir.set(this.vel.x / this.speed, 0, this.vel.z / this.speed);
+    this.viewY = this._viewY1 = this.pos.y;
+    // Strokes, for sound and ripples.
+    this.stepPhase += (0.5 + this.speed * 0.35) * dt;
+    if (this.stepPhase >= 1) { this.stepPhase -= 1; this.emit('stroke', { speed: this.speed }); }
+    // Out: the ground under him is within standing depth, or he has risen clear of the water.
+    const here = W.waterLevel(this.pos.x, this.pos.z);
+    if (here - g < T.swimDepth - 0.12 || this.pos.y > here - 0.25) { this.setState('move'); this.grounded = this.pos.y - g < 0.08; }
   }
 
   _integrate(dt) {
@@ -256,8 +296,8 @@ export class Player {
 
     // Remember the last firm footing; deep water or a long fall puts the player back there.
     this.safeTimer -= dt;
-    if (grounded && !this.sliding && this.pos.y > 1.0 && this.safeTimer <= 0 && this.state !== 'dead') { this.lastSafe.copy(this.pos); this.safeTimer = 0.6; }
-    if (this.pos.y < -1.6 && this.state !== 'dead') { this.emit('splash'); this.respawn(12); }
+    if (grounded && !this.sliding && this.safeTimer <= 0 && this.state !== 'dead' && !(this.water - this.pos.y > 0.3)) { this.lastSafe.copy(this.pos); this.safeTimer = 0.6; }
+    if (this.pos.y < -40 && this.state !== 'dead') this.respawn(12);          // only a fall out of the world
 
     // Footstep timing follows distance travelled on the ground.
     if (this.autoSteps !== false && grounded && this.speed > 0.8 && this.state === 'move') {

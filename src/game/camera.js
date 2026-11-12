@@ -8,7 +8,7 @@ export class CameraRig {
   constructor(camera, world) {
     this.camera = camera; this.world = world;
     this.yaw = 0; this.pitch = -0.2;
-    this.distance = 4.4; this.current = 4.4;
+    this.distance = 5.6; this.current = 5.6;
     this.baseFov = 60; this.fov = 60;
     this.follow = new THREE.Vector3();
     this.shake = 0;
@@ -28,7 +28,7 @@ export class CameraRig {
     this.time += dt;
     this.yaw -= input.look.x;
     this.pitch = Math.max(-1.15, Math.min(1.05, this.pitch - input.look.y));
-    if (input.zoom) this.distance = Math.max(2.4, Math.min(7.5, this.distance + input.zoom * 0.5));
+    if (input.zoom) this.distance = Math.max(2.4, Math.min(16, this.distance * (1 + input.zoom * 0.1)));
 
     const target = player.lockTarget;
     if (target) {
@@ -49,7 +49,7 @@ export class CameraRig {
     const cp = Math.cos(this.pitch);
     _dir.set(Math.sin(this.yaw) * cp, Math.sin(this.pitch), Math.cos(this.yaw) * cp);
     _right.set(-Math.cos(this.yaw), 0, Math.sin(this.yaw));
-    _pivot.copy(this.follow); _pivot.y += 1.55;
+    _pivot.copy(this.follow); _pivot.y += 1.55 + Math.max(0, this.distance - 5) * 0.09;
     // Shoulder offset, shortened if a wall is right beside the player.
     const side = Math.min(this.shoulder, this.world.raycast(_pivot, _right, this.shoulder + 0.3) - 0.25);
     _pivot.addScaledVector(_right, Math.max(0, side));

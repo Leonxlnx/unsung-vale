@@ -456,6 +456,11 @@ export class Game {
     if (e.type === 'land' && e.fell > 3) this.rig.addShake(Math.min(0.5, e.fell * 0.03));
     if (e.type === 'land' && e.fell > 1.5) this.vfx.wave(p.pos.x, p.pos.y + 0.06, p.pos.z, { r0: 0.2, r1: 1.2 + Math.min(3, e.fell * 0.3), life: 0.4, strength: 0.5, width: 0.16, color: [0.5, 0.42, 0.3] });
     if (e.type === 'land') this.hero?.onLand(e.fell ?? 0);
+    if (e.type === 'splash' || e.type === 'stroke') {
+      const y = (Number.isFinite(p.water) ? p.water : p.pos.y + 1.2) + 0.03, big = e.type === 'splash';
+      this.vfx.wave(p.pos.x, y, p.pos.z, { r0: 0.3, r1: big ? 3.2 : 1.6, life: big ? 0.9 : 1.1, strength: big ? 0.9 : 0.35, width: 0.14, color: [0.5, 0.6, 0.62] });
+      if (big) this.particles.burst(p.pos.x, y, p.pos.z, 26, { speed: 3 + Math.min(4, (e.speed ?? 3) * 0.3), life: 0.6, size: 0.05, color: [1.4, 1.6, 1.7], gravity: 12, drag: 0.6, up: 2.5 });
+    }
     if (e.type === 'hurt') { this.rig.addShake(0.4); this.hero?.onHit(); }
     if (e.type === 'pulse') {
       // Resonance pulse: a ring of force that staggers everything nearby.

@@ -142,6 +142,9 @@ const SW = {
   tune: { g: [-0.1, 0.42, 0.24], d: [0.03, 1, 0.06] },
   plant: { g: [-0.03, -0.04, 0.34], d: [0.0, -1, 0.07] },
 };
+// The scabbard hangs from the belt on the left hip, pointing down, back and a little out.
+const SCAB_DIR = new THREE.Vector3(0.22, -0.78, -0.58).normalize();
+const SCAB = { pos: new THREE.Vector3(0.192, 0, 0.05).addScaledVector(SCAB_DIR, -0.03), q: new THREE.Quaternion(), grip: new THREE.Vector3() };
 const SHOULDER_R = new THREE.Vector3(-0.18, 0.215, 0), ELBOW_HINT = new THREE.Vector3(-0.1, -0.24, -0.08);
 const _bx = new THREE.Vector3(), _by = new THREE.Vector3(), _bz = new THREE.Vector3(), _bm = new THREE.Matrix4();
 // Orientation of the sword (blade along its y, flat facing its z) from a blade direction and
@@ -159,6 +162,8 @@ function naturalFlat(g, d) {
   const n = _bz.crossVectors(f, _by.set(d[0], d[1], d[2]).normalize());
   return n.lengthSq() < 1e-4 ? [-1, 0, 0] : n.normalize().toArray();
 }
+swordQ(SCAB_DIR.toArray(), [0.935, 0, 0.355], SCAB.q);
+SCAB.grip.set(0, -0.045, 0).applyQuaternion(SCAB.q).add(SCAB.pos);
 for (const s of Object.values(SW)) { s.n = naturalFlat(s.g, s.d); s.q = swordQ(s.d, s.n, new THREE.Quaternion()); s.gv = new THREE.Vector3(...s.g); }
 
 // --- attacks --------------------------------------------------------------------------
@@ -287,6 +292,11 @@ export class Hero {
     this.lastSpeed = 0; this.gy = { L: 0, R: 0 }; this.pelDrop = 0; this.headYaw = 0;
     this.feet = { L: this._foot(1), R: this._foot(-1) };
     this.swG = SW.idle.gv.clone(); this.swQ = SW.idle.q.clone();
+    // The sword starts in its scabbard; it is drawn for a fight and put away after it.
+    this.handBone = this.sword?.parent ?? null;
+    this.swordInHand = this.sword ? { pos: this.sword.position.clone(), q: this.sword.quaternion.clone() } : null;
+    this.sheathed = false; this.armFree = 0; this.drawnHold = 0; this.swimK = 0;
+    if (this.sword) this._sheathe();
     this.atk = { w: 0, key: null, from: null, hips: [0, 0, 0], chest: [0, 0, 0], pel: [0, 0, 0], L: [...STAND.L], R: [...STAND.R], la: [0, 0, 0], two: 0, spin: 0, lock: 0 };
     this.uPos = new THREE.Vector3(); this.uQ = new THREE.Quaternion(); this.uPos0 = new THREE.Vector3(); this.uQ0 = new THREE.Quaternion(); this.uInit = false;
     this.tip = new THREE.Vector3(); this.tipVel = new THREE.Vector3();
@@ -355,6 +365,14 @@ export class Hero {
     let threat = !!p.lockTarget;
     if (!threat) for (const e of game.enemies.list) if (e.alive && e.state !== 'dormant' && e.pos.distanceToSquared(p.pos) < 196) { threat = true; break; }
     if (p.state === 'attack') this.combatHold = 1.6;
+    const swimming = p.state === 'swim';
+    this.swimK += ((swimming ? 1 : 0) - this.swimK) * Math.min(1, 6 * dt);
+    // Drawn while there is something to fight (and for a few breaths after), or a use for it.
+    if (threat || p.state === 'attack') this.drawnHold = 4;
+    this.drawnHold = Math.max(0, this.drawnHold - dt);
+    const wantDrawn = !swimming && (this.drawnHold > 0 || (this.kneel ?? 0) > 0.3 || tuning > 0);
+    if (wantDrawn && this.sheathed && this.uInit) this._draw();
+    this.armFree += ((this.sheathed ? 1 : 0) - this.armFree) * Math.min(1, 8 * dt);
     this.combatHold = Math.max(0, this.combatHold - dt);
     this.combat += ((threat || this.combatHold > 0 ? 1 : 0) - this.combat) * Math.min(1, 5 * dt);
     const fight = this.combat * (1 - 0.75 * this.gait * runK);
@@ -362,7 +380,7 @@ export class Hero {
     const acc = (speed - this.lastSpeed) / Math.max(dt, 1e-4); this.lastSpeed = speed;
     this.accLean += (Math.max(-1, Math.min(1, acc / 30)) * (moving ? 1 : 0) - this.accLean) * Math.min(1, 7 * dt);
     this.lean += (Math.max(-1, Math.min(1, this.yawVel / 6)) * this.gait - this.lean) * Math.min(1, 6 * dt);
-    const g = this.gait, ikW = ease(clamp01(1 - this.rollK * 1.2)) * (1 - this.deadK);
+    const g = this.gait, sw = ease(clamp01(this.swimK)), ikW = ease(clamp01(1 - this.rollK * 1.2)) * (1 - this.deadK) * (1 - sw);
     const kn = ease(clamp01(this.kneel ?? 0));
 
     // --- attack channels ---
@@ -471,6 +489,28 @@ export class Hero {
     R.rot('Hand.L', 0, 0, -0.1);
     R.rot('Shoulder.L', 0, -laSwing * 0.12, 0); R.rot('Shoulder.R', 0, -laSwing * 0.12, 0);
     R.rot('UpperArm.R', 0.05, 0, 0.6);        // a sensible start for the solver
+    if (this.armFree > 0.01) {
+      // Sword away: the right arm swings like the left, in step with the other leg.
+      const f = this.armFree, bendR = lerp(0.28 + 0.2 * Math.max(0, swing), 1.25 + 0.3 * Math.max(0, swing), runK) * g + 0.22 * (1 - g);
+      R.rot('UpperArm.R', -0.01 * f, 0, (0.06 - 0.1 * runK * g) * f);
+      R.rot('UpperArm.R', -laSwing * f, 0, 0);
+      R.rotAxis('LowerArm.R', -0.64, 0.77, 0, bendR * f);
+      R.rot('Hand.R', 0, 0, 0.1 * f);
+    }
+    if (sw > 0.01) {
+      // Swimming: the body lies along the water, the head up; a breaststroke with the arms
+      // and an easy kick behind.
+      const ph2 = p.stepPhase * TAU, reach = 0.5 + 0.5 * Math.cos(ph2), pull = Math.max(0, Math.sin(ph2));
+      R.rot('Hips', 1.22 * sw, 0, 0.05 * Math.sin(ph2) * sw); R.rot('Spine', -0.12 * sw); R.rot('Chest', -0.16 * sw);
+      R.rot('Neck', -0.45 * sw); R.rot('Head', -0.5 * sw);
+      for (const [s, sg] of [['L', 1], ['R', -1]]) {
+        R.rot(`UpperArm.${s}`, -(1.5 + 0.9 * reach) * sw, 0, sg * (0.25 + 0.9 * pull) * sw);
+        R.rotAxis(`LowerArm.${s}`, -0.64, -0.77 * sg, 0, (0.25 + 0.9 * pull * (1 - reach)) * sw);
+        const kick = Math.sin(ph2 * 2 + (sg > 0 ? 0 : Math.PI));
+        R.rot(`UpperLeg.${s}`, (-0.12 + 0.22 * kick) * sw, 0, sg * 0.05 * sw); R.rot(`LowerLeg.${s}`, (0.3 + 0.25 * kick) * sw); R.rot(`Foot.${s}`, 0.6 * sw);
+      }
+      pelY += 0.03 * Math.sin(ph2) * sw;
+    }
 
     // --- airborne, landing, hurt ---
     if (this.airBlend > 0.01) {
@@ -615,10 +655,17 @@ export class Hero {
         if (this.tuneK > 0.001) { tg.lerp(SW.tune.gv, this.tuneK); tq.slerp(SW.tune.q, this.tuneK); }
         if (kn > 0.001) { tg.lerp(SW.plant.gv, kn); tq.slerp(SW.plant.q, kn); }
         tg.z += armSwing * lerp(0.05, 0.1, runK); tg.y += 0.02 * Math.abs(armSwing) * runK + 0.004 * br;
+        if (!wantDrawn && !this.sheathed) {
+          // Putting it away: the point finds the scabbard's mouth and the blade slides home.
+          this._scabbardInU(_v3, _q1);
+          tg = _v0.copy(_v3); tq = _q0.copy(_q1);
+          if (this.swG.distanceTo(tg) < 0.035 && this.swQ.angleTo(tq) < 0.2) this._sheathe();
+        }
         const k = Math.min(1, dt * (p.state === 'move' ? 11 : 16));
         this.swG.lerp(tg, k); this.swQ.slerp(tq, k);
       }
-      const armW = clamp01(1 - this.rollK * 1.5) * (1 - this.deadK);
+      if (this.sheathed) this._scabbardInU(this.swG, this.swQ);       // the hand's target stays on the hilt while it lets go
+      const armW = clamp01(1 - this.rollK * 1.5) * (1 - this.deadK) * (1 - this.armFree) * (1 - sw);
       this._placeSword(this.swG, this.swQ, this.uPos, this.uQ, armW);
       // Second hand on the grip for the heavy strike.
       const two = Math.max(A.two, kn);
@@ -727,6 +774,29 @@ export class Hero {
       R.ik('UpperArm.R', 'LowerArm.R', 'Hand.R', wrist, pole2, weight);
     }
     R.setWorldQ('Hand.R', hand, weight);
+  }
+
+  // Puts the sword in the scabbard (it then rides on the hips) or back into the hand.
+  _sheathe() {
+    const hips = this.rig.get('Hips');
+    if (!hips || !this.sword) return;
+    hips.add(this.sword); this.sword.position.copy(SCAB.pos); this.sword.quaternion.copy(SCAB.q);
+    this.sheathed = true;
+  }
+  _draw() {
+    if (!this.sheathed || !this.handBone) return;
+    // The hand takes the hilt where it is: the pose the blade is led from starts at the hip.
+    this._scabbardInU(this.swG, this.swQ);
+    this.handBone.add(this.sword); this.sword.position.copy(this.swordInHand.pos); this.sword.quaternion.copy(this.swordInHand.q);
+    this.sheathed = false;
+  }
+  // The scabbard's grip point and the sword's orientation there, in the upper body's space.
+  _scabbardInU(outG, outQ) {
+    const hips = this.rig.get('Hips');
+    hips.updateWorldMatrix(true, false);
+    const hq = _q2.setFromRotationMatrix(hips.matrixWorld), inv = _q0.copy(this.uQ).invert();
+    outG.copy(SCAB.grip).applyQuaternion(hq).add(_v4.setFromMatrixPosition(hips.matrixWorld)).sub(this.uPos).applyQuaternion(inv);
+    outQ.copy(inv).multiply(hq).multiply(SCAB.q);
   }
 
   onLand(fell) { this.landSquash = Math.min(1, 0.4 + fell * 0.12); }

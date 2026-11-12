@@ -3,6 +3,7 @@
 // camera and ground probes use rays.
 import * as THREE from 'three';
 import { MeshBVH } from 'three-mesh-bvh';
+import { WORLD, POOLS } from '../world/layout.js';
 
 const _seg = new THREE.Line3(), _box = new THREE.Box3(), _tp = new THREE.Vector3(), _cp = new THREE.Vector3();
 const _ray = new THREE.Ray(), _start = new THREE.Vector3();
@@ -83,6 +84,14 @@ export class CollisionWorld {
   }
 
   groundHeight(x, z) { return this.terrain.heightAt(x, z); }
+
+  // Height of the water surface over (x, z): the lake at sea level, or a pool on a mesa.
+  // Returns -Infinity where the ground is dry.
+  waterLevel(x, z) {
+    const g = this.terrain.heightAt(x, z);
+    for (const p of POOLS) { const dx = x - p.x, dz = z - p.z; if (dx * dx + dz * dz < p.r * p.r && g < p.level) return p.level; }
+    return g < WORLD.waterLevel ? WORLD.waterLevel : -Infinity;
+  }
 
   // Highest solid surface under (x, z) at or below yFrom, including the terrain.
   floorBelow(x, yFrom, z, maxDrop = 60) {
