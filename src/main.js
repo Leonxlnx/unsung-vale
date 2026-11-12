@@ -385,8 +385,12 @@ window.__dbg = {
   },
   // One finished film frame at time t, exactly as the capture would grade it (depth of
   // field, motion blur, tone curve), shown over the page.
-  filmStill(t, sub = 3) {
+  // With size = [w, h] the frame is rendered at that resolution (3840 x 2160, say) and
+  // crop = [x, y, w, h] shows that part of it pixel for pixel, to judge the 4K film here.
+  filmStill(t, sub = 3, { size = null, crop = null } = {}) {
     freeCam = true; ui.root.style.display = 'none';
+    const old = [pipe.displayW, pipe.displayH];
+    if (size) pipe.setSize(size[0], size[1]);
     const film = (this._film ??= new FilmOutput(pipe));
     if (film.w !== canvas.width || film.h !== canvas.height) film.setSize(canvas.width, canvas.height);
     director.begin();
@@ -396,11 +400,13 @@ window.__dbg = {
     const px = film.readSdr(), w = film.w, h = film.h;
     let c = document.getElementById('sheet');
     if (!c) { c = document.createElement('canvas'); c.id = 'sheet'; c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:9'; document.body.appendChild(c); }
-    c.width = w; c.height = h;
-    const img = new ImageData(w, h);
-    for (let y = 0; y < h; y++) img.data.set(px.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4);
+    const [cx, cy, cw, ch] = crop ?? [0, 0, w, h];
+    c.width = cw; c.height = ch;
+    const img = new ImageData(cw, ch);
+    for (let y = 0; y < ch; y++) { const o = ((h - 1 - cy - y) * w + cx) * 4; img.data.set(px.subarray(o, o + cw * 4), y * cw * 4); }
     c.getContext('2d').putImageData(img, 0, 0);
     pipe.renderer.setRenderTarget(null);
+    if (size) pipe.setSize(old[0], old[1]);
     return { time: +director.time.toFixed(2), dof: pipe.dof };
   },
   gpuMs(n = 20) {
