@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { TUNE } from '../game/player.js';
 import creditsText from '../../CREDITS.md?raw';
 import { NAMES, LEGS } from '../game/story.js';
+import { CHARMS } from '../game/reliquaries.js';
 import { QUESTS } from '../game/quests.js';
 import { SKILLS } from '../game/game.js';
 import { POOLS } from '../world/layout.js';
@@ -122,6 +123,7 @@ export class UI {
       if (tab) { this.tab = tab; this._renderSettings(); return; }
       if (b.dataset.jtab) { this._journey(b.dataset.jtab); return; }
       if (b.dataset.set) { this._set(b.dataset.set, b.dataset.val); return; }
+      if (b.dataset.charm) { if (game.reliquaries.toggle(b.dataset.charm)) this.onSound?.('item'); this._renderHero(); return; }
       if (b.dataset.buy) { if (game.buy(b.dataset.buy)) this.onSound?.('upgrade'); this._renderHero(); return; }
       if (act === 'play') this._begin();
       if (act === 'new') { if (confirm('Start over? Everything you have done in the Vale will be forgotten.')) game.resetProgress(); }
@@ -232,6 +234,7 @@ export class UI {
       if (d.phase === 'done') { this.toast(d.title, [GIFT[d.reward?.up], d.reward?.xp ? `${d.reward.xp} resonance` : null].filter(Boolean).join('  ·  ')); this.onSound?.('quest_done'); }
       if (d.phase === 'item') { el.quest.classList.remove('tick'); void el.quest.offsetWidth; el.quest.classList.add('tick'); }
     }
+    if (type === 'charm' && d.phase === 'found') { this.toast(d.name, d.what); if (!this._charmHint) { this._charmHint = true; this.card('Charms', 'What a reliquary held is yours to wear: two at a time, chosen under Hero (J). There is one on every mesa.'); } }
     if (type === 'trial') {
       if (d.phase === 'begin') this.toast(d.name, d.kind === 'run' ? 'Run the gates before the count is out' : 'Three waves. Stay near the ring');
       if (d.phase === 'wave') this.toast(d.index === d.total - 1 ? 'Last wave' : 'Second wave');
@@ -460,6 +463,8 @@ export class UI {
     if (g.quests.state.vellum?.s === 'done') { ctx.fillStyle = 'rgba(231,194,125,0.6)'; for (const n of g.notes.list) if (!n.taken) { const [x, y] = this._xy(n.x, n.z); ctx.fillRect(x - 0.9, y - 0.9, 1.8, 1.8); } }
     // The bells of the outer courts: hollow until rung.
     for (const b of g.bells.list) { if (!b.rung && g.spires.find((s) => s.id === b.id)?.tuned) continue; const [x, y] = this._xy(b.x, b.z); ctx.fillStyle = b.rung ? gold : 'rgba(10,12,16,0.8)'; ctx.strokeStyle = b.rung ? 'rgba(10,12,16,0.6)' : 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 6.283); ctx.fill(); ctx.stroke(); }
+    // Reliquaries the people of a mesa have spoken of: a small open square.
+    for (const r of g.reliquaries.list) { if (!g.reliquaries.known(r)) continue; const [x, y] = this._xy(r.x, r.z); ctx.strokeStyle = gold; ctx.lineWidth = 1.3; ctx.strokeRect(x - 2.6, y - 2.6, 5.2, 5.2); }
     // Trials that have been seen.
     for (const tl of g.trials.list) { if (!(g.seenPlaces ?? []).includes(tl.def.id) && !tl.done) continue; const [x, y] = this._xy(tl.x, tl.z); ctx.strokeStyle = tl.done ? 'rgba(231,194,125,0.45)' : gold; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(x, y, 4, 0, 6.283); ctx.stroke(); }
     // People who are awake.
@@ -495,7 +500,7 @@ export class UI {
     const g = this.game, at = g.strings.at(), tuned = g.spires.filter((s) => s.tuned).length;
     this.el.legend.innerHTML = `<h3>${tuned} of ${g.spires.length} voices</h3>
       <p>${at ? 'You stand at a pylon. Choose a court the strings reach to ride there.' : 'Strings of light can be ridden from the pylon at each court.'}</p>
-      <ul><li><i class="d on"></i>A court that sings</li><li><i class="d"></i>A silent court</li><li><i class="l"></i>A string of light</li><li><i class="o"></i>A trial ring</li><li><i class="b"></i>A bell</li><li><i class="p"></i>Someone awake</li></ul>
+      <ul><li><i class="d on"></i>A court that sings</li><li><i class="d"></i>A silent court</li><li><i class="l"></i>A string of light</li><li><i class="o"></i>A trial ring</li><li><i class="b"></i>A bell</li><li><i class="r"></i>A reliquary</li><li><i class="p"></i>Someone awake</li></ul>
       <dl><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Quests done</dt><dd>${g.quests.doneCount} / ${QUESTS.length}</dd></dl>`;
   }
   _renderJournal() {
@@ -506,7 +511,7 @@ export class UI {
         <div class="q main"><i></i><div><b>${g.objective}</b><span>${next ? `${g.spires.filter((s) => s.tuned).length} of ${g.spires.length} spires sing` : 'Every spire sings'}</span></div></div>
         <h3>Asked of you</h3>${active.length ? active.map(row).join('') : '<p class="none">Nobody is waiting on you. The people of the Vale wake when their spire is tuned.</p>'}
         ${done.length ? `<h3>Done</h3>${done.map(row).join('')}` : ''}</div>
-      <div class="col"><h3>The Vale</h3><dl><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Packs cleared</dt><dd>${g.wildDone.length} / 12</dd><dt>People awake</dt><dd>${g.people.list.filter((n) => n.awake).length} / ${g.people.list.length}</dd><dt>Time in the Vale</dt><dd>${this._time(g.playTime ?? 0)}</dd></dl></div>`;
+      <div class="col"><h3>The Vale</h3><dl><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Reliquaries opened</dt><dd>${g.reliquaries.openCount} / ${g.reliquaries.list.length}</dd><dt>Packs cleared</dt><dd>${g.wildDone.length} / 12</dd><dt>People awake</dt><dd>${g.people.list.filter((n) => n.awake).length} / ${g.people.list.length}</dd><dt>Time in the Vale</dt><dd>${this._time(g.playTime ?? 0)}</dd></dl></div>`;
   }
   _time(s) { const m = Math.floor(s / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; }
   _renderHero() {
@@ -517,9 +522,13 @@ export class UI {
     const lead = this.atBench ? 'Odo can work what the Mute were holding of the song into you and your blade. Each step costs more than the last.'
       : this.bench ? 'Odo showed you how to work resonance into yourself and your blade. It can be done anywhere; each step costs more than the last.'
       : 'Gifts from the people of the Vale and trials won. The luthier on the Dawn Terrace can do more with the resonance you carry.';
+    const R = g.reliquaries, found = g.charmsFound ?? [], worn = g.charmsWorn ?? [];
+    const charms = Object.entries(CHARMS).map(([id, c]) => found.includes(id) ? `<button class="sk charm ${worn.includes(id) ? 'on' : ''}" data-charm="${id}"><i></i><div><b>${c.name}</b><span>${c.what}</span></div><em>${worn.includes(id) ? 'Worn' : 'Wear'}</em></button>` : '').join('');
+    const left = R.list.length - found.length;
     this.el.hero.innerHTML = `<div class="col"><h3>${this.atBench ? "The luthier's bench" : 'What you carry'}</h3>
         <p class="lead">${lead}</p>
         <div class="resline"><i></i><b>${g.xp}</b><span>resonance</span></div>${rows}</div>
+      <div class="col"><h3>Charms<small>${worn.length} of ${R.slots()} worn</small></h3>${charms || '<p class="lead">The singers kept their keepsakes in reliquaries, one on every mesa, off the paths.</p>'}${found.length && left ? `<p class="more">${left} more ${left === 1 ? 'lies' : 'lie'} unopened in the Vale.</p>` : ''}</div>
       <div class="col"><h3>What the spires taught</h3>${skills}</div>`;
   }
   _renderEnding() {

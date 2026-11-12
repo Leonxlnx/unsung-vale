@@ -205,6 +205,22 @@ if (want('tuning')) {
   await sleep(3200); await shot('finale');
   await sleep(6500); await shot('woken');
 }
+if (want('relic')) {
+  // Every reliquary where it stands, one being opened, and the charms on the Hero screen.
+  const n = await ev(() => window.__game.reliquaries.list.length);
+  for (let i = 0; i < n; i++) {
+    await ev((i) => { const g = window.__game, r = g.reliquaries.list[i]; window.__dbg.ui(false); g.enemies.list = g.enemies.list.filter((e) => e.group !== r.group); for (let k = 0; k < 6; k++) g.world.stream(r.x, r.z, 8); const x = r.x + Math.sin(r.yaw + 0.5) * 4.2, z = r.z + Math.cos(r.yaw + 0.5) * 4.2; window.__tour.tp(x, g.world.floorBelow(x, r.y + 3, z, 8) + 0.1, z, r.yaw + 0.5 + Math.PI, -0.22, 5.2); }, i);
+    await sleep(1300); await shot('relic_' + i);
+  }
+  await ev(() => { const g = window.__game, r = g.reliquaries.list[1]; window.__dbg.ui(true); window.__tour.tune(['petal']); const x = r.x + Math.sin(r.yaw) * 2.2, z = r.z + Math.cos(r.yaw) * 2.2; window.__tour.tp(x, g.world.floorBelow(x, r.y + 3, z, 8) + 0.1, z, r.yaw + Math.PI, -0.2, 5); });
+  await sleep(900); await shot('relic_prompt');
+  await page.keyboard.press('KeyE'); await sleep(700); await shot('relic_open');
+  await sleep(1600); await shot('relic_toast');
+  await ev(() => { const g = window.__game; g.charmsFound = ['reed', 'lark', 'ember', 'tide']; g.charmsWorn = ['lark', 'ember']; g._charms(); });
+  await page.keyboard.press('KeyJ'); await sleep(700); await ev(() => document.querySelector('[data-jtab="hero"]').click()); await sleep(600); await shot('relic_hero');
+  await ev(() => document.querySelector('[data-jtab="map"]').click()); await sleep(900); await shot('relic_map');
+  await page.keyboard.press('Escape'); await sleep(600); await page.mouse.click(W / 2, H / 2); await sleep(300);
+}
 if (want('foes')) {
   // What the Mute have learnt: a chorister's ward on a thrall, a brute's rush, and the hero
   // in full cadence.

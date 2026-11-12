@@ -34,7 +34,7 @@ export class Player {
     this.world = world;
     // What he has been given along the way: more life, more breath, a keener edge, and the
     // things each spire teaches (see Game._skills).
-    this.up = { health: 0, stamina: 0, blade: 0 }; this.skills = new Set();
+    this.up = { health: 0, stamina: 0, blade: 0 }; this.skills = new Set(); this.charms = new Set();
     this.refrains = TUNE.refrain.charges; this.refrainMax = TUNE.refrain.charges; this.inCombat = false;
     this.pos = new THREE.Vector3();
     this.vel = new THREE.Vector3();
@@ -128,7 +128,7 @@ export class Player {
     this.invulnerable = Math.max(0, this.invulnerable - dt);
     this.pulseTimer = Math.max(0, this.pulseTimer - dt);
     this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
-    if (this.staminaWait > 0) this.staminaWait -= dt; else this.stamina = Math.min(this.staminaMax, this.stamina + T.staminaRegen * dt);
+    if (this.staminaWait > 0) this.staminaWait -= dt; else this.stamina = Math.min(this.staminaMax, this.stamina + T.staminaRegen * (this.charms.has('reed') ? 1.34 : 1) * dt);
 
     // Movement wish in world space, relative to the camera.
     const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
@@ -241,7 +241,7 @@ export class Player {
       } else if (this.stateTime > 1.15 && this.grounded) { this.setState('move'); this.invulnerable = Math.max(this.invulnerable, 0.35); }
     } else if (this.state === 'heal') {
       const R = T.refrain, k = Math.exp(-10 * dt); this.vel.x *= k; this.vel.z *= k;
-      if (!this.healed && this.stateTime >= R.at) { this.healed = true; this.refrains--; const before = this.health; this.health = Math.min(this.healthMax, this.health + this.healthMax * R.heal); this.emit('heal', { amount: this.health - before }); }
+      if (!this.healed && this.stateTime >= R.at) { this.healed = true; this.refrains--; const before = this.health; this.health = Math.min(this.healthMax, this.health + this.healthMax * (this.charms.has('lark') ? 0.6 : R.heal)); this.emit('heal', { amount: this.health - before }); }
       if (this.stateTime >= R.time) this.setState('move');
     } else if (this.state === 'hurt') {
       const drag = Math.exp(-6 * dt);

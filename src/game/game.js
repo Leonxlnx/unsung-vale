@@ -19,6 +19,7 @@ import { People } from './people.js';
 import { Quests } from './quests.js';
 import { Trials } from './trials.js';
 import { Bells } from './bells.js';
+import { Reliquaries } from './reliquaries.js';
 import { POOLS } from '../world/layout.js';
 
 // What each spire teaches when it is tuned.
@@ -190,6 +191,7 @@ export class Game {
     for (const pl of POOLS) for (let k = 0; k < 3; k++) { const a = k * 2.094 + pl.x * 0.013, x = pl.x + Math.cos(a) * (pl.r + 7), z = pl.z + Math.sin(a) * (pl.r + 7); if (level(x, z, pl.level + 1)) more.push([x, z]); }
     this.notes = new Notes(this, pipe, LEGS, { avoid: sites.spires.map((s) => [s.x, s.z, 26]), extra: [[sites.spawn.x + 10, sites.spawn.z + 1.5]], more });
     this.bells = new Bells(this, pipe);
+    this.reliquaries = new Reliquaries(this, pipe);
     this._spawnEncounters();
     // The strings of light between the courts. A string wakes when the spires it needs sing.
     this.strings = new Strings(this, pipe, { dawn: [-512, -81], petal: [-385, -392], cantor: [53, -490.5], choir: [171.2, -36.2], east: [568.8, -427.8], south3: [517, 424], aurel: [148.6, 542.6], south1: [-392.4, 438.4], crown: [-993.7, -156.7] },
@@ -199,10 +201,13 @@ export class Game {
     this.people = new People(this, pipe);
     this.quests = new Quests(this, pipe);
     this.trials = new Trials(this, pipe);
-    this._skills();
+    this._skills(); this._charms();
     this.respawnAtCheckpoint();
     this._refreshObjective();
   }
+
+  // The charms he wears (see reliquaries.js), handed to whoever acts on them.
+  _charms() { const p = this.player, max = this.reliquaries?.slots() ?? 2; this.charmsWorn = (this.charmsWorn ?? []).filter((c) => (this.charmsFound ?? []).includes(c)).slice(-max); p.charms = new Set(this.charmsWorn); this.enemies.anvil = p.charms.has('anvil'); }
 
   // The hero knows what the tuned spires have taught him.
   _skills() { const p = this.player; p.skills.clear(); for (const s of this.spires) if ((s.tuned || this.cine) && SKILLS[s.id]) p.skills.add(SKILLS[s.id].id); }
@@ -379,7 +384,7 @@ export class Game {
 
   save() {
     if (this.cine) return;        // the film must never overwrite a player's progress
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, outro: !!this.outroSeen, elites: this.elitesDown ?? [], time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, outro: !!this.outroSeen, elites: this.elitesDown ?? [], charms: this.charmsFound ?? [], worn: this.charmsWorn ?? [], time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
   }
   load() {
     this.checkpoint = { ...this.sites.spawn };
@@ -389,7 +394,7 @@ export class Game {
       for (const s of this.spires) if (d.tuned?.includes(s.id)) { s.tuned = true; s.power = 1; s.zoneR = 0; s.zone.w = 0; s.crystal.material.uniforms.uPower.value = 1; s.beam.material.uniforms.uPower.value = 1; }
       if (d.checkpoint) this.checkpoint = d.checkpoint;
       this.xp = d.xp ?? 0; this.wildDone = d.wild ?? []; this.bought = d.bought ?? 0;
-      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {}; this.outroSeen = !!d.outro; this.elitesDown = d.elites ?? [];
+      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {}; this.outroSeen = !!d.outro; this.elitesDown = d.elites ?? []; this.charmsFound = d.charms ?? []; this.charmsWorn = d.worn ?? [];
       this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? []; this.notesTaken = d.notes ?? [];
       if (this.spires[1].tuned) { this.bridgeOpen = true; this.bridgeProgress = 1; }
       // A journey that ended when the Vale had three spires goes on now that it has eight.
@@ -460,7 +465,7 @@ export class Game {
       this.particles.update(realDt); this.vfx.update(realDt);
       this.notes.update(realDt, false);
       this.strings.update(realDt, false);
-      this.quests.update(realDt, false); this.people.update(realDt, false); this.trials.update(realDt, false); this.bells.update(realDt, false);
+      this.quests.update(realDt, false); this.people.update(realDt, false); this.trials.update(realDt, false); this.bells.update(realDt, false); this.reliquaries.update(realDt, false);
       this._animateWorld(realDt);
       this.enemies.update(0, this.player, this.time);
       this.hero?.update(realDt, this.player, this);
@@ -497,6 +502,7 @@ export class Game {
     this.quests.update(dt, !this.cine && !busy);
     this.trials.update(dt, !this.cine && !busy);
     this.bells.update(dt, !this.cine && !busy);
+    this.reliquaries.update(dt, !this.cine && !busy);
     this.notes.update(dt, !this.cine);
     this._animateWorld(dt);
     this._motes(dt);
@@ -606,7 +612,7 @@ export class Game {
   _cadence(n, e = null) {
     if (this.cine) return;
     const was = this.cadenceLevel;
-    this.cadence = Math.min(12, (this.cadence ?? 0) + n); this.cadenceT = 5;
+    this.cadence = Math.min(12, (this.cadence ?? 0) + n); this.cadenceT = this.player.charms?.has('ember') ? 10 : 5;
     const lv = this.cadenceLevel, p = this.player;
     if (lv > was) {
       this.emit('cadence', { level: lv, up: true });
@@ -624,7 +630,7 @@ export class Game {
     if (!(this.cadence > 0)) return;
     const lv = this.cadenceLevel;
     this.cadenceT -= dt;
-    if (this.cadenceT <= 0) { this.cadence = Math.max(0, this.cadence - 3); this.cadenceT = 1.1; if (this.cadenceLevel < lv) this.emit('cadence', { level: this.cadenceLevel }); }
+    if (this.cadenceT <= 0) { this.cadence = Math.max(0, this.cadence - 3); this.cadenceT = this.player.charms?.has('ember') ? 2.2 : 1.1; if (this.cadenceLevel < lv) this.emit('cadence', { level: this.cadenceLevel }); }
     // The blade itself shows it: a thread of sparks off the point, thicker with every step.
     const tip = this.hero?.tip;
     if (tip && lv >= 2 && Math.random() < dt * (10 + 14 * (lv - 2))) this.particles.spawn(tip.x, tip.y, tip.z, { vel: [(Math.random() - 0.5) * 0.6, 0.5 + Math.random() * 0.8, (Math.random() - 0.5) * 0.6], life: 0.3 + 0.1 * lv, size: 0.03 + 0.008 * lv, color: [4.2, 3.1, 1.4], drag: 1.6 });
@@ -644,6 +650,7 @@ export class Game {
     if (e.type === 'hurt' || e.type === 'death' || e.type === 'wind') this._cadenceBreak();
     // A blow slipped at the last instant keeps the time, and adds to it.
     if (e.type === 'evade') this._cadence(1);
+    if (e.type === 'evade' && p.charms?.has('tide') && p.health < p.healthMax) { p.health = Math.min(p.healthMax, p.health + 7); this.particles.burst(p.pos.x, p.pos.y + 1.1, p.pos.z, 10, { speed: 2.2, life: 0.6, size: 0.05, color: [1.6, 2.6, 2.4], gravity: -2, drag: 1.5 }); }
     if (e.type === 'land' && e.fell > 3) this.rig.addShake(Math.min(0.5, e.fell * 0.03));
     if (e.type === 'land' && e.fell > 1.5) this.vfx.wave(p.pos.x, p.pos.y + 0.06, p.pos.z, { r0: 0.2, r1: 1.2 + Math.min(3, e.fell * 0.3), life: 0.4, strength: 0.5, width: 0.16, color: [0.5, 0.42, 0.3] });
     if (e.type === 'land') this.hero?.onLand(e.fell ?? 0);
@@ -718,7 +725,10 @@ export class Game {
   }
 
   _onEnemyEvent(e) {
-    if (e.type === 'hitPlayer') { this.player.damage(Math.round(e.damage * ({ gentle: 0.75, hard: 1.75 }[this.challenge] ?? 1.3)), e.from ?? e.enemy.pos); }
+    if (e.type === 'hitPlayer') {
+      const took = this.player.damage(Math.round(e.damage * ({ gentle: 0.75, hard: 1.75 }[this.challenge] ?? 1.3)), e.from ?? e.enemy.pos);
+      if (took && e.enemy?.alive && this.player.charms?.has('thorn')) { this.enemies.hit(e.enemy, Math.round(e.damage * 0.6 * this.player.power), this.player.pos, false); const c = e.enemy.center; this.particles.burst(c.x, c.y, c.z, 12, { speed: 6, life: 0.4, size: 0.05, color: [1.8, 3.0, 1.0], gravity: 8, drag: 1.4, streak: 0.1 }); }
+    }
     if (e.type === 'slam') {
       const big = e.enemy?.def.boss ? 1 : 0.5;
       this.rig.addShake(0.7 * big + 0.1);
@@ -737,6 +747,11 @@ export class Game {
       this.vfx.wave(b.x, b.y + 1.2, b.z, { kind: 1, r0: 0.3, r1: b.r, life: 0.35, strength: 1.2, width: 0.14, color: [2.0, 1.0, 3.8] });
       for (let k = 0; k < 30; k++) { const a = Math.random() * 6.283, r = Math.random() * b.r * 0.7; this.particles.spawn(b.x + Math.cos(a) * r, b.y + 0.2, b.z + Math.sin(a) * r, { vel: [Math.cos(a) * 2, 6 + Math.random() * 10, Math.sin(a) * 2], life: 0.7, size: 0.08, color: [3.2, 1.9, 5.6], drag: 1.0, streak: 0.1 }); }
       if (Math.hypot(this.player.pos.x - b.x, this.player.pos.z - b.z) < 14) this.rig.addShake(0.3);
+    }
+    if (e.type === 'burstBack') {
+      this.vfx.wave(e.pos.x, e.pos.y, e.pos.z, { kind: 1, r0: 0.4, r1: 3.8, life: 0.4, strength: 1.4, width: 0.1, color: [3.6, 2.7, 1.2] });
+      this.particles.burst(e.pos.x, e.pos.y, e.pos.z, 30, { speed: 9, life: 0.5, size: 0.06, color: [5, 3.8, 1.7], gravity: 8, drag: 1.3, streak: 0.14 });
+      this.rig.addShake(0.4);
     }
     if (e.type === 'returned') {
       this._cadence(2);
@@ -812,7 +827,8 @@ export class Game {
         const nm = Math.max(3, Math.min(16, Math.round((en.def.xp ?? 10) / 5)));
         for (let k = 0; k < nm; k++) { const a = Math.random() * 6.283, up = 2 + Math.random() * 5, sp = 2 + Math.random() * 4; (this.motes ??= []).push({ x: c.x, y: c.y + Math.random() * 0.6, z: c.z, vx: Math.cos(a) * sp, vy: up, vz: Math.sin(a) * sp, t: -Math.random() * 0.25, first: k === 0 }); }
         if (en.elite && en.def.name && !(this.elitesDown ??= []).includes(en.def.name)) this.elitesDown.push(en.def.name);
-        this.xp += en.def.xp ?? 10; this.emit('xp', { amount: en.def.xp ?? 10, total: this.xp });
+        const gain = Math.round((en.def.xp ?? 10) * (this.player.charms?.has('gilt') ? 1.17 : 1));
+        this.xp += gain; this.emit('xp', { amount: gain, total: this.xp });
         const m = /^wild(\d+)$/.exec(en.group ?? '');
         if (m && this.enemies.aliveIn(en.group) === 0) { this.wildDone.push(+m[1]); this.emit('pack', { index: +m[1] }); }
         this.save();

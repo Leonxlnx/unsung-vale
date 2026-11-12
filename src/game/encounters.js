@@ -65,6 +65,7 @@ export class Encounters {
       this.wave[id] = 0; this._ring(waves[0], s.x, s.z, 9, id, 0.5, s.base);
     }
     g.bells?.spawnGuards();
+    g.reliquaries?.spawnGuards();
     WILD.forEach(([x, z, list], i) => { if (g.wildDone?.includes(i)) return; this._ring(list, x, z, 3.5, `wild${i}`, i); });
   }
 

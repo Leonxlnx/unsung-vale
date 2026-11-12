@@ -327,6 +327,17 @@ input[type='range']::-moz-range-thumb { width: 11px; height: 11px; background: v
 #ui #journey .up button { font-size: 14px; padding: 7px 14px 6px; box-shadow: inset 0 0 0 1px var(--gold); color: var(--ink); transition: background 0.2s, color 0.2s; white-space: nowrap; }
 #ui #journey .up button:hover:not(:disabled) { background: var(--gold); color: #14171c; }
 #ui #journey .up button:disabled { box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-3); cursor: default; }
+#ui #journey button.charm { display: grid; grid-template-columns: 16px 1fr auto; width: 100%; text-align: left; align-items: start; cursor: pointer; transition: background 0.2s; }
+#ui #journey button.charm:hover { background: rgba(255, 255, 255, 0.04); }
+#journey .charm em { font-style: normal; font-size: 13.5px; color: var(--ink-3); padding: 3px 0 0 16px; }
+#journey .charm.on em { color: var(--gold); }
+#journey .charm:not(.on) b { color: var(--ink); font-weight: 500; }
+#journey .charm:not(.on) span { color: var(--ink-2); }
+#journey h3 small { font-size: 13.5px; font-weight: 400; color: var(--ink-3); margin-left: 14px; letter-spacing: 0; }
+#journey .pane.hero .col:first-child { flex: 1.2; }
+@media (max-width: 1180px) { #journey .pane.hero { flex-wrap: wrap; overflow: auto; } #journey .pane.hero .col { flex: 1 1 320px; overflow: visible; } }
+#journey p.more { font-size: 14px; color: var(--ink-3); margin: 12px 0 0; }
+#journey .legend .r::before { content: ''; position: absolute; inset: 5px; box-shadow: inset 0 0 0 1.3px var(--gold); }
 #journey .sk { display: grid; grid-template-columns: 16px 1fr; gap: 14px; padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
 #journey .sk i { width: 7px; height: 7px; margin: 8px 0 0 3px; box-shadow: inset 0 0 0 1px var(--ink-3); transform: rotate(45deg); }
 #journey .sk.on i { background: var(--gold); box-shadow: none; }

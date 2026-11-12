@@ -224,10 +224,10 @@ export class Enemies {
         dmg *= 0.5;
       }
     }
-    if (e.ward > 0) { dmg *= heavy ? 0.6 : 0.35; this.events.push({ type: 'warded', enemy: e }); }
+    if (e.ward > 0 && !(heavy && this.anvil)) { dmg *= heavy ? 0.6 : 0.35; this.events.push({ type: 'warded', enemy: e }); }
     // Caught off balance, it takes a heavy blow half as hard again, and everyone hears it.
     if (heavy && e.state === 'stagger' && !e.def.boss) { dmg *= 1.5; this.events.push({ type: 'rung', enemy: e }); }
-    e.hp -= dmg; e.poise -= dmg * (heavy ? 2.2 : 1);
+    e.hp -= dmg; e.poise -= dmg * (heavy ? (this.anvil ? 3.1 : 2.2) : 1);
     e.glow = 1.7; e.staggerK = Math.min(1, e.staggerK + (heavy ? 1 : 0.55));
     _v.copy(e.pos).sub(from).setY(0).normalize();
     if (!e.def.boss) e.vel.addScaledVector(_v, heavy ? 9 : 5);
@@ -463,7 +463,12 @@ export class Enemies {
         P.spawn(p.pos.x, p.pos.y, p.pos.z, { life: 0.25, size: 0.26, color: [3.4, 2.6, 1.1], alpha: 0.8 });
         let struck = null;
         for (const e of this.list) { if (!e.alive || e.state === 'dormant') continue; const c = e.center; if (Math.hypot(c.x - p.pos.x, c.z - p.pos.z) < e.def.radius + 0.5 && Math.abs(c.y - p.pos.y) < e.def.core + 0.8) { struck = e; break; } }
-        if (struck) { this.hit(struck, p.damage, p.pos.clone().sub(p.vel), true); this.events.push({ type: 'shotHit', pos: p.pos.clone() }); this.projectiles.splice(i, 1); continue; }
+        if (struck) {
+          this.hit(struck, p.damage, p.pos.clone().sub(p.vel), true); this.events.push({ type: 'shotHit', pos: p.pos.clone() });
+          // The Crown Splinter: it goes off among them.
+          if (player.charms?.has('crown')) { for (const o of this.list) if (o !== struck && o.alive && o.state !== 'dormant' && o.pos.distanceTo(p.pos) < 3.8) this.hit(o, Math.round(p.damage * 0.6), p.pos, true); this.events.push({ type: 'burstBack', pos: p.pos.clone() }); }
+          this.projectiles.splice(i, 1); continue;
+        }
       }
       const hitPlayer = !p.back && Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z) < 0.6 && p.pos.y > player.pos.y - 0.1 && p.pos.y < player.pos.y + 1.95;
       const hitGround = p.pos.y < W.floorBelow(p.pos.x, p.pos.y + 1, p.pos.z, 2) + 0.05;

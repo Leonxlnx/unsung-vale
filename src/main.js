@@ -161,7 +161,7 @@ await stage(0.82, 'Waking the valley');
 const game = new Game({ pipe, terrain, arch, sites, canvas, forest, rocks });
 // The floors of the trial rings and the steps of the bells are cleared of grass as well, now
 // that the game has set them down.
-const allClear = [...clearings, ...game.trials.list.map((t) => [t.x, t.z, t.x, t.z, 4.75]), ...game.bells.list.map((b) => [b.x, b.z, b.x, b.z, 3.45])];
+const allClear = [...clearings, ...game.trials.list.map((t) => [t.x, t.z, t.x, t.z, 4.75]), ...game.bells.list.map((b) => [b.x, b.z, b.x, b.z, 3.45]), ...game.reliquaries.list.map((r) => [r.x, r.z, r.x, r.z, 3.25])];
 terrain.bakePaths(routes, allClear);
 window.__game = game;
 window.__parts = { terrain, water, falls, forest, cover, rocks, dressing, arch, lattice, vines, gloss, boats };
@@ -436,7 +436,7 @@ window.__dbg = {
         for (const sp of g.spires) { sp.tuned = false; sp.power = 0; sp.zoneR = sp.zoneR0; sp.zone.z = sp.zoneR; sp.zone.w = 1; }
         g.enemies.list.length = 0; g.wildDone = []; g.xp = 0; g.bought = 0; g.ended = false; g.outroSeen = false; g.story.mode = null; g.story.endT = 0; g.elitesDown = []; g.hasMap = false; g.metPeople = [];
         Object.assign(p.up, { health: 0, stamina: 0, blade: 0 }); g._skills();
-        g.quests.state = {}; for (const it of g.quests.items) g.quests.group.remove(it.mesh); g.quests.items = []; g.trials.run = null; g.trials.list.forEach((t) => { t.done = false; }); g.trialsDone = []; g.bellsRung = {}; g.bells.list.forEach((q) => { q.rung = false; }); g.notes.list.forEach((n) => { n.taken = false; n.k = 1; }); g.notes.count = 0;
+        g.quests.state = {}; for (const it of g.quests.items) g.quests.group.remove(it.mesh); g.quests.items = []; g.trials.run = null; g.trials.list.forEach((t) => { t.done = false; }); g.trialsDone = []; g.bellsRung = {}; g.charmsFound = []; g.charmsWorn = []; g.reliquaries.list.forEach((r) => { r.open = false; }); g._charms(); g.bells.list.forEach((q) => { q.rung = false; }); g.notes.list.forEach((n) => { n.taken = false; n.k = 1; }); g.notes.count = 0;
         for (const n of g.people.list) { n.awake = !n.spire; n.k = n.awake ? 1 : 0; g.people._dye(n); }
         g._spawnEncounters(); g.story.said.add('lookout'); p.spawn(sites.spawn.x, sites.spawn.y, sites.spawn.z, sites.spawn.yaw); g.story.leg = null; g.story._goal();
       }
@@ -472,6 +472,7 @@ window.__dbg = {
         // Someone awake nearby with something new to say, or a side quest close at hand.
         const who = side && !foe ? g.people.list.find((n) => n.awake && n.k >= 0.9 && !(b.skip?.get(n.def.id) > b.t) && Math.hypot(n.x - p.pos.x, n.z - p.pos.z) < 70 && (!g.metPeople?.includes(n.def.id) || Q.active.some((q) => q.giver === n.def.id && Q.state[q.id].s === 'ready'))) : null;
         const near = tr?.mark && Math.hypot(tr.mark.x - p.pos.x, tr.mark.z - p.pos.z) < 330 ? tr.mark : null;
+        const relic = side && !foe ? g.reliquaries.list.find((r) => g.reliquaries.known(r) && !(b.skip?.get(r.group) > b.t) && Math.hypot(r.x - p.pos.x, r.z - p.pos.z) < 220) : null;
         if (g.people.talk) { mode = 'talk'; b.talkT += dt; if (b.talkT > 3.2) { b.talkT = 0; pu.pressed.add('interact'); } }         // a reader's pace
         else if (T.active) { mode = 'tune'; if (T.phase === 'beats' && T.ring && Math.abs(T.bt - T.period) < 0.04) pu.pressed.add('interact'); }
         else if (p.state === 'ride') mode = 'ride';
@@ -480,6 +481,7 @@ window.__dbg = {
         else if (who) { mode = 'side'; b.who = who.def.id; go(who.x, who.z, 2.3); }
         else if ((b.who = null)) { /* nobody to see */ }
         else if (near) { mode = 'side'; go(near.x, near.z, 0.6); }
+        else if (relic) { mode = 'side'; b.relic = relic.group; go(relic.x, relic.z, 2.2); }
         else if (trial) { mode = 'side'; go(trial.x, trial.z, 2.6); }
         else if (g.marker) {
           const m = g.marker, next = g.spires.find((q) => !q.tuned);
@@ -499,7 +501,7 @@ window.__dbg = {
       b.time[mode] += dt;
       g.update(dt); story.update(dt); b.t += dt;
       if (Math.round(b.t / dt) % 120 === 0) {
-        if (p.pos.distanceTo(b.last) < 0.6 && !foe && p.state === 'move' && !T.active && !g.people.talk) { b.stuck++; if (b.goal === b.goalWas) b.tries++; else { b.goalWas = b.goal; b.tries = 1; b.hand = 1; } if (b.tries % 7 === 0) b.hand = -b.hand; if (b.tries >= 14 && b.who) { (b.skip ??= new Map()).set(b.who, b.t + 60); b.log.push(`${Math.round(b.t)}s could not reach ${b.who}, moving on`); b.who = null; b.tries = 0; } b.stuck = b.tries >= 40 ? 14 : Math.min(b.stuck, 2); b.sideT = 3.3; b.sideDir = b.hand; if (b.tries % 4 === 0) b.log.push(`${Math.round(b.t)}s stuck at ${p.pos.toArray().map(Math.round)} (${g.objective})`); pu.pressed.add('jump'); g.update(dt); } else b.stuck = Math.max(0, b.stuck - 1);
+        if (p.pos.distanceTo(b.last) < 0.6 && !foe && p.state === 'move' && !T.active && !g.people.talk) { b.stuck++; if (b.goal === b.goalWas) b.tries++; else { b.goalWas = b.goal; b.tries = 1; b.hand = 1; } if (b.tries % 7 === 0) b.hand = -b.hand; if (b.tries >= 14 && (b.who || b.relic)) { (b.skip ??= new Map()).set(b.who ?? b.relic, b.t + (b.who ? 60 : 1e9)); b.log.push(`${Math.round(b.t)}s could not reach ${b.who ?? b.relic}, moving on`); b.who = null; b.relic = null; b.tries = 0; } b.stuck = b.tries >= 40 ? 14 : Math.min(b.stuck, 2); b.sideT = 3.3; b.sideDir = b.hand; if (b.tries % 4 === 0) b.log.push(`${Math.round(b.t)}s stuck at ${p.pos.toArray().map(Math.round)} (${g.objective})`); pu.pressed.add('jump'); g.update(dt); } else b.stuck = Math.max(0, b.stuck - 1);
         b.last.copy(p.pos);
       }
     }
