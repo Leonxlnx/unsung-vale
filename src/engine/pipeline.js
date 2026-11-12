@@ -181,7 +181,7 @@ export class Pipeline {
       fragment: TONEMAP,
       uniforms: {
         uColor: { value: null }, uBloom: { value: null }, uBloomStrength: { value: 0.06 }, uExposure: { value: this.exposure },
-        uSaturation: { value: 1.5 }, uContrast: { value: 1.14 }, uVignette: { value: 0.22 }, uSharpen: { value: 0.5 }, uTexel: { value: new THREE.Vector2() },
+        uSaturation: { value: 1.42 }, uContrast: { value: 1.14 }, uVignette: { value: 0.22 }, uSharpen: { value: 0.5 }, uTexel: { value: new THREE.Vector2() },
       },
     });
     this._viewProj = new THREE.Matrix4();
