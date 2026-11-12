@@ -122,6 +122,13 @@ const BRUTE = [
   S(0, 0.95, 0, 0, -1, 0, 0.7, 0.6), S(-0.3, 0.5, 0, -0.15, -1, 0, 0.9, 0.34, 'tail'), S(0.3, 0.5, 0, 0.15, -1, 0, 0.9, 0.34, 'tail'),
   S(-0.3, 2.5, -0.5, -0.3, 1, -0.6, 0.6, 0.2, 'spine'), S(0.3, 2.5, -0.5, 0.3, 1, -0.6, 0.6, 0.2, 'spine'), S(0, 2.7, -0.45, 0, 1, -0.5, 0.75, 0.22, 'spine'),
 ];
+// Seeker: no body to speak of, a spinning knot of splinters round a core. It comes straight
+// at the hero and bursts where it arrives. Cut it down first, or be somewhere else.
+const SEEKER = [
+  S(0, 1.3, 0, 0, 1, 0, 0.5, 0.3),
+  ...Array.from({ length: 6 }, (_, k) => { const a = (k / 6) * 6.283; return S(Math.cos(a) * 0.42, 1.3 + Math.sin(a) * 0.42, 0, Math.cos(a), Math.sin(a), 0.2, 0.42, 0.11, 'ring'); }),
+  S(0, 1.3, 0.45, 0, 0, 1, 0.5, 0.1, 'mote'), S(0, 1.3, -0.45, 0, 0, -1, 0.4, 0.09, 'mote'),
+];
 const SOVEREIGN = [
   ...COLOSSUS.map((s) => S(s.p.x * 1.22, s.p.y * 1.22, s.p.z * 1.22, s.d.x, s.d.y, s.d.z, s.len * 1.22, s.th * 1.22, s.tag)),
   ...Array.from({ length: 14 }, (_, k) => { const a = (k / 14) * 6.283; return S(Math.cos(a) * 2.5, 7.6, Math.sin(a) * 2.5, Math.cos(a), 0.5, Math.sin(a), 1.25, 0.26, 'halo'); }),
@@ -137,6 +144,7 @@ function derive(base, m) {
 }
 
 export const KINDS = {
+  seeker:    { slots: SEEKER, hp: 20, speed: 7.6, reach: 1.7, windup: 0.5, strike: 0.1, recover: 0.4, damage: 20, poise: 8, radius: 0.4, sight: 34, hover: 0.25, core: 1.3, burst: true, xp: 7, name: 'Mute Seeker' },
   brute:     { slots: BRUTE, hp: 230, speed: 2.9, reach: 3.2, windup: 1.0, strike: 0.26, recover: 1.2, damage: 30, poise: 110, radius: 0.95, sight: 28, hover: 0.25, core: 1.7, slam: true, xp: 40, name: 'Mute Brute' },
   sovereign: { slots: SOVEREIGN, hp: 1100, speed: 2.9, reach: 6.2, windup: 0.9, strike: 0.25, recover: 1.0, damage: 30, poise: 200, radius: 1.8, sight: 70, hover: 0.6, core: 3.9, boss: true, phases: 3, xp: 400, name: 'The Stillness' },
   hound:     { slots: HOUND, hp: 36, speed: 6.4, reach: 2.4, windup: 0.42, strike: 0.26, recover: 0.7, damage: 11, poise: 16, radius: 0.5, sight: 30, hover: 0.12, core: 0.8, circle: true, lunge: 19, xp: 8, name: 'Mute Hound' },
@@ -277,6 +285,9 @@ export class Enemies {
             if (e.t > (1.1 + e.seed * 1.3) / this.haste && dist < 6.5 && melee < this.crowd) { melee++; e.state = 'windup'; e.t = 0; e.attackKind = 0; this.events.push({ type: 'charge', enemy: e }); }
             else { const tx = -toP.z * s, tz = toP.x * s; toP.set(tx * 0.9 + toP.x * inw, 0, tz * 0.9 + toP.z * inw).normalize(); wantSpeed = d.speed * 0.8; }
           } else {
+            if (d.burst) {
+              if (dist > d.reach) wantSpeed = d.speed; else { e.state = 'windup'; e.t = 0; this.events.push({ type: 'charge', enemy: e }); }
+            } else
             if (dist > d.reach * 0.82) wantSpeed = d.speed * (1 + 0.16 * e.phase);
             else if (e.t > 0.25 && (d.boss || melee < this.crowd)) { melee++; e.state = 'windup'; e.t = 0; e.attackKind = d.boss ? (e.phase > 0 && Math.random() < 0.22 * e.phase ? 3 : Math.floor(Math.random() * 2)) : 0; this.events.push({ type: 'charge', enemy: e }); }
             else if (!d.boss && e.t > 0.25) {
@@ -299,7 +310,10 @@ export class Enemies {
           if (e.t >= d.windup / (0.5 + 0.5 * this.haste)) { e.state = 'strike'; e.t = 0; e.didHit = false; this.events.push({ type: 'attack', enemy: e }); }
         } else if (e.state === 'strike') {
           const f = _v2.set(Math.sin(e.yaw), 0, Math.cos(e.yaw));
-          if (d.caster || e.attackKind === 3) {
+          if (d.burst) {
+            // It goes off where it is: a mark that comes due almost at once, and no more seeker.
+            if (!e.didHit) { e.didHit = true; const b = { x: e.pos.x, z: e.pos.z, y: e.pos.y, t: 0.02, r: 2.7, dmg: d.damage }; this.blasts.push(b); this.kill(e, f); }
+          } else if (d.caster || e.attackKind === 3) {
             if (!e.didHit) {
               e.didHit = true;
               // Where he stands now, and where he is heading: two marks, a breath apart. A giant
@@ -345,7 +359,11 @@ export class Enemies {
               }
             }
           }
-          if (e.t >= d.strike) { e.state = 'recover'; e.t = 0; e.slamFx = false; }
+          if (e.t >= d.strike) {
+            // On Standard and above a thrall follows one cut with another before it rests.
+            if (e.kind === 'thrall' && this.haste > 1.05 && !e.again && e.alive && dist < d.reach + 1.5) { e.again = true; e.state = 'windup'; e.t = d.windup * 0.45; this.events.push({ type: 'charge', enemy: e }); }
+            else { e.state = 'recover'; e.t = 0; e.slamFx = false; e.again = false; }
+          }
         } else if (e.state === 'recover') {
           if (e.t >= d.recover * (1 - 0.16 * e.phase) / this.haste) { e.state = 'chase'; e.t = 0; }
         } else if (e.state === 'stagger') {
@@ -399,7 +417,22 @@ export class Enemies {
       const p = this.projectiles[i];
       p.life -= dt; p.pos.addScaledVector(p.vel, dt); p.spin += dt * 20;
       P.spawn(p.pos.x, p.pos.y, p.pos.z, { life: 0.22, size: 0.3, color: [2.2, 1.0, 4.2], alpha: 0.8 });
-      const hitPlayer = Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z) < 0.6 && p.pos.y > player.pos.y - 0.1 && p.pos.y < player.pos.y + 1.95;
+      // Met by a swing in its active moment, it is sent back at whoever stands nearest its
+      // new line: the hero's answer to a lancer.
+      if (!p.back && player.attackActive && Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z) < 2.3 && Math.abs(p.pos.y - player.pos.y - 1.1) < 1.6) {
+        let best = null, bd = 1e9;
+        for (const e of this.list) { if (!e.alive || e.state === 'dormant') continue; const dd = e.pos.distanceTo(p.pos); if (dd < bd && dd < 40) { bd = dd; best = e; } }
+        const aim = best ? best.center.sub(p.pos).normalize() : p.vel.clone().normalize().negate();
+        p.vel.copy(aim).multiplyScalar(30); p.back = true; p.life = 2.5; p.damage = Math.round(p.damage * 3.2);
+        this.events.push({ type: 'returned', pos: p.pos.clone() });
+      }
+      if (p.back) {
+        P.spawn(p.pos.x, p.pos.y, p.pos.z, { life: 0.25, size: 0.26, color: [3.4, 2.6, 1.1], alpha: 0.8 });
+        let struck = null;
+        for (const e of this.list) { if (!e.alive || e.state === 'dormant') continue; const c = e.center; if (Math.hypot(c.x - p.pos.x, c.z - p.pos.z) < e.def.radius + 0.5 && Math.abs(c.y - p.pos.y) < e.def.core + 0.8) { struck = e; break; } }
+        if (struck) { this.hit(struck, p.damage, p.pos.clone().sub(p.vel), true); this.events.push({ type: 'shotHit', pos: p.pos.clone() }); this.projectiles.splice(i, 1); continue; }
+      }
+      const hitPlayer = !p.back && Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z) < 0.6 && p.pos.y > player.pos.y - 0.1 && p.pos.y < player.pos.y + 1.95;
       const hitGround = p.pos.y < W.floorBelow(p.pos.x, p.pos.y + 1, p.pos.z, 2) + 0.05;
       if (hitPlayer) this.events.push({ type: 'hitPlayer', damage: p.damage, from: p.pos.clone().sub(p.vel) });
       if (hitPlayer || hitGround || p.life <= 0) { P.burst(p.pos.x, p.pos.y, p.pos.z, 10, { speed: 4, life: 0.35, size: 0.07, color: [3, 1.5, 6], gravity: 6 }); this.events.push({ type: 'shotHit', pos: p.pos.clone() }); this.projectiles.splice(i, 1); }

@@ -693,6 +693,11 @@ export class Game {
       for (let k = 0; k < 30; k++) { const a = Math.random() * 6.283, r = Math.random() * b.r * 0.7; this.particles.spawn(b.x + Math.cos(a) * r, b.y + 0.2, b.z + Math.sin(a) * r, { vel: [Math.cos(a) * 2, 6 + Math.random() * 10, Math.sin(a) * 2], life: 0.7, size: 0.08, color: [3.2, 1.9, 5.6], drag: 1.0, streak: 0.1 }); }
       if (Math.hypot(this.player.pos.x - b.x, this.player.pos.z - b.z) < 14) this.rig.addShake(0.3);
     }
+    if (e.type === 'returned') {
+      this.vfx.wave(e.pos.x, e.pos.y, e.pos.z, { kind: 1, r0: 0.2, r1: 2.4, life: 0.3, strength: 1.3, width: 0.12, color: [3.6, 2.7, 1.2] });
+      this.particles.burst(e.pos.x, e.pos.y, e.pos.z, 16, { speed: 8, life: 0.35, size: 0.05, color: [5, 3.8, 1.7], gravity: 8, drag: 1.4, streak: 0.14 });
+      this.hitStop = Math.max(this.hitStop, 0.07); this.rig.addShake(0.3);
+    }
     if (e.type === 'rung') {
       const c = e.enemy.center;
       this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 0.3, r1: 4.2, life: 0.4, strength: 1.5, width: 0.09, color: [3.6, 2.7, 1.2] });

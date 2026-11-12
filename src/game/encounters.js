@@ -12,10 +12,10 @@ const ELITE = {
 // Per court: a list of waves, each a list of [kind, count, elite?].
 export const WAVES = {
   east: [[['thrall', 3], ['hound', 2]], [['lancer', 2], ['warden', 1], ['hound', 2]], [['thrall', 1, 'lantern'], ['thrall', 2]]],
-  south3: [[['hound', 4]], [['chorister', 2], ['thrall', 2]], [['hound', 1, 'stalker'], ['hound', 3], ['lancer', 1]]],
-  aurel: [[['warden', 2], ['lancer', 2]], [['brute', 1], ['thrall', 3], ['hound', 2]], [['warden', 1, 'gilded'], ['chorister', 1], ['thrall', 2, 'veteran']]],
-  south1: [[['hound', 3], ['lancer', 2]], [['brute', 1], ['warden', 1], ['chorister', 1], ['thrall', 2]], [['chorister', 1, 'cantor'], ['hound', 4], ['thrall', 2, 'veteran']]],
-  crown: [[['thrall', 3, 'veteran'], ['hound', 2], ['lancer', 1]], [['brute', 1], ['warden', 1], ['chorister', 2], ['hound', 2]], [['sovereign', 1]]],
+  south3: [[['hound', 3], ['seeker', 2]], [['chorister', 2], ['thrall', 2], ['seeker', 2]], [['hound', 1, 'stalker'], ['hound', 3], ['lancer', 1]]],
+  aurel: [[['warden', 2], ['lancer', 2], ['seeker', 2]], [['brute', 1], ['thrall', 3], ['hound', 2]], [['warden', 1, 'gilded'], ['chorister', 1], ['thrall', 2, 'veteran']]],
+  south1: [[['hound', 3], ['lancer', 2], ['seeker', 3]], [['brute', 1], ['warden', 1], ['chorister', 1], ['thrall', 2]], [['chorister', 1, 'cantor'], ['hound', 4], ['thrall', 2, 'veteran']]],
+  crown: [[['thrall', 3, 'veteran'], ['hound', 2], ['lancer', 1], ['seeker', 3]], [['brute', 1], ['warden', 1], ['chorister', 2], ['seeker', 4]], [['sovereign', 1]]],
 };
 
 // Packs in the wilds: [x, z, [[kind, count, elite?], ...]]. They guard nothing but give

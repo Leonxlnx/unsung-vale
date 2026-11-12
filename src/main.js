@@ -445,9 +445,11 @@ window.__dbg = {
     const save = g.save; g.save = () => {};                       // a bot run never touches the player's save
     const until = b.t + seconds, Q = g.quests;
     const go = (x, z, stop, sprint = true) => {
-      // Straight at it; when something is in the way, sidestep for a moment.
+      // Straight at it; when something is in the way, go round it: keep to one hand for a
+      // few seconds at a time, the way a walker follows a wall to its end.
       const there = d.walkTo(x, z, { sprint, stop });
-      if (b.sideT > 0) { pu.move.x = b.sideDir; pu.move.y = 0.4; }
+      b.goal = Math.round(x) + ',' + Math.round(z);
+      if (b.sideT > 0) { pu.move.x = b.sideDir; pu.move.y = 0.15; }
       return there;
     };
     while (b.t < until && b.stuck < 14) {
@@ -467,14 +469,15 @@ window.__dbg = {
         const tr = side ? g.tracker() : null;
         const trial = side && !foe && !g.trials.run ? g.trials.list.find((t) => !t.done && !b.failed?.includes(t.def.id) && Math.hypot(t.x - p.pos.x, t.z - p.pos.z) < 300) : null;
         // Someone awake nearby with something new to say, or a side quest close at hand.
-        const who = side && !foe ? g.people.list.find((n) => n.awake && n.k >= 0.9 && Math.hypot(n.x - p.pos.x, n.z - p.pos.z) < 70 && (!g.metPeople?.includes(n.def.id) || Q.active.some((q) => q.giver === n.def.id && Q.state[q.id].s === 'ready'))) : null;
+        const who = side && !foe ? g.people.list.find((n) => n.awake && n.k >= 0.9 && !(b.skip?.get(n.def.id) > b.t) && Math.hypot(n.x - p.pos.x, n.z - p.pos.z) < 70 && (!g.metPeople?.includes(n.def.id) || Q.active.some((q) => q.giver === n.def.id && Q.state[q.id].s === 'ready'))) : null;
         const near = tr?.mark && Math.hypot(tr.mark.x - p.pos.x, tr.mark.z - p.pos.z) < 330 ? tr.mark : null;
         if (g.people.talk) { mode = 'talk'; b.talkT += dt; if (b.talkT > 3.2) { b.talkT = 0; pu.pressed.add('interact'); } }         // a reader's pace
         else if (T.active) { mode = 'tune'; if (T.phase === 'beats' && T.ring && Math.abs(T.bt - T.period) < 0.04) pu.pressed.add('interact'); }
         else if (p.state === 'ride') mode = 'ride';
         else if (foe) { mode = 'fight'; const hp = p.health, st = p.stamina; d.fight(dt); if (!cheat) { p.health = hp; p.stamina = st; if (hp < p.healthMax * 0.4 && p.refrains > 0 && p.state === 'move') { pu.pressed.clear(); pu.pressed.add('heal'); } } }
-        else if (g.prompt && (/^(Tune|Take|Open|Ring)/.test(g.prompt.text) || (trial && /^Begin/.test(g.prompt.text)) || (who && /^Speak/.test(g.prompt.text)) || (g.marker?.name === 'String of light' && !near && /^Ride/.test(g.prompt.text)))) pu.pressed.add('interact');
-        else if (who) { mode = 'side'; go(who.x, who.z, 2.3); }
+        else if (g.prompt && (/^(Tune|Take|Open|Ring)/.test(g.prompt.text) || (trial && /^Begin/.test(g.prompt.text)) || (who && /^Speak/.test(g.prompt.text) && g.people.near() === who) || (g.marker?.name === 'String of light' && !near && /^Ride/.test(g.prompt.text)))) pu.pressed.add('interact');
+        else if (who) { mode = 'side'; b.who = who.def.id; go(who.x, who.z, 2.3); }
+        else if ((b.who = null)) { /* nobody to see */ }
         else if (near) { mode = 'side'; go(near.x, near.z, 0.6); }
         else if (trial) { mode = 'side'; go(trial.x, trial.z, 2.6); }
         else if (g.marker) {
@@ -495,7 +498,7 @@ window.__dbg = {
       b.time[mode] += dt;
       g.update(dt); story.update(dt); b.t += dt;
       if (Math.round(b.t / dt) % 120 === 0) {
-        if (p.pos.distanceTo(b.last) < 0.6 && !foe && p.state === 'move' && !T.active && !g.people.talk) { b.stuck++; b.sideT = 1.3; b.sideDir = b.stuck % 2 ? 1 : -1; if (b.stuck % 3 === 0) b.log.push(`${Math.round(b.t)}s stuck at ${p.pos.toArray().map(Math.round)} (${g.objective})`); pu.pressed.add('jump'); g.update(dt); } else b.stuck = Math.max(0, b.stuck - 1);
+        if (p.pos.distanceTo(b.last) < 0.6 && !foe && p.state === 'move' && !T.active && !g.people.talk) { b.stuck++; if (b.goal === b.goalWas) b.tries++; else { b.goalWas = b.goal; b.tries = 1; b.hand = 1; } if (b.tries % 7 === 0) b.hand = -b.hand; if (b.tries >= 14 && b.who) { (b.skip ??= new Map()).set(b.who, b.t + 60); b.log.push(`${Math.round(b.t)}s could not reach ${b.who}, moving on`); b.who = null; b.tries = 0; } b.stuck = b.tries >= 40 ? 14 : Math.min(b.stuck, 2); b.sideT = 3.3; b.sideDir = b.hand; if (b.tries % 4 === 0) b.log.push(`${Math.round(b.t)}s stuck at ${p.pos.toArray().map(Math.round)} (${g.objective})`); pu.pressed.add('jump'); g.update(dt); } else b.stuck = Math.max(0, b.stuck - 1);
         b.last.copy(p.pos);
       }
     }
