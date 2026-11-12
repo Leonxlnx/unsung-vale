@@ -52,6 +52,11 @@ export const SPECIES = {
     spread: 0.7, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.86 + 0.14)), 0.5), tropism: 0.1, droop: 0.1,
     wiggle: 0.3, cardSize: [30, 48], cardsPerTwig: 5, leaf: 2,
   },
+  shrub: {       // a low, many-stemmed bush; the forest picks its leaves (green or in flower)
+    height: [1.3, 2.2], trunkR: 0.055, lean: 0.25, branchStart: 0.04, n1: [8, 10], n2: [3, 4], n3: [0, 0],
+    spread: 0.8, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.8 + 0.2)), 0.5), tropism: 0.04, droop: 0.22,
+    wiggle: 0.5, cardSize: [0.75, 1.1], cardsPerTwig: 3, leaf: 4,
+  },
   green: {       // generic green broadleaf for forest mass
     height: [10, 16], trunkR: 0.4, lean: 0.1, branchStart: 0.3, n1: [10, 13], n2: [6, 7], n3: [4, 5],
     spread: 0.56, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.9 + 0.1)), 0.6), tropism: 0.12, droop: 0.05,

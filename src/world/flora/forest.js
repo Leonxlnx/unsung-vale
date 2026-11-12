@@ -274,6 +274,7 @@ function geometryFrom(data, extra = {}) {
   return g;
 }
 
+const SHRUB_FAR = 84, SHRUB_CELL = 48;
 const BARK_TINT = { ember: [0.8, 0.72, 0.7], blossom: [0.62, 0.52, 0.52], elder: [1.25, 1.2, 1.15], cypress: [0.95, 0.72, 0.6], green: [0.9, 0.85, 0.75] };
 
 export class Forest {
@@ -513,8 +514,78 @@ export class Forest {
   }
 
   // Refills the near and mid instance buffers from the chunks around the camera.
+  // Shrubs: low bushes, some in flower, thickest around the edges of the groves. They ride
+  // the tree pipeline with one level of detail and no billboard: past SHRUB_FAR they are gone.
+  addShrubs(exclude) {
+    const T = this.terrain, rnd = mulberry32(60611), C = SHRUB_CELL;
+    // [leaf layer, share of all shrubs]
+    const kinds = [[4, 0.62], [1, 0.2], [2, 0.18]];
+    this.shrubs = kinds.map(([layer], k) => {
+      const tree = generateTree('shrub', 301 + k * 7), max = 320;
+      const iTree = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4);
+      const iParam = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4);
+      iTree.setUsage(THREE.DynamicDrawUsage); iParam.setUsage(THREE.DynamicDrawUsage);
+      const fade = [0, SHRUB_FAR - 12];
+      const meshes = [[buildWood(tree, 1, [5, 4, 3, 3]), this._mkWood(BARK_TINT.green, fade)], [buildLeaves(tree, 1, 1), this._mkLeaf(layer, fade)]].map(([data, mat]) => {
+        const geo = geometryFrom(data);
+        geo.setAttribute('iTree', iTree); geo.setAttribute('iParam', iParam);
+        geo.instanceCount = 0;
+        const m = new THREE.Mesh(geo, mat);
+        m.frustumCulled = false; m.matrixAutoUpdate = false; m.visible = false;
+        this.group.add(m);
+        return m;
+      });
+      return { layer, iTree, iParam, meshes, count: 0, max };
+    });
+    this.shrubCells = new Map();
+    const step = 6.5, half = 1000;
+    let n = 0;
+    for (let gz = -half; gz < half; gz += step) for (let gx = -half; gx < half; gx += step) {
+      const x = gx + rnd() * step, z = gz + rnd() * step, r1 = rnd(), r2 = rnd(), r3 = rnd();
+      const h = T.heightAt(x, z);
+      if (h < 1.6 || h > 300) continue;
+      const e = 1.5, sx = T.heightAt(x + e, z) - T.heightAt(x - e, z), sz = T.heightAt(x, z + e) - T.heightAt(x, z - e);
+      if (Math.hypot(sx, sz) / (2 * e) > 0.4) continue;
+      // The same grove noise the trees use: bushes ring the groves and thin out in the open.
+      const grove = fbm(x / 170, z / 170, 3, 501) * 0.5 + 0.5;
+      const edge = smoothstep(0.36, 0.5, grove) * (1 - smoothstep(0.6, 0.8, grove));
+      if (r1 > 0.03 + 0.3 * edge || exclude(x, z)) continue;
+      const k = r2 < kinds[0][1] ? 0 : r2 < kinds[0][1] + kinds[1][1] ? 1 : 2;
+      const key = Math.floor(x / C) + ',' + Math.floor(z / C);
+      let c = this.shrubCells.get(key);
+      if (!c) this.shrubCells.set(key, c = []);
+      c.push({ x, y: h - 0.06, z, s: 0.7 + 0.75 * r3, yaw: rnd() * 6.283, seed: rnd(), k });
+      n++;
+    }
+    return n;
+  }
+
+  _updateShrubs(cam) {
+    for (const s of this.shrubs) s.count = 0;
+    const C = SHRUB_CELL, R = Math.ceil((SHRUB_FAR + 4) / C);
+    const ccx = Math.floor(cam.x / C), ccz = Math.floor(cam.z / C);
+    for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) {
+      const c = this.shrubCells.get((ccx + i) + ',' + (ccz + j));
+      if (!c) continue;
+      for (const t of c) {
+        if (Math.hypot(t.x - cam.x, t.y - cam.y, t.z - cam.z) > SHRUB_FAR + 2) continue;
+        const s = this.shrubs[t.k];
+        if (s.count >= s.max) continue;
+        const o = s.count * 4;
+        s.iTree.array[o] = t.x; s.iTree.array[o + 1] = t.y; s.iTree.array[o + 2] = t.z; s.iTree.array[o + 3] = t.s;
+        s.iParam.array[o] = t.yaw; s.iParam.array[o + 1] = t.seed; s.iParam.array[o + 2] = s.layer; s.iParam.array[o + 3] = 0;
+        s.count++;
+      }
+    }
+    for (const s of this.shrubs) {
+      for (const m of s.meshes) { m.geometry.instanceCount = s.count; m.visible = s.count > 0; }
+      if (s.count) for (const at of [s.iTree, s.iParam]) { at.clearUpdateRanges(); at.addUpdateRange(0, s.count * 4); at.needsUpdate = true; }
+    }
+  }
+
   update(camera) {
     const cam = _v.setFromMatrixPosition(camera.matrixWorld);
+    if (this.shrubs) this._updateShrubs(cam);
     for (const v of this.variants) for (const l of v.lods) l.count = 0;
     const C = this.chunkSize, R = Math.ceil((MID + 10) / C);
     const ccx = Math.floor(cam.x / C), ccz = Math.floor(cam.z / C);

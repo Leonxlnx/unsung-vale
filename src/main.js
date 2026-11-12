@@ -99,7 +99,9 @@ const onRoute = (x, z) => routes.some((r) => r.some((a, i) => {
   const b = r[i - 1], dx = a[0] - b[0], dz = a[1] - b[1], t = Math.max(0, Math.min(1, ((x - b[0]) * dx + (z - b[1]) * dz) / (dx * dx + dz * dz)));
   return Math.hypot(x - b[0] - dx * t, z - b[1] - dz * t) < 6;
 }));
-const rocks = new Rocks(pipe, terrain, (x, z) => onRoute(x, z) || clear.some(([cx, cz, r]) => (x - cx) * (x - cx) + (z - cz) * (z - cz) < (r + 4) * (r + 4)));
+const offLimits = (x, z) => onRoute(x, z) || clear.some(([cx, cz, r]) => (x - cx) * (x - cx) + (z - cz) * (z - cz) < (r + 4) * (r + 4));
+const rocks = new Rocks(pipe, terrain, offLimits);
+forest.addShrubs(offLimits);
 pipe.scene.add(rocks.group);
 
 // Banners and wisteria on the Dawn Terrace arcades, petals on the wind, birds over the valley.
