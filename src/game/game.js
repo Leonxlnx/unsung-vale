@@ -23,10 +23,10 @@ import { POOLS } from '../world/layout.js';
 // What each spire teaches when it is tuned.
 export const SKILLS = {
   petal: { id: 'pulse', name: 'Resonance pulse', how: 'F sends a ring of the song through everything near you.' },
-  cantor: { id: 'plunge', name: 'Falling strike', how: 'Strike while in the air to turn and come down blade first.' },
-  choir: { id: 'dash', name: 'Running cut', how: 'Strike at a sprint to carry the run into a full turn of the blade.' },
-  east: { id: 'echo', name: 'Echo step', how: 'Roll through a blow at the last moment and the world slows for a breath.' },
-  south3: { id: 'surge', name: 'Long pulse', how: 'The resonance pulse reaches further, hits harder and returns sooner.' },
+  cantor: { id: 'dash', name: 'Running cut', how: 'Strike at a sprint to carry the run into a full turn of the blade.' },
+  choir: { id: 'echo', name: 'Echo step', how: 'Roll through a blow at the last moment and the world slows for a breath.' },
+  east: { id: 'surge', name: 'Long pulse', how: 'The resonance pulse reaches further, hits harder and returns sooner.' },
+  south3: { id: 'storm', name: 'Storm fall', how: 'The falling strike lands wider and harder, and its ring throws the Mute down.' },
   aurel: { id: 'wind', name: 'Second wind', how: 'Once in a life, a blow that would end you leaves you standing.' },
   south1: { id: 'gift', name: "The orchard's gift", how: 'More life and more breath, for good.' },
 };
@@ -318,7 +318,7 @@ export class Game {
 
   save() {
     if (this.cine) return;        // the film must never overwrite a player's progress
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [] })); } catch { /* storage may be unavailable */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
   }
   load() {
     this.checkpoint = { ...this.sites.spawn };
@@ -328,7 +328,7 @@ export class Game {
       for (const s of this.spires) if (d.tuned?.includes(s.id)) { s.tuned = true; s.power = 1; s.zoneR = 0; s.zone.w = 0; s.crystal.material.uniforms.uPower.value = 1; s.beam.material.uniforms.uPower.value = 1; }
       if (d.checkpoint) this.checkpoint = d.checkpoint;
       this.xp = d.xp ?? 0; this.wildDone = d.wild ?? []; this.bought = d.bought ?? 0;
-      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? [];
+      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0;
       this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? []; this.notesTaken = d.notes ?? [];
       if (this.spires[1].tuned) { this.bridgeOpen = true; this.bridgeProgress = 1; }
     } catch { /* ignore a corrupt save */ }
@@ -528,7 +528,9 @@ export class Game {
     if (e.type === 'land' && e.fell > 1.5) this.vfx.wave(p.pos.x, p.pos.y + 0.06, p.pos.z, { r0: 0.2, r1: 1.2 + Math.min(3, e.fell * 0.3), life: 0.4, strength: 0.5, width: 0.16, color: [0.5, 0.42, 0.3] });
     if (e.type === 'land') this.hero?.onLand(e.fell ?? 0);
     if (e.type === 'plunge') {
-      const P = TUNE.plunge, x = p.pos.x, y = p.pos.y + 0.08, z = p.pos.z, power = Math.min(1, 0.45 + e.height * 0.07);
+      const storm = p.skills.has('storm'), P = storm ? { ...TUNE.plunge, radius: TUNE.plunge.radius * 1.5, dmg: TUNE.plunge.dmg * 1.5 } : TUNE.plunge;
+      const x = p.pos.x, y = p.pos.y + 0.08, z = p.pos.z, power = Math.min(1, 0.45 + e.height * 0.07);
+      if (storm) { this.vfx.wave(x, y, z, { r0: 1, r1: P.radius * 2.1, life: 0.9, strength: 1.2 * power, width: 0.05, color: [3.2, 2.3, 1.0], delay: 0.18 }); this.vfx.wave(x, y + 1.4, z, { kind: 1, r0: 0.5, r1: P.radius * 1.2, life: 0.5, strength: 1.2 * power, width: 0.1, color: [2.2, 1.7, 0.9], delay: 0.05 }); }
       for (const en of this.enemies.list) {
         if (!en.alive || en.state === 'dormant' || Math.abs(en.pos.y - p.pos.y) > 3) continue;
         const d = en.pos.distanceTo(p.pos) - en.def.radius;

@@ -176,7 +176,7 @@ export class Player {
         this.rollDir = new THREE.Vector3(d.x, 0, d.z).normalize();
         this.yaw = Math.atan2(this.rollDir.x, this.rollDir.z);
         this.emit('roll');
-      } else if (input.pressed.has('attack') && !this.grounded && this.airTime > 0.08 && this.skills.has('plunge') && this.spend(T.plunge.cost)) {
+      } else if (input.pressed.has('attack') && !this.grounded && this.airTime > 0.08 && this.spend(T.plunge.cost)) {
         this.setState('plunge'); this.plungeHit = false; this.plungeTop = this.pos.y;
         // Lean the fall toward a foe below, if there is one.
         const foe = this.lockTarget ?? this.aimAssist?.(this.facing.x, this.facing.z, 9) ?? null;

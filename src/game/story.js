@@ -191,7 +191,7 @@ export class Story {
   update(dt) {
     const g = this.game, p = g.player;
     if (g.state === 'intro') { this._intro(dt); return; }
-    if (g.state !== 'playing' || g.tuning?.active) return;
+    if (g.state !== 'playing' || g.tuning?.active || g.people?.talk) return;
     // Lines wait their turn.
     this.lineT = (this.lineT ?? 0) - dt;
     if (this.lineT <= 0 && this.line) { this.line = null; g.emit('caption', { text: null }); this.lineT = 0.7; }
