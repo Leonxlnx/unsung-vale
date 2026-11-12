@@ -42,8 +42,11 @@ float softShadow(int i, vec2 uv, float z, float bias, vec2 dz) {
   float a = ign(gl_FragCoord.xy + uSoft.y * 5.588) * 6.2831853;
   vec2 rx = vec2(cos(a), sin(a)), ry = vec2(-rx.y, rx.x);
   float sum = 0.0, cnt = 0.0;
-  for (int k = 0; k < 8; k++) {
-    vec2 q = clamp(uv + (rx * DISC[k].x + ry * DISC[k].y) * rmax, 0.003, 0.997);
+  // Nine taps: the receiver's own spot, then a ring that crowds toward the centre so thin
+  // casters close by (a leg, a sword) are found as surely as broad ones far away.
+  for (int k = 0; k < 9; k++) {
+    vec2 o = k == 0 ? vec2(0.0) : DISC[k - 1] * length(DISC[k - 1]);
+    vec2 q = clamp(uv + (rx * o.x + ry * o.y) * rmax, 0.003, 0.997);
     float d = textureLod(uShadowRaw, vec2((q.x + float(i)) * 0.5, q.y), 0.0).r;
     float zq = z + dot(q - uv, dz);
 #ifdef REVERSED_DEPTH
@@ -54,7 +57,7 @@ float softShadow(int i, vec2 uv, float z, float bias, vec2 dz) {
     sum += d * b; cnt += b;
   }
   if (cnt < 0.5) return 1.0;
-  if (cnt > 7.5) return 0.0;
+  if (cnt > 8.5) return 0.0;
   float pen = clamp(abs(sum / cnt - z) * (i == 0 ? uSoft.z : uSoft.w), uSoftLimit.z, rmax);
   float s = 0.0;
   for (int k = 0; k < 12; k++) {
@@ -201,6 +204,8 @@ export class Shadows {
     for (const [src, twin] of this.twins) {
       twin.visible = src.visible;
       twin.matrixWorld.copy(src.matrixWorld);
+      // A skinned twin skins in world space and must undo the same world matrix as its source.
+      if (twin.isSkinnedMesh) twin.bindMatrixInverse.copy(src.bindMatrixInverse);
     }
   }
 
