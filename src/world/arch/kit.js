@@ -312,28 +312,55 @@ export function tuningSpire(b, h = 22) {
   return cy;
 }
 // A city stepping down a cliff face: stacked terraces, each a little narrower and further
-// out than the one above, fronted by blind arcades and lit lancets. Built in a frame whose
-// +z points out from the cliff; y = 0 is the cliff top at the rim.
+// out than the one above. Every wall shows two storeys, a row of deep loggia arches under a
+// row of paired lancets, divided by string courses; a roofed colonnade runs along the back
+// of each deck and a domed pavilion crowns the top. Built in a frame whose +z points out
+// from the cliff; y = 0 is the cliff top at the rim.
 export function cliffTiers(b, { w = 70, tiers = 3, step = 22, out = 9, detail = 0, seed = 1 } = {}) {
   const rnd = mulberry32(seed * 131 + 7);
   for (let k = 0; k < tiers; k++) {
-    const tw = w * (1 - k * 0.16), y = -k * step, z = k * out, d = 16;
+    const tw = w * (1 - k * 0.16), y = -k * step, z = k * out, d = 16, face = d / 2;
     b.at(0, y, z, 0, (q) => {
       terrace(q, { w: tw, d, depth: step + 26, rail: 's', detail: 0 });
-      // Arcaded wall face below the deck.
       const n = Math.max(3, Math.round(tw / 8.5)), bw = tw / n;
+      const y0 = -step + 0.4;                         // the deck of the tier below
       for (let i = 0; i < n; i++) {
-        const cx = -tw / 2 + (i + 0.5) * bw, lit = rnd() < 0.55;
-        q.at(cx, -step * 0.78, d / 2 + 0.03, 0, (g) => {
-          g.mat_(lit ? M.GLASS : M.DARK); archPanel(g, 0, 0, 0.02, bw * 0.5, step * 0.42, 1.05, 8);
-          if (detail) { g.mat_(M.MARBLE); archFrame(g, 0, 0, 0, bw * 0.5, step * 0.42, 1.05, 0.35, 0.3, 8); }
+        const cx = -tw / 2 + (i + 0.5) * bw;
+        // Ground storey: a deep arch, dark inside, some with a lit room behind.
+        const aw = bw * 0.56, spring = step * 0.24;
+        q.at(cx, y0, face + 0.03, 0, (g) => {
+          g.mat_(rnd() < 0.35 ? M.GLASS : M.DARK); archPanel(g, 0, 0, 0.02, aw, spring, 1.05, 8);
+          g.mat_(M.MARBLE); archFrame(g, 0, 0, 0, aw, spring, 1.05, 0.4, 0.34, 8);
         });
-        q.mat_(M.MARBLE).box(cx - bw / 2 - 0.35, -step - 4, d / 2, 0.7, step + 3.2, 0.7, '-z');
+        // Upper storey: a pair of slim lancets.
+        const ly = y0 + step * 0.52, lh = step * 0.27;
+        for (const sx of [-0.2, 0.2]) {
+          q.at(cx + sx * bw, ly, face + 0.03, 0, (g) => {
+            g.mat_(rnd() < 0.6 ? M.GLASS : M.DARK); archPanel(g, 0, 0, 0.02, bw * 0.17, lh * 0.72, 1.3, 6);
+            g.mat_(M.MARBLE).box(-bw * 0.11, -0.3, 0, bw * 0.22, 0.3, 0.28);
+          });
+        }
+        q.mat_(M.MARBLE).box(cx - bw / 2 - 0.35, -step - 4, face, 0.7, step + 3.2, 0.7, '-z');
       }
-      q.mat_(M.GOLD).box(-tw / 2, -1.1, d / 2 + 0.36, tw, 0.3, 0.12);
+      // String courses between the storeys and a gilded cornice under the parapet.
+      q.mat_(M.MARBLE).box(-tw / 2 - 0.2, y0 + step * 0.46, face, tw + 0.4, 0.42, 0.5, '-z');
+      q.box(-tw / 2 - 0.2, y0 + step * 0.86, face, tw + 0.4, 0.34, 0.42, '-z');
+      q.mat_(M.GOLD).box(-tw / 2, -1.1, face + 0.36, tw, 0.3, 0.12);
+      if (k > 0) {
+        // Colonnade against the wall of the tier above, under a lean-to roof of slate.
+        const len = tw * 0.72, cz = 2.2, wall = -out + face;
+        q.at(-len / 2, 0, cz, 0, (g) => {
+          const top = arcade(g, len, { bay: 4.4, colH: 4.4, t: 0.7, top: 1.0, detail: 0 });
+          g.mat_(M.ROOF).quad([-0.5, top, 0.6], [len + 0.5, top, 0.6], [len + 0.5, top + 2.6, wall - cz], [-0.5, top + 2.6, wall - cz]);
+          g.mat_(M.MARBLE).box(-0.5, top - 0.25, 0.35, len + 1.0, 0.25, 0.3);
+        });
+      } else {
+        // The crown of the quarter: a domed pavilion flanked by slender towers.
+        q.at(0, 0, -1.5, 0, (g) => { pavilion(g, { r: 5.2, colH: 6.2, n: 8, detail: 0 }); });
+      }
       // A few small towers and needles along the deck.
       for (let i = 0; i < 2 + (k === 0 ? 1 : 0); i++) {
-        const x = (rnd() - 0.5) * tw * 0.8, th = 12 + rnd() * 16;
+        const side = i % 2 ? 1 : -1, x = side * tw * (0.3 + 0.16 * rnd()), th = 12 + rnd() * 16;
         q.at(x, 0, -d * 0.18, 0, (g) => tower(g, { r: 2.2 + rnd() * 1.4, h: th, sides: 6, stages: 2, top: rnd() < 0.7 ? 'spire' : 'dome', spireH: th * 0.8, detail: 0, foot: 1, glassEvery: 2 }));
       }
     });
