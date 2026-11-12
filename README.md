@@ -13,8 +13,8 @@ come from outside; they are credited in [CREDITS.md](CREDITS.md).
 
 | | |
 | --- | --- |
-| ![The Cantor at the Dawn Terrace](docs/media/film-45.jpg) | ![The Petal Court after its spire is tuned](docs/media/film-363.jpg) |
-| ![Crossing the bridge of light to the Choir](docs/media/film-412.jpg) | ![The valley at day's end](docs/media/film-445.jpg) |
+| ![The Cantor at the Dawn Terrace](docs/media/film-lookout.jpg) | ![Down the valley between the mesas](docs/media/film-valley.jpg) |
+| ![The Petal Court after its spire is tuned](docs/media/film-court.jpg) | ![The valley at day's end](docs/media/film-evening.jpg) |
 
 Stills from the in-game cinematic (draft render).
 
