@@ -12,7 +12,7 @@ await page.setViewport({ width: W, height: H });
 await page.goto(arg('url', 'http://localhost:5183'), { timeout: 0 });
 await page.waitForFunction('window.__dbg && window.__parts && window.__hero', { timeout: 0 });
 await new Promise((r) => setTimeout(r, 5000));
-const spots = { terrace: [-519, 210.5, -70, Math.PI / 2], meadow: [-600, 210.2, -180, 0.9], court: [-372, 178.4, -410, 0] };
+const spots = { terrace: [-519, 210.5, -70, Math.PI / 2], meadow: [-600, 210.2, -180, 0.9], court: [-372, 178.4, -410, 0], lantern: [562, 131.7, -421, 2.4], crown: [-998, 271.2, -150, 2.6] };
 for (const preset of presets) {
   for (const [name, tp] of Object.entries(spots)) {
     const r = await page.evaluate(async (preset, tp) => {

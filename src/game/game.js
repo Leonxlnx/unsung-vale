@@ -362,7 +362,7 @@ export class Game {
   // Puts the world into a chosen story state. Used by the cinematic director so each shot
   // starts from known conditions; never called during normal play.
   cineSetup({ tuned = [], player = null, bridge = null } = {}) {
-    this.cine = true; this._skills(); this.cine = false;      // the film's hero knows it all
+    { const was = this.cine; this.cine = true; this._skills(); this.cine = was; }      // the film's hero knows it all
     for (const s of this.spires) {
       const on = tuned.includes(s.id) || s.index > 2;
       s.tuned = on; s.tuning = 0; s.power = on ? 1 : 0;
