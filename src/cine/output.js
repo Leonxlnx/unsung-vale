@@ -3,6 +3,7 @@
 //   - HDR10 master: 10-bit PQ, BT.2020, read back as packed 2-10-10-10
 //   - SDR companion: 8-bit sRGB from the same grade
 // Motion blur comes from averaging several sub-frames spread over a 180-degree shutter.
+// Depth of field is a gather blur on each sub-frame, sized by a thin-lens circle of confusion.
 import * as THREE from 'three';
 import { FullscreenPass, makeTarget } from '../engine/fullscreen.js';
 import { COMMON } from '../engine/glsl.js';
@@ -54,6 +55,34 @@ void main() {
   outColor = vec4(c, 1.0);
 }`;
 
+// Depth of field. Each tap of a golden-angle disc counts only if its own blur circle is wide
+// enough to reach this pixel, so sharp things keep their edges and the background cannot
+// smear over a subject that is in focus.
+const DOF = /* glsl */ `
+${COMMON}
+uniform sampler2D uColor;
+uniform sampler2D uDepth;     // linear view depth in metres
+uniform vec2 uTexel;
+uniform vec4 uDof;            // x: focus distance (m), y: blur scale (pixels x metres), z: widest radius (pixels), w: tap rotation
+float coc(float z) { return clamp(uDof.y * (1.0 / uDof.x - 1.0 / max(z, 0.05)), -uDof.z, uDof.z); }
+void main() {
+  float z0 = textureLod(uDepth, vUv, 0.0).r;
+  float c0 = abs(coc(z0));
+  vec4 acc = vec4(textureLod(uColor, vUv, 0.0).rgb, 1.0);
+  float a = ign(gl_FragCoord.xy) * 6.2831853 + uDof.w;
+  for (int i = 0; i < 40; i++) {
+    float r = sqrt((float(i) + 0.5) / 40.0) * uDof.z;
+    float th = float(i) * 2.39996323 + a;
+    vec2 uv = vUv + vec2(cos(th), sin(th)) * r * uTexel;
+    float z = textureLod(uDepth, uv, 0.0).r;
+    float c = abs(coc(z));
+    if (z > z0) c = min(c, c0 * 2.0);
+    float w = smoothstep(r - 1.0, r + 1.0, c);
+    acc += vec4(textureLod(uColor, uv, 0.0).rgb, 1.0) * w;
+  }
+  outColor = vec4(acc.rgb / acc.a, 1.0);
+}`;
+
 const ACCUM = /* glsl */ `
 uniform sampler2D uTex; uniform float uWeight;
 void main() { outColor = vec4(textureLod(uTex, vUv, 0.0).rgb * uWeight, uWeight); }`;
@@ -64,13 +93,16 @@ export class FilmOutput {
     const u = () => ({ uColor: { value: null }, uBloom: { value: null }, uBloomStrength: { value: 0.06 }, uExposure: { value: 0.3 }, uVignette: { value: 0.22 }, uSaturation: pipe.tonemap.uniforms.uSaturation, uContrast: pipe.tonemap.uniforms.uContrast });
     this.hdr = new FullscreenPass({ fragment: HDR_OUT, uniforms: { ...u(), uPaperWhite: { value: 203 }, uPeak: { value: 1000 } } });
     this.sdr = new FullscreenPass({ fragment: SDR_OUT, uniforms: u() });
+    this.dof = new FullscreenPass({ fragment: DOF, uniforms: { uColor: { value: null }, uDepth: { value: null }, uTexel: { value: new THREE.Vector2() }, uDof: { value: new THREE.Vector4(10, 0, 1, 0) } } });
     this.accum = new FullscreenPass({ fragment: ACCUM, uniforms: { uTex: { value: null }, uWeight: { value: 1 } }, blending: THREE.CustomBlending });
     Object.assign(this.accum.material, { blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendEquation: THREE.AddEquation, transparent: true });
   }
 
   setSize(w, h) {
     this.w = w; this.h = h;
-    for (const t of [this.rtAccum, this.rtHdr, this.rtSdr]) t?.dispose();
+    for (const t of [this.rtAccum, this.rtHdr, this.rtSdr, this.rtDof]) t?.dispose();
+    this.rtDof = makeTarget(w, h);
+    this.dof.uniforms.uTexel.value.set(1 / w, 1 / h);
     this.rtAccum = makeTarget(w, h, { type: THREE.FloatType });
     this.rtHdr = makeTarget(w, h);
     this.rtSdr = makeTarget(w, h, { type: THREE.UnsignedByteType });
@@ -98,7 +130,16 @@ export class FilmOutput {
     const sub = (dt * shutter) / subframes;
     for (let i = 0; i < subframes; i++) {
       advance(sub);
-      const color = pipe.render(sub, { toScreen: false });
+      let color = pipe.render(sub, { toScreen: false });
+      // pipe.dof = { focus (m), blur (pixels x metres at 2160 lines) } is set by the director.
+      const d = pipe.dof;
+      if (d && d.blur > 0) {
+        const k = this.h / 2160, u = this.dof.uniforms;
+        u.uColor.value = color; u.uDepth.value = pipe.rtLinDepth.texture;
+        u.uDof.value.set(d.focus, d.blur * k, Math.max(2, (d.max ?? 26) * k), i * 2.1);
+        this.dof.render(r, this.rtDof);
+        color = this.rtDof.texture;
+      }
       this.accum.uniforms.uTex.value = color; this.accum.uniforms.uWeight.value = 1 / subframes;
       this.accum.render(r, this.rtAccum);
     }

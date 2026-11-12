@@ -283,6 +283,46 @@ window.__dbg = {
     for (let i = 0; i < 6; i++) { director.advance(1 / 240); lattice.update(1 / 240); game.update(1 / 240); pipe.render(1 / 240); }
     return { time: +director.time.toFixed(2), shot: director.index + 1, player: game.player.pos.toArray().map((v) => Math.round(v)) };
   },
+  // A contact sheet of the film: one pass through the timeline, a still at each given time.
+  reel(times = [3, 9, 14.5, 19.5, 26, 34.5, 40.5, 44], cols = 4) {
+    freeCam = true; ui.root.style.display = 'none';
+    let c = document.getElementById('sheet');
+    if (!c) { c = document.createElement('canvas'); c.id = 'sheet'; c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:9'; document.body.appendChild(c); }
+    c.width = canvas.width; c.height = canvas.height;
+    const ctx = c.getContext('2d'), rows = Math.ceil(times.length / cols), w = c.width / cols, h = c.height / rows;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, c.width, c.height);
+    director.begin();
+    const dt = 1 / 30;
+    times.forEach((t, i) => {
+      while (director.time < t) { director.advance(dt); lattice.update(dt); game.update(dt); }
+      pipe.taa.reset = true;
+      for (let k = 0; k < 8; k++) { director.advance(1 / 240); lattice.update(1 / 240); game.update(1 / 240); pipe.render(1 / 240); }
+      // Letterbox each still into its cell at the film's 16:9.
+      const ch = Math.min(h, (w * 9) / 16), sh = Math.min(canvas.height, (canvas.width * 9) / 16);
+      ctx.drawImage(canvas, 0, (canvas.height - sh) / 2, canvas.width, sh, (i % cols) * w, Math.floor(i / cols) * h + (h - ch) / 2, w, ch);
+    });
+    return { time: +director.time.toFixed(2) };
+  },
+  // One finished film frame at time t, exactly as the capture would grade it (depth of
+  // field, motion blur, tone curve), shown over the page.
+  filmStill(t, sub = 3) {
+    freeCam = true; ui.root.style.display = 'none';
+    const film = (this._film ??= new FilmOutput(pipe));
+    if (film.w !== canvas.width || film.h !== canvas.height) film.setSize(canvas.width, canvas.height);
+    director.begin();
+    const world = (dt) => { director.advance(dt); lattice.update(dt); game.update(dt); };
+    while (director.time < t) world(1 / 30);
+    for (let i = 0; i < 4; i++) film.frame(world, 1 / 60, sub, 0.5);
+    const px = film.readSdr(), w = film.w, h = film.h;
+    let c = document.getElementById('sheet');
+    if (!c) { c = document.createElement('canvas'); c.id = 'sheet'; c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:9'; document.body.appendChild(c); }
+    c.width = w; c.height = h;
+    const img = new ImageData(w, h);
+    for (let y = 0; y < h; y++) img.data.set(px.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4);
+    c.getContext('2d').putImageData(img, 0, 0);
+    pipe.renderer.setRenderTarget(null);
+    return { time: +director.time.toFixed(2), dof: pipe.dof };
+  },
   gpuMs(n = 20) {
     const gl = pipe.renderer.getContext(), px = new Uint8Array(4);
     gl.finish();

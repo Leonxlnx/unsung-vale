@@ -28,10 +28,13 @@ export class Director {
     this.duration = this.shots.reduce((s, x) => s + x.dur, 0);
   }
 
-  cam(pos, target, fov = 40) {
+  // lens: [focus distance in metres, blur]. blur is the circle of confusion in pixels (on a
+  // 2160-line frame) times metres; 0 keeps everything sharp.
+  cam(pos, target, fov = 40, lens = null) {
     const c = this.pipe.camera;
     c.position.set(pos[0], pos[1], pos[2]);
     c.lookAt(target[0], target[1], target[2]);
+    this.pipe.dof = lens ? { focus: lens[0], blur: lens[1] } : null;
     if (Math.abs(c.fov - fov) > 1e-3) { c.fov = fov; c.updateProjectionMatrix(); }
   }
 
@@ -100,7 +103,8 @@ export class Director {
           // Drift up behind the Cantor so the rings rise over his shoulder.
           const h = d.game.player.pos;
           const p = along([[h.x - 15, h.y + 0.9, h.z - 5.5], [h.x - 9.5, h.y + 1.35, h.z - 3.6], [h.x - 5.2, h.y + 1.9, h.z - 2.0]], k);
-          d.cam(p, [h.x + 260, h.y + 38 - 8 * k, h.z + 70], lerp(34, 38, k));
+          const near = Math.hypot(p[0] - h.x, p[1] - h.y - 1.2, p[2] - h.z);
+          d.cam(p, [h.x + 260, h.y + 38 - 8 * k, h.z + 70], lerp(34, 38, k), [lerp(near, 400, ease(clamp01(k * 1.5))), 70]);
         },
       },
       { // 2. Down the valley between the mesas.
@@ -121,7 +125,8 @@ export class Director {
           // A crane out over the drop on the shaded side: he runs past, the sun behind him.
           const side = [-vdir[1], vdir[0]];
           const lead = 11 - 17 * k;
-          d.cam([p.x - side[0] * 8.5 + vdir[0] * lead, p.y + 3.6 - 1.2 * k, p.z - side[1] * 8.5 + vdir[1] * lead], [p.x + vdir[0] * 0.8, p.y + 1.15, p.z + vdir[1] * 0.8], 36);
+          const cp = [p.x - side[0] * 8.5 + vdir[0] * lead, p.y + 3.6 - 1.2 * k, p.z - side[1] * 8.5 + vdir[1] * lead];
+          d.cam(cp, [p.x + vdir[0] * 0.8, p.y + 1.15, p.z + vdir[1] * 0.8], 36, [Math.hypot(cp[0] - p.x, cp[1] - p.y - 1.1, cp[2] - p.z), 80]);
         },
       },
       { // 4. The Petal Court lies silent; the Mute pull themselves together.
@@ -135,7 +140,7 @@ export class Director {
           for (const x of g.enemies.list) if (x.group === 'petal' && x.state === 'chase') { x.t = 0; x.vel.set(0, 0, 0); x.pos.copy(x.home); }
           const c = e ? e.home : new THREE.Vector3(petal.x, petal.base, petal.z);
           const a = 2.2 + 0.5 * k;
-          d.cam([c.x + Math.cos(a) * (5.2 - 1.4 * k), c.y + 0.5 + 1.2 * k, c.z + Math.sin(a) * (5.2 - 1.4 * k)], [c.x, c.y + 0.5 + 1.1 * k, c.z], 36);
+          d.cam([c.x + Math.cos(a) * (5.2 - 1.4 * k), c.y + 0.5 + 1.2 * k, c.z + Math.sin(a) * (5.2 - 1.4 * k)], [c.x, c.y + 0.5 + 1.1 * k, c.z], 36, [5.2 - 1.4 * k, 110]);
         },
       },
       { // 5. The duel.
@@ -152,7 +157,7 @@ export class Director {
           const c = e ? p.pos.clone().lerp(e.pos, 0.5) : p.pos.clone();
           d.focus.lerp(new THREE.Vector3(c.x, c.y + 1.15, c.z), Math.min(1, 3 * dt));
           const a = 0.5 + k * 1.9, r = 6.8 - 1.2 * Math.sin(k * Math.PI);
-          d.cam([d.focus.x + Math.cos(a) * r, d.focus.y + 0.5 + 0.6 * k, d.focus.z + Math.sin(a) * r], [d.focus.x, d.focus.y, d.focus.z], 38);
+          d.cam([d.focus.x + Math.cos(a) * r, d.focus.y + 0.5 + 0.6 * k, d.focus.z + Math.sin(a) * r], [d.focus.x, d.focus.y, d.focus.z], 38, [r, 60]);
         },
       },
       { // 6. Tuning the spire: light, and colour flooding back.
@@ -169,7 +174,7 @@ export class Director {
           const u = ease(clamp01((t - 2.0) / 5));
           const pos = mix3([p.x + 2.6, p.y + 0.9, p.z + 3.6], [petal.x + 24, petal.base + 17, petal.z + 44], u);
           const tgt = mix3([petal.x, petal.base + 3.5, petal.z], [petal.x, petal.base + 11, petal.z], u);
-          d.cam(pos, tgt, lerp(34, 46, u));
+          d.cam(pos, tgt, lerp(34, 46, u), [Math.hypot(pos[0] - p.x, pos[1] - p.y - 1.2, pos[2] - p.z), 85 * (1 - u)]);
         },
       },
       { // 7. The light bridge forms toward the Choir.
