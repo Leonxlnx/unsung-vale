@@ -94,6 +94,9 @@ This plays the in-game cinematic at a fixed time step, renders every frame offli
 motion blur and depth of field, and writes an HDR10 master (HEVC Main10, PQ, BT.2020) and an
 SDR companion (H.264). It needs `ffmpeg` on the PATH and Chrome or Edge installed.
 
+On Windows, `powershell -File tools/start-render.ps1` starts the same render detached from the
+shell, so it survives a closed terminal; it is resumable either way.
+
 Captures run in a film detail mode that would be too heavy for play: full-detail trees and
 grass several times further out, sharper shadows and foliage textures. To look at it without
 rendering, open the game with `?film=1` added to the address.
