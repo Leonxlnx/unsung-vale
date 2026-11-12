@@ -429,7 +429,7 @@ window.__dbg = {
         g.cine = false; g.input.puppet = null;
         g.cineSetup({ tuned: [] });
         for (const sp of g.spires) { sp.tuned = false; sp.power = 0; sp.zoneR = sp.zoneR0; sp.zone.z = sp.zoneR; sp.zone.w = 1; }
-        g.enemies.list.length = 0; g.wildDone = []; g.xp = 0; g.bought = 0; g.ended = false; g.outroSeen = false; g.story.mode = null; g.story.endT = 0; g.hasMap = false; g.metPeople = [];
+        g.enemies.list.length = 0; g.wildDone = []; g.xp = 0; g.bought = 0; g.ended = false; g.outroSeen = false; g.story.mode = null; g.story.endT = 0; g.elitesDown = []; g.hasMap = false; g.metPeople = [];
         Object.assign(p.up, { health: 0, stamina: 0, blade: 0 }); g._skills();
         g.quests.state = {}; for (const it of g.quests.items) g.quests.group.remove(it.mesh); g.quests.items = []; g.trials.run = null; g.trials.list.forEach((t) => { t.done = false; }); g.trialsDone = []; g.bellsRung = {}; g.bells.list.forEach((q) => { q.rung = false; }); g.notes.list.forEach((n) => { n.taken = false; n.k = 1; }); g.notes.count = 0;
         for (const n of g.people.list) { n.awake = !n.spire; n.k = n.awake ? 1 : 0; g.people._dye(n); }

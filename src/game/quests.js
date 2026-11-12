@@ -31,8 +31,26 @@ const SHAPES = {
   'golden pear': () => ({ geo: join([part(new THREE.SphereGeometry(0.12, 10, 8).scale(1, 1.1, 1), 1), part(new THREE.SphereGeometry(0.078, 8, 6).translate(0, 0.13, 0), 1), part(new THREE.CylinderGeometry(0.01, 0.014, 0.1, 5).translate(0.01, 0.24, 0), 0)]), color: [0.2, 0.12, 0.04], light: [1.0, 0.72, 0.22], hang: 0.9, turn: 0.6 }),
 };
 
-// kind: gather (spots, taken by touch) | slay (packs of the wilds) | notes (lost notes found).
+// kind: gather (spots, taken by touch) | slay (packs of the wilds) | notes (lost notes found)
+// | elites (named Mute brought down) | trials (trials won). after: offered once that one is done.
 export const QUESTS = [
+  { id: 'vellum2', giver: 'sel', after: 'vellum', title: 'The Far Sheets', kind: 'gather', thing: 'survey mark', verb: 'Reach the survey marks by the five pools beyond the water', r: 3.2,
+    spots: [[568.8, -373.1], [610.5, 370.7], [71.3, 457.4], [-343.8, 363.7], [-902.5, 32]], reward: { up: 'stamina', xp: 160 },
+    offer: ['You rode the strings. I can tell: people come back from it with their hair on sideways.', 'I set a mark by the pool on each of the five mesas, the summer before the quiet. If they stand, the far sheets of my map are still true.', 'Find them for me. They will show on your map once you are near.'],
+    wait: ['Five marks, one by the pool on each mesa beyond the water.'],
+    done: ['All five. Then the Vale is the shape I remember, edge to edge.', 'I have nothing to give a traveller but wind. Here is some.'] },
+  { id: 'count2', giver: 'maren', after: 'count', title: 'The Whole Tune', kind: 'notes', verb: 'Find lost notes of the old song', need: 60, reward: { up: 'blade', xp: 260 },
+    offer: ['Thirty notes made a phrase. I have been humming it all day and it wants an ending.', 'Sixty would be the whole tune, near enough. The far mesas are full of them.'],
+    wait: ['Sixty notes for the whole tune. Listen for them out beyond the water.'],
+    done: ['That is it. That is the tune my mother sang me. I had lost the middle.', 'Your blade knows it too, now. Mind how it cuts.'] },
+  { id: 'names', giver: 'odo', title: 'Four Names', kind: 'elites', verb: 'Bring down the named Mute of the outer courts', need: 4, reward: { up: 'health', xp: 220 },
+    offer: ['One thing more. Out on the mesas some of the Mute have stood so long that people gave them names.', 'The Lantern Thrall. The Reed Stalker. The Gilded Warden. The Orchard Cantor. Each holds a string of the old song wound tight inside it.', 'Bring them down and what they held comes back to you. I will know what to do with it.'],
+    wait: ['Four named ones, one at each court between here and the Crown.'],
+    done: ['Four strings, and every one still true after all that time. Remarkable.', 'There. Wound into you, where the Mute cannot get at them again.'] },
+  { id: 'rings', giver: 'tam', after: 'stair', title: 'The Old Drills', kind: 'trials', verb: 'Win trials at the rings on the mesas', need: 5, reward: { up: 'stamina', xp: 200 },
+    offer: ['You have seen the gold rings standing out in the grass? We drilled at those, when the Vale had singers who could fight.', 'Step up to one and answer it, and it will test you the way it tested us. Win five and you may call yourself a ringer.'],
+    wait: ['Five trials at the rings. Some ask you to stand, some to run.'],
+    done: ['Five. I would have you in my watch tomorrow, if I still had a watch.', 'A ringer breathes like this. Yes. Like that.'] },
   { id: 'vellum', giver: 'sel', title: 'Lines on the Vellum', kind: 'gather', thing: 'survey mark', verb: 'Reach the survey marks', r: 3.2,
     spots: [[-497.5, -70, 212.1], [-300, -372], [-178.5, -459]], reward: { up: 'stamina', xp: 60 },
     offer: ['You came down from the terrace with your eyes open. Good. Most people only look at their feet.', 'I am drawing the Vale again, as it is now. Three of my survey marks still stand: the lookout here, the pool on the Petal mesa, the head of the long stair.', 'Stand at each one for me. Take this, so you can find your way back: my map, as far as it goes. Open it with M.'],
@@ -132,6 +150,8 @@ export class Quests {
     const g = this.g, st = this.state[q.id];
     if (q.kind === 'gather') return [st.got.length, q.spots.length];
     if (q.kind === 'slay') return [q.packs.filter((i) => g.wildDone.includes(i)).length, q.packs.length];
+    if (q.kind === 'elites') return [Math.min(q.need, (g.elitesDown ?? []).length), q.need];
+    if (q.kind === 'trials') return [Math.min(q.need, g.trials.doneCount), q.need];
     return [Math.min(q.need, g.notes.count), q.need];
   }
 
@@ -159,7 +179,7 @@ export class Quests {
   // Everything a person has to say right now, and what follows from saying it.
   talkTo(n) {
     const g = this.g, id = n.def.id, mine = QUESTS.filter((q) => q.giver === id);
-    const ready = mine.find((q) => this.state[q.id]?.s === 'ready'), active = mine.find((q) => this.state[q.id]?.s === 'active'), fresh = mine.find((q) => !this.state[q.id]);
+    const ready = mine.find((q) => this.state[q.id]?.s === 'ready'), active = mine.find((q) => this.state[q.id]?.s === 'active'), fresh = mine.find((q) => !this.state[q.id] && (!q.after || this.state[q.after]?.s === 'done'));
     const tuned = g.spires.filter((s) => s.tuned).length;
     let lines, done = null;
     if (ready) { lines = ready.done; done = () => this._finish(ready); }

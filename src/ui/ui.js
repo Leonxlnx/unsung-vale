@@ -36,6 +36,7 @@ export class UI {
         <div class="goal"><div class="main"><i></i><span></span></div><div class="quest"><b></b><span></span><em></em></div></div>
         <div class="boss"><div class="name"></div><div class="meter"><i class="ghost"></i><i class="fill"></i><div class="notches"></div></div></div>
         <div class="reticle"></div>
+        <div class="foes">${'<div class="foe"><i></i></div>'.repeat(6)}</div>
         <div class="marker main"><i></i><span></span></div>
         <div class="marker side"><i></i><span></span></div>
         <div class="vitals">
@@ -102,6 +103,7 @@ export class UI {
       marker: $('#hud .marker.main'), markerText: $('#hud .marker.main span'), marker2: $('#hud .marker.side'), marker2Text: $('#hud .marker.side span'),
       reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), toastBig: $('#hud .toast .big'), toastSmall: $('#hud .toast .small'), card: $('#hud .card'), cardTitle: $('#hud .card b'), cardText: $('#hud .card span'),
       hints: $('#hud .hints'), fps: $('#hud .fps'), grab: $('#hud .grab'), tally: $('#hud .tally'), beat: $('#hud .beat'), beatCue: $('#hud .beat .cue'), beatRing: $('#hud .beat .cue i'), beatPips: $('#hud .beat .pips'),
+      foes: $('#hud .foe'),
       compass: $('#hud .compass'), ticks: $('#hud .compass .ticks'), card4: $$('#hud .compass b'), pinGoal: $('#hud .compass .pin.goal'), pinSide: $('#hud .compass .pin.side'),
       talk: $('#talk'), talkName: $('#talk .who b'), talkRole: $('#talk .who span'), talkText: $('#talk p'), talkNext: $('#talk .next'),
       tabBody: $('#settings .tabbody'), play: $('[data-act="play"]'), newGame: $('[data-act="new"]'),
@@ -238,6 +240,7 @@ export class UI {
     }
     if (type === 'map' && d.phase === 'given') setTimeout(() => this.card('The map', 'M opens it. J opens the journal.'), 800);
     if (type === 'people' && d.type === 'wake') { clearTimeout(this._wakeT); this._wakeT = setTimeout(() => this.card(`${d.name} wakes`, 'Someone at this court can speak again.'), 9500); }
+    if (type === 'hit' && d.enemy) (this._hit ??= new Map()).set(d.enemy, performance.now());
     if (type === 'xp') { el.res.classList.remove('gain'); void el.res.offsetWidth; el.res.classList.add('gain'); }
     if (type === 'player' && d.type === 'hurt') { el.hurt.style.transition = 'none'; el.hurt.style.opacity = '1'; requestAnimationFrame(() => { el.hurt.style.transition = ''; el.hurt.style.opacity = '0'; }); el.health.classList.remove('hit'); void el.health.offsetWidth; el.health.classList.add('hit'); }
     if (type === 'echo') { el.hud.classList.add('echo'); setTimeout(() => el.hud.classList.remove('echo'), 1500); }
@@ -290,6 +293,24 @@ export class UI {
       el.reticle.style.left = `${(v.x * 0.5 + 0.5) * 100}%`; el.reticle.style.top = `${(-v.y * 0.5 + 0.5) * 100}%`;
     } else el.reticle.classList.remove('on');
 
+    // A hairline of health over whatever he has just struck, or has locked on to.
+    {
+      const now = performance.now(), cam = g.pipe.camera, hit = (this._hit ??= new Map());
+      let n = 0;
+      for (const [e, at] of hit) if (!e.alive || now - at > 3200) hit.delete(e);
+      const show = [...hit.keys()]; if (p.lockTarget && !show.includes(p.lockTarget)) show.push(p.lockTarget);
+      for (const e of show) {
+        if (n >= el.foes.length || e === g.boss || !e.alive) continue;
+        const v = this._v.set(e.pos.x, e.pos.y + e.def.core * 1.75 + 0.55, e.pos.z).project(cam);
+        if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) continue;
+        const node = el.foes[n++];
+        node.style.transform = `translate(${((v.x * 0.5 + 0.5) * innerWidth).toFixed(1)}px, ${((-v.y * 0.5 + 0.5) * innerHeight).toFixed(1)}px) translate(-50%, -50%)`;
+        node.firstChild.style.transform = `scaleX(${Math.max(0, e.hp / e.def.hp).toFixed(3)})`;
+        node.classList.add('on'); node.classList.toggle('elite', !!e.elite || e.tint > 0);
+      }
+      for (; n < el.foes.length; n++) el.foes[n].classList.remove('on');
+    }
+    el.stamina.classList.toggle('out', p.stamina < 9);
     // The side goal: a trial under way, else the nearest quest.
     this._slow -= dt;
     if (this._slow <= 0) {

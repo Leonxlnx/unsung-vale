@@ -194,6 +194,8 @@ export class Game {
     // The strings of light between the courts. A string wakes when the spires it needs sing.
     this.strings = new Strings(this, pipe, { dawn: [-512, -81], petal: [-385, -392], cantor: [53, -490.5], choir: [171.2, -36.2], east: [568.8, -427.8], south3: [517, 424], aurel: [148.6, 542.6], south1: [-392.4, 438.4], crown: [-993.7, -156.7] },
       [['dawn', 'petal', ['petal']], ['petal', 'cantor', ['petal', 'cantor']], ['cantor', 'choir', ['cantor', 'choir']], ['choir', 'east', ['choir']], ['east', 'south3', ['east']], ['south3', 'aurel', ['south3']], ['aurel', 'south1', ['aurel']], ['south1', 'crown', ['south1']], ['crown', 'dawn', ['crown']]]);
+    // A sprinting footfall kicks up a little of whatever is underfoot.
+    this.on((type, d) => { if (type === 'player' && d.type === 'step' && d.sprint && !this.cine) this._dust(3, 1.2, 2.2); });
     this.people = new People(this, pipe);
     this.quests = new Quests(this, pipe);
     this.trials = new Trials(this, pipe);
@@ -204,6 +206,39 @@ export class Game {
 
   // The hero knows what the tuned spires have taught him.
   _skills() { const p = this.player; p.skills.clear(); for (const s of this.spires) if ((s.tuned || this.cine) && SKILLS[s.id]) p.skills.add(SKILLS[s.id].id); }
+
+  // Motes of resonance: thrown up and out of what fell, then drawn to the hero, faster the
+  // longer they have been loose. Each is drawn as a short-lived spark where it is now.
+  _motes(dt) {
+    const list = this.motes; if (!list?.length) return;
+    const p = this.player.pos, tx = p.x, ty = p.y + 1.15, tz = p.z;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const m = list[i]; m.t += dt;
+      if (m.t < 0) continue;
+      const dx = tx - m.x, dy = ty - m.y, dz = tz - m.z, d = Math.hypot(dx, dy, dz) || 1e-3, pull = Math.max(0, m.t - 0.3);
+      if (pull > 0) { const want = 8 + pull * 26, k = Math.min(1, dt * (3 + pull * 14)); m.vx += (dx / d * want - m.vx) * k; m.vy += (dy / d * want - m.vy) * k; m.vz += (dz / d * want - m.vz) * k; }
+      else { m.vy -= 9 * dt; const drag = Math.exp(-2.2 * dt); m.vx *= drag; m.vz *= drag; }
+      m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
+      this.particles.spawn(m.x, m.y, m.z, { vel: [m.vx * 0.2, m.vy * 0.2, m.vz * 0.2], life: 0.2, size: 0.075, color: [3.6, 2.7, 1.2], streak: 0.1 });
+      if ((pull > 0 && d < 0.55) || m.t > 3) {
+        this.particles.spawn(tx, ty, tz, { life: 0.14, size: 0.5, color: [1.6, 1.2, 0.5], alpha: 0.5 });
+        if (m.first) this.emit('mote', {});
+        list.splice(i, 1);
+      }
+    }
+  }
+
+  // Dust and grass thrown up by the hero's feet: at a sprint, in a roll, on a hard landing.
+  _dust(n, speed, back = 0) {
+    const p = this.player, stone = p.pos.y - this.terrain.heightAt(p.pos.x, p.pos.z) > 0.25, f = p.facing;
+    const col = stone ? [0.55, 0.5, 0.44] : [0.3, 0.42, 0.14];
+    for (let k = 0; k < n; k++) {
+      const a = Math.random() * 6.283;
+      this.particles.spawn(p.pos.x + Math.cos(a) * 0.25, p.pos.y + 0.08, p.pos.z + Math.sin(a) * 0.25, stone
+        ? { vel: [Math.cos(a) * speed * 0.5 - f.x * back, 0.5 + Math.random() * 0.8, Math.sin(a) * speed * 0.5 - f.z * back], life: 0.55 + Math.random() * 0.3, size: 0.28, color: col, alpha: 0.22, grow: 1.6, drag: 2.4 }
+        : { vel: [Math.cos(a) * speed - f.x * back, 1.6 + Math.random() * 2.2, Math.sin(a) * speed - f.z * back], life: 0.5, size: 0.035, color: col, gravity: 9, drag: 1.0, streak: 0.05 });
+    }
+  }
 
   // Stonework that belongs to the rules rather than to a site (a bell's frame, a pylon's
   // foot): built with the same kit and material as the courts, solid, and left out of the film.
@@ -341,7 +376,7 @@ export class Game {
 
   save() {
     if (this.cine) return;        // the film must never overwrite a player's progress
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, outro: !!this.outroSeen, time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, outro: !!this.outroSeen, elites: this.elitesDown ?? [], time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
   }
   load() {
     this.checkpoint = { ...this.sites.spawn };
@@ -351,7 +386,7 @@ export class Game {
       for (const s of this.spires) if (d.tuned?.includes(s.id)) { s.tuned = true; s.power = 1; s.zoneR = 0; s.zone.w = 0; s.crystal.material.uniforms.uPower.value = 1; s.beam.material.uniforms.uPower.value = 1; }
       if (d.checkpoint) this.checkpoint = d.checkpoint;
       this.xp = d.xp ?? 0; this.wildDone = d.wild ?? []; this.bought = d.bought ?? 0;
-      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {}; this.outroSeen = !!d.outro;
+      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {}; this.outroSeen = !!d.outro; this.elitesDown = d.elites ?? [];
       this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? []; this.notesTaken = d.notes ?? [];
       if (this.spires[1].tuned) { this.bridgeOpen = true; this.bridgeProgress = 1; }
       // A journey that ended when the Vale had three spires goes on now that it has eight.
@@ -456,6 +491,7 @@ export class Game {
     this.bells.update(dt, !this.cine && !busy);
     this.notes.update(dt, !this.cine);
     this._animateWorld(dt);
+    this._motes(dt);
     this.particles.update(dt); this.vfx.update(dt);
     // In a cinematic the director owns the camera; the rig only tracks yaw for movement.
     if (this.tuning.active) this.tuning.update(realDt);
@@ -553,6 +589,8 @@ export class Game {
     if (e.type === 'land' && e.fell > 3) this.rig.addShake(Math.min(0.5, e.fell * 0.03));
     if (e.type === 'land' && e.fell > 1.5) this.vfx.wave(p.pos.x, p.pos.y + 0.06, p.pos.z, { r0: 0.2, r1: 1.2 + Math.min(3, e.fell * 0.3), life: 0.4, strength: 0.5, width: 0.16, color: [0.5, 0.42, 0.3] });
     if (e.type === 'land') this.hero?.onLand(e.fell ?? 0);
+    if (e.type === 'land' && e.fell > 0.8 && !this.cine) this._dust(Math.min(14, 4 + Math.round(e.fell * 2)), 2.2);
+    if (e.type === 'roll' && !this.cine) this._dust(9, 1.6, 2.5);
     if (e.type === 'plunge') {
       const storm = p.skills.has('storm'), P = storm ? { ...TUNE.plunge, radius: TUNE.plunge.radius * 1.5, dmg: TUNE.plunge.dmg * 1.5 } : TUNE.plunge;
       const x = p.pos.x, y = p.pos.y + 0.08, z = p.pos.z, power = Math.min(1, 0.45 + e.height * 0.07);
@@ -670,6 +708,9 @@ export class Game {
       if (e.enemy === this.player.lockTarget) { this.player.lockTarget = null; this.emit('lock', { target: null }); }
       // What it held of the song comes back to him.
       if (!this.cine) {
+        const nm = Math.max(3, Math.min(16, Math.round((en.def.xp ?? 10) / 5)));
+        for (let k = 0; k < nm; k++) { const a = Math.random() * 6.283, up = 2 + Math.random() * 5, sp = 2 + Math.random() * 4; (this.motes ??= []).push({ x: c.x, y: c.y + Math.random() * 0.6, z: c.z, vx: Math.cos(a) * sp, vy: up, vz: Math.sin(a) * sp, t: -Math.random() * 0.25, first: k === 0 }); }
+        if (en.elite && en.def.name && !(this.elitesDown ??= []).includes(en.def.name)) this.elitesDown.push(en.def.name);
         this.xp += en.def.xp ?? 10; this.emit('xp', { amount: en.def.xp ?? 10, total: this.xp });
         const m = /^wild(\d+)$/.exec(en.group ?? '');
         if (m && this.enemies.aliveIn(en.group) === 0) { this.wildDone.push(+m[1]); this.emit('pack', { index: +m[1] }); }
