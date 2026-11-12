@@ -119,7 +119,9 @@ turns exactly as far as the hand moves, whatever the system's pointer settings.
 - Effects built for the moments that matter: a crescent of light behind every cut, sparks
   off every blow, shockwaves that bend the picture, strands of light climbing a spire as it
   is tuned, the great rings answering.
-- A closing flight over the whole Vale once the last spire sings.
+- A closing flight over the whole Vale once the last spire sings, and afterwards echoes:
+  at its spire every court will call its guard back for three harder waves, paid in
+  resonance, for as long as you care to answer.
 - An interface drawn around one idea, a string: a compass strip, goals and a side-quest
   tracker, conversations, a map drawn from the terrain itself, a journal, settings.
   Progress is saved in the browser.

@@ -31,6 +31,15 @@ const WILD = [
 
 const ORDINAL = ['', 'Second wave', 'Last wave'];
 
+// Echoes. Once the whole Vale sings, a court can be asked to remember its silence: stand at
+// its spire and the Mute that held it come back for three waves, harder than they were. It
+// is practice and it is paid in resonance; the further the court, the harder and the richer.
+const echoWaves = (tier) => [
+  [['thrall', 3 + (tier > 3 ? 1 : 0)], ['hound', 2], ['seeker', tier > 1 ? 2 : 0]],
+  [['lancer', 2], ['warden', 1 + (tier > 4 ? 1 : 0)], ['chorister', 1], ['hound', tier > 2 ? 2 : 0]],
+  [['brute', 1 + (tier > 5 ? 1 : 0)], ['chorister', tier > 3 ? 2 : 1], ['thrall', 3], ['seeker', 2 + (tier > 4 ? 2 : 0)]],
+];
+
 export class Encounters {
   constructor(game) { this.g = game; this.wave = {}; this.wait = {}; }
 
@@ -82,8 +91,62 @@ export class Encounters {
     for (const e of this._ring(waves[0], s.x, s.z, 9, id, 0.5, s.base)) g.vfx.wave(e.pos.x, e.pos.y + 0.08, e.pos.z, { r0: 3.2, r1: 0.4, life: 0.9, strength: 0.9, width: 0.08, color: [2.4, 1.15, 4.6] });
   }
 
+  tracker() { const e = this.echo; return e ? { title: `Echo of ${e.name}`, text: 'Stand against what the court remembers', count: `${e.wave + 1} / 3`, mark: null } : null; }
+  _echoWave() {
+    const g = this.g, e = this.echo, s = e.s, mods = { scale: 1.1, hp: 1.35 + 0.12 * e.tier, dmg: 1.1 + 0.06 * e.tier, tint: 0.6 }, flat = [];
+    for (const [kind, n] of echoWaves(e.tier)[e.wave]) for (let i = 0; i < n; i++) flat.push(kind);
+    flat.forEach((kind, i) => {
+      const a = e.wave * 1.1 + (i / flat.length) * 6.283, r = 8 + (i % 3) * 1.6, q = g.enemies.spawn(kind, s.x + Math.cos(a) * r, s.z + Math.sin(a) * r, e.group, mods, s.base);
+      q.state = 'rise'; q.t = 0;
+      g.vfx.wave(q.pos.x, q.pos.y + 0.08, q.pos.z, { r0: 3.2, r1: 0.4, life: 0.9, strength: 0.9, width: 0.08, color: [2.4, 1.15, 4.6] });
+    });
+  }
+  startEcho(s, name) {
+    const g = this.g;
+    this.echo = { id: s.id, s, name, tier: g.spires.indexOf(s), wave: 0, wait: 0, group: `echo:${s.id}` };
+    this._echoWave();
+    g.emit('recall', { phase: 'begin', name });
+  }
+  _endEcho(won) {
+    const g = this.g, e = this.echo; if (!e) return;
+    g.enemies.list = g.enemies.list.filter((q) => q.group !== e.group);
+    this.echo = null;
+    if (!won) { g.emit('recall', { phase: 'lost', name: e.name }); return; }
+    const first = !(g.echoes ??= []).includes(e.id), xp = Math.round((120 + 45 * e.tier) * (first ? 1 : 0.4));
+    if (first) g.echoes.push(e.id);
+    g.xp += xp; g.emit('xp', { amount: xp, total: g.xp });
+    g.rest();
+    for (const [dl, r] of [[0, 10], [0.3, 16]]) g.vfx.wave(e.s.x, e.s.base + 0.1, e.s.z, { r0: 1, r1: r, life: 1.2, strength: 1.0, width: 0.05, color: [3.2, 2.3, 1.0], delay: dl });
+    g.emit('recall', { phase: 'done', name: e.name, xp, count: g.echoes.length, total: g.spires.length });
+    g.save();
+  }
+  _echo(dt) {
+    const g = this.g, p = g.player, e = this.echo;
+    if (e) {
+      if (p.state === 'dead' || Math.hypot(p.pos.x - e.s.x, p.pos.z - e.s.z) > 75) return this._endEcho(false);
+      if (g.enemies.aliveIn(e.group) > 0) { e.wait = 0; return; }
+      if ((e.wait += dt) < 1.6) return;
+      e.wait = 0;
+      if (e.wave >= 2) return this._endEcho(true);
+      e.wave++; this._echoWave();
+      g.emit('recall', { phase: 'wave', index: e.wave, name: e.name });
+      return;
+    }
+    // Asked for at the spire of a court that sings, once every spire does.
+    if (!g.ended || g.prompt || g.tuning.active || g.people.talk || p.state !== 'move' || !p.grounded || g.state !== 'playing') return;
+    for (const s of g.spires) {
+      if (!s.tuned || Math.hypot(p.pos.x - s.x, p.pos.z - s.z) > 5.2 || Math.abs(p.pos.y - s.base) > 4) continue;
+      if (g.enemies.list.some((q) => q.alive && q.state !== 'dormant' && q.pos.distanceTo(p.pos) < 30)) return;
+      g.prompt = { key: 'E', text: (g.echoes ?? []).includes(s.id) ? 'Wake the echo again' : 'Wake an echo of the silence' };
+      if (!this.hinted && !(g.echoes ?? []).length) { this.hinted = true; g.emit('hint', { title: 'Echoes', text: 'A court that sings still remembers its silence. Wake it and the Mute return for three waves, harder than they were, and pay in resonance.' }); }
+      if (g.input.pressed.has('interact')) { g.prompt = null; this.startEcho(s, g.placeName?.(s.id) ?? s.id); }
+      return;
+    }
+  }
+
   update(dt) {
     const g = this.g, p = g.player;
+    this._echo(dt);
     for (const [id, waves] of Object.entries(WAVES)) {
       const i = this.wave[id];
       if (i === undefined || i >= waves.length - 1 || g.enemies.aliveIn(id) > 0) continue;

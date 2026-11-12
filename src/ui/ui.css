@@ -358,6 +358,7 @@ input[type='range']::-moz-range-thumb { width: 11px; height: 11px; background: v
 
 /* --- ending --- */
 #ending { background: radial-gradient(ellipse at center, rgba(8, 10, 14, 0.3), rgba(8, 10, 14, 0.76)); display: grid; place-items: center; text-align: center; transition-duration: 2s; }
+#ending p.after { max-width: 520px; margin: 22px auto 26px; font-size: 14.5px; line-height: 1.55; color: var(--ink-2); }
 #ending .emblem { width: 70px; height: 70px; margin: 0 auto 6px; }
 #ending h2 { font-size: clamp(40px, 5.4vw, 76px); font-weight: 200; letter-spacing: 0.01em; padding-top: 0.1em; }
 #ending .rule { width: 260px; margin: 12px auto 18px; background: linear-gradient(90deg, rgba(231, 194, 125, 0), var(--gold), rgba(231, 194, 125, 0)); transform-origin: center; }

@@ -79,6 +79,7 @@ export function connectAudio(audio, game, ui, falls) {
     }
     if (type === 'bell') { audio.sfx(k('trial_begin', 'spire_tune'), { volume: 0.75, pitch: d.pitch, spread: 0, wet: 0.5 }); audio.sfx(k('trial_gate', 'pickup'), { volume: 0.4, pitch: d.pitch * 0.5, spread: 0, wet: 0.5, delay: 0.05 }); if (d.done) audio.sfx(k('summon', 'enemy_wake'), { volume: 0.6, delay: 0.9, wet: 0.3 }); }
     if (type === 'wave') audio.sfx(k('summon', 'enemy_wake'), { volume: 0.6, wet: 0.3 });
+    if (type === 'recall') { if (d.phase === 'begin' || d.phase === 'wave') audio.sfx(k('summon', 'enemy_wake'), { volume: 0.6, wet: 0.3 }); if (d.phase === 'done') audio.sfx(k('trial', 'quest'), { volume: 0.7, spread: 0, wet: 0.4 }); if (d.phase === 'lost') audio.sfx(k('block', 'hurt'), { volume: 0.3, pitch: 0.6, spread: 0 }); }
     if (type === 'skill') audio.sfx(k('upgrade', 'restore'), { volume: 0.5, delay: 6.6, wet: 0.3 });
     if (type === 'hit') {
       // Steel on crystal: the bright ring of the blade, a chip of crystal, and weight under the big ones.

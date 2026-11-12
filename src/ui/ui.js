@@ -102,7 +102,7 @@ export class UI {
           <div class="pane hero"></div>
         </div>
       </div>
-      <div id="ending" class="screen"><div>${EMBLEM}<h2>The Vale sings again</h2><div class="rule"><i></i></div><p>Every spire is tuned.</p><div class="stats"></div>
+      <div id="ending" class="screen"><div>${EMBLEM}<h2>The Vale sings again</h2><div class="rule"><i></i></div><p>Every spire is tuned.</p><div class="stats"></div><p class="after">The Vale stays open. At its spire every court will wake an echo of its silence for you to answer, and there are notes, trials and reliquaries still out on the mesas.</p>
         <div class="menu"><button class="primary" data-act="continue">Keep exploring</button><button data-act="title">Return to title</button></div></div></div>
       <div id="story"><div class="bar top"></div><div class="bar bottom"></div><div class="caption"></div><div class="skip">Space to skip</div></div>
       <div id="photo"><b>Photo</b><span>W A S D</span>move<span>Space / Ctrl</span>up and down<span>Shift</span>faster<span>Wheel</span>field of view<span>Click</span>save<span>H</span>back</div>
@@ -224,6 +224,12 @@ export class UI {
       if (d.phase === 'line') this.onSound?.('talk');
     }
     if (type === 'wave') this.toast(d.text);
+    if (type === 'recall') {
+      if (d.phase === 'begin') this.toast(`Echo of ${d.name}`, 'Three waves, as it was, and worse');
+      if (d.phase === 'wave') this.toast(d.index === 2 ? 'Last wave' : 'Second wave');
+      if (d.phase === 'lost') this.toast('The echo fades', 'The court will remember again');
+      if (d.phase === 'done') this.toast('The echo is answered', `${d.xp} resonance  ·  ${d.count} of ${d.total} courts`);
+    }
     if (type === 'bell') this.toast(d.done ? `${cap(NAMES[d.id])} answers` : 'A bell rings', `${d.count} of ${d.total}`);
     if (type === 'tuning') {
       if (d.phase === 'begin') { el.beat.classList.add('on'); el.beatPips.innerHTML = '<i></i>'.repeat(d.total); el.hud.classList.add('quiet'); }
@@ -539,7 +545,7 @@ export class UI {
         <div class="q main"><i></i><div><b>${g.objective}</b><span>${next ? `${g.spires.filter((s) => s.tuned).length} of ${g.spires.length} spires sing` : 'Every spire sings'}</span></div></div>
         <h3>Asked of you</h3>${active.length ? active.map(row).join('') : '<p class="none">Nobody is waiting on you. The people of the Vale wake when their spire is tuned.</p>'}
         ${done.length ? `<h3>Done</h3>${done.map(row).join('')}` : ''}</div>
-      <div class="col"><h3>The Vale</h3><dl><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Reliquaries opened</dt><dd>${g.reliquaries.openCount} / ${g.reliquaries.list.length}</dd><dt>Packs cleared</dt><dd>${g.wildDone.length} / 12</dd><dt>People awake</dt><dd>${g.people.list.filter((n) => n.awake).length} / ${g.people.list.length}</dd><dt>Time in the Vale</dt><dd>${this._time(g.playTime ?? 0)}</dd></dl></div>
+      <div class="col"><h3>The Vale</h3><dl><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Reliquaries opened</dt><dd>${g.reliquaries.openCount} / ${g.reliquaries.list.length}</dd>${g.ended ? `<dt>Echoes answered</dt><dd>${(g.echoes ?? []).length} / ${g.spires.length}</dd>` : ''}<dt>Packs cleared</dt><dd>${g.wildDone.length} / 12</dd><dt>People awake</dt><dd>${g.people.list.filter((n) => n.awake).length} / ${g.people.list.length}</dd><dt>Time in the Vale</dt><dd>${this._time(g.playTime ?? 0)}</dd></dl></div>
       <div class="col"><h3>The Mute<small>${met.length} of ${MUTE.length} kinds brought down</small></h3>${mute || '<p class="none">Nothing of them is known yet but that they stand where the song stopped.</p>'}</div>`;
   }
   _time(s) { const m = Math.floor(s / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; }
