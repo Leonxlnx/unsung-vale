@@ -1025,7 +1025,7 @@ export class Game {
       }
     }
     this.flash *= Math.exp(-dt * 3.2);
-    this.pipe.exposure = this.baseExposure * (1 + 0.16 * this.flash);
+    this.pipe.exposure = this.baseExposure * (1 + 0.16 * this.flash * (this.flashScale ?? 1));
     for (const s of this.spires) {
       // Strands of light around each spire: climbing when it is tuned, steady afterwards.
       s.helix ??= this.vfx.helix({ x: s.x, base: s.base, z: s.z, h: s.h ?? 24 });

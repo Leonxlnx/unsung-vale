@@ -597,6 +597,7 @@ export class UI {
     } else if (this.tab === 'controls') {
       html = row('Challenge', seg('challenge', [['gentle', 'Gentle'], ['standard', 'Standard'], ['hard', 'Hard']]), 'How hard the Mute hit')
         + row('Look sensitivity', slider('sensitivity', 0.3, 2.5, 0.05)) + row('Invert vertical look', toggle('invertY'))
+        + row('Camera shake', slider('shake', 0, 1, 0.05)) + row('Bright flashes', toggle('flashes'), 'On the big moments of a fight')
         + `<div class="keys">${KEYS.map(([a, k]) => `<span>${a}</span><span>${k}</span>`).join('')}</div>`;
     } else {
       html = row('Master volume', slider('master', 0, 1, 0.01)) + row('Music', slider('music', 0, 1, 0.01)) + row('Effects', slider('sfx', 0, 1, 0.01));

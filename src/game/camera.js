@@ -22,7 +22,7 @@ export class CameraRig {
     this.current = this.distance;
   }
 
-  addShake(amount) { this.shake = Math.min(1, this.shake + amount); }
+  addShake(amount) { this.shake = Math.min(1, this.shake + amount * (this.shakeScale ?? 1)); }
 
   update(dt, player, input) {
     this.time += dt;

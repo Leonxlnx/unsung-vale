@@ -20,11 +20,12 @@
       #boot .bar::before { content: ''; position: absolute; left: -5px; top: -3px; width: 7px; height: 7px; background: #e7c27d; transform: rotate(45deg); }
       #boot .bar i { position: absolute; inset: 0; background: #e7c27d; transform-origin: left; transform: scaleX(0.02); transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1); }
       #boot p { margin: 16px 0 0; font-size: 14px; color: rgba(255, 255, 255, 0.62); }
+      #boot p.tip { margin-top: 30px; min-height: 2.9em; font-size: 13.5px; line-height: 1.45; color: rgba(255, 255, 255, 0.4); }
     </style>
   </head>
   <body>
     <canvas id="view" tabindex="0"></canvas>
-    <div id="boot"><div><svg viewBox="0 0 64 64" fill="none" stroke="#e7c27d" stroke-width="1.3" stroke-linecap="round" aria-hidden="true"><path d="M11.2 50 A24 24 0 1 1 52.8 50"/><path d="M17.7 46.25 A16.5 16.5 0 1 1 46.3 46.25" opacity="0.75"/><path d="M24.2 42.5 A9 9 0 1 1 39.8 42.5" opacity="0.5"/><path d="M32 5 V59"/><path d="M32 33.4 L36.6 38 L32 42.6 L27.4 38 Z" fill="#e7c27d" stroke="none"/></svg><h1>Unsung Vale</h1><div class="bar"><i></i></div><p>Preparing the valley</p></div></div>
+    <div id="boot"><div><svg viewBox="0 0 64 64" fill="none" stroke="#e7c27d" stroke-width="1.3" stroke-linecap="round" aria-hidden="true"><path d="M11.2 50 A24 24 0 1 1 52.8 50"/><path d="M17.7 46.25 A16.5 16.5 0 1 1 46.3 46.25" opacity="0.75"/><path d="M24.2 42.5 A9 9 0 1 1 39.8 42.5" opacity="0.5"/><path d="M32 5 V59"/><path d="M32 33.4 L36.6 38 L32 42.6 L27.4 38 Z" fill="#e7c27d" stroke="none"/></svg><h1>Unsung Vale</h1><div class="bar"><i></i></div><p>Preparing the valley</p><p class="tip"></p></div></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

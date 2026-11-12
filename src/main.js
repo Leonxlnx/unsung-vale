@@ -29,9 +29,12 @@ const canvas = document.getElementById('view');
 const params = new URLSearchParams(location.search);
 const boot = document.getElementById('boot');
 // Lets the browser paint the progress bar between the heavy construction steps.
+const TIPS = ['A bolt met with the blade goes back where it came from.', 'Blows landed without one taken build cadence. One hit and it is lost.', 'R hums the refrain and mends you. It comes back at spires, bells and pylons.', 'A blow slipped at the last instant opens a riposte.', 'A chorister\'s ward goes when the singer is broken.', 'There is a reliquary on every mesa, off the paths.', 'Light blows ring off a warden\'s wall of shards. A heavy one cracks it.', 'H holds the world still for a picture.'];
+let tipN = Math.floor(Math.random() * TIPS.length);
 const stage = (p, text) => new Promise((resolve) => {
   boot.querySelector('i').style.transform = `scaleX(${p})`;
   boot.querySelector('p').textContent = text;
+  const tip = boot.querySelector('.tip'); if (tip && !FILM && p < 0.84) tip.textContent = TIPS[tipN++ % TIPS.length];
   // Normally the next animation frame; a short timer keeps loading moving in a background tab.
   const t = setTimeout(resolve, 60);
   requestAnimationFrame(() => { clearTimeout(t); setTimeout(resolve, 0); });
