@@ -277,6 +277,17 @@ void main() {
 
   vec4 n1 = texture(uNoise, xz / 410.0);
   vec4 n2 = texture(uNoise, xz / 57.0 + 0.31);
+  // Outside the core the height map has one texel every eight metres, and its slopes come
+  // out smooth as clay. Break them into ribs and gullies with a few taps of noise, most on
+  // steep ground, so the far ranges catch the light like weathered rock.
+  float farK = (1.0 - cw) * smoothstep(500.0, 1400.0, dist);
+  if (farK > 0.0) {
+    float lodF = clamp(log2(dist / 600.0), 0.0, 4.0), e = 14.0;
+    #define FAR_H(p) (textureLod(uNoise, (p) / 700.0, 0.0).r + 0.4 * textureLod(uNoise, (p) / 190.0 + 0.3, lodF).g)
+    float f0 = FAR_H(xz), fx = FAR_H(xz + vec2(e, 0.0)), fz = FAR_H(xz + vec2(0.0, e));
+    vec2 fg = vec2(fx - f0, fz - f0) * (150.0 / e);
+    N = normalize(N + vec3(-fg.x, 0.0, -fg.y) * farK * (0.35 + 0.65 * smoothstep(0.02, 0.3, 1.0 - N.y)));
+  }
 
   // --- layer weights ---
   float cliff = smoothstep(0.3, 0.7, nm.a + (n2.r - 0.5) * 0.35);
@@ -344,6 +355,12 @@ void main() {
   vec3 meadow = meadowTip(fam, vec2(0.5)) * mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), n1.r);
   meadow = mix(meadow, meadow * vec3(0.62, 0.92, 0.78), clover);
   alb = mix(alb, meadow * (0.34 + 3.4 * dot(A.rgb, vec3(0.3, 0.6, 0.1))), grass * 0.9);
+  // Away from the valley the green is alpine: paler and browner with height, with dark woods
+  // on the middle slopes.
+  float outer = 1.0 - cw, lumA = dot(A.rgb, vec3(0.3, 0.6, 0.1));
+  alb = mix(alb, vec3(0.2, 0.18, 0.095) * (0.6 + 2.0 * lumA), outer * smoothstep(250.0, 900.0, h) * grass * 0.6);
+  float woods = outer * grass * smoothstep(0.5, 0.62, n2.b + (n1.g - 0.5) * 0.4) * smoothstep(60.0, 250.0, h) * (1.0 - smoothstep(800.0, 1200.0, h));
+  alb = mix(alb, vec3(0.028, 0.05, 0.024) * (0.7 + 1.5 * lumA), woods * 0.8);
   // The worn routes are pale, sandy earth: a warm line through the green that leads the eye.
   alb = mix(alb, vec3(0.44, 0.34, 0.215) * (0.55 + 1.9 * dot(A.rgb, vec3(0.3, 0.6, 0.1))), path * flat_ * 0.62);
   // Petals blown onto the bare earth of the paths.
