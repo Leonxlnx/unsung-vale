@@ -266,6 +266,17 @@ export function lantern(b, h = 3.2) {
   b.lathe([[0.22, h - 0.56], [0.28, h - 0.5], [0.22, h - 0.46]], 4, { smooth: false, phase: Math.PI / 4 });
 }
 
+// A stone bench: a thick slab on two carved supports, long axis along x.
+export function bench(b, w = 2.3) {
+  for (const sx of [-1, 1]) {
+    b.mat_(M.MARBLE).box(sx * (w / 2 - 0.42) - 0.16, 0, -0.24, 0.32, 0.4, 0.48);
+    b.box(sx * (w / 2 - 0.42) - 0.22, 0, -0.28, 0.44, 0.08, 0.56);
+  }
+  b.mat_(M.MARBLE).box(-w / 2, 0.4, -0.3, w, 0.13, 0.6);
+  b.mat_(M.GOLD).box(-w / 2 + 0.06, 0.445, 0.3, w - 0.12, 0.04, 0.012);
+  b.box(-w / 2 + 0.06, 0.445, -0.312, w - 0.12, 0.04, 0.012);
+}
+
 // A stone urn for a flowering shrub (the plant itself is added by the forest). Returns the
 // height of the soil.
 export function planter(b, r = 0.75) {
