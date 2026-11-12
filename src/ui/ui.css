@@ -33,9 +33,13 @@
 #home .block, #home .foot, .panel, #journey, #ending > div, #talk, #story .caption,
 #hud .goal, #hud .compass, #hud .vitals, #hud .prompt, #hud .boss, #hud .toast, #hud .card, #hud .hints, #hud .beat, #hud .tally, #hud .grab { zoom: var(--s, 1); }
 
+.emblem { display: block; width: 54px; height: 54px; color: var(--gold); }
+
 /* --- title --- */
 #home { background: linear-gradient(90deg, rgba(8, 10, 14, 0.66) 0%, rgba(8, 10, 14, 0.3) 36%, rgba(8, 10, 14, 0) 64%), linear-gradient(0deg, rgba(8, 10, 14, 0.42) 0%, rgba(8, 10, 14, 0) 42%); }
 #home .block { position: absolute; left: clamp(32px, 7.5vw, 132px); bottom: clamp(44px, 12vh, 140px); width: min(520px, 82vw); }
+#home .emblem { width: 62px; height: 62px; margin: 0 0 6px -4px; opacity: 0; transform: translateY(8px); transition: opacity 1.2s var(--ease) 0.2s, transform 1.2s var(--ease) 0.2s; }
+#home.on .emblem { opacity: 1; transform: none; }
 #home h1 { font-size: clamp(52px, 7vw, 108px); font-weight: 200; letter-spacing: 0.005em; line-height: 0.95; padding-top: 0.12em; white-space: nowrap; }
 #home .rule { width: min(340px, 60vw); margin: 14px 0 20px 5px; }
 #home .sub { margin: 0 0 40px; font-size: 17px; line-height: 1.5; color: var(--ink-2); max-width: 34ch; font-weight: 400; }
@@ -83,27 +87,30 @@
 @keyframes pulse { from { opacity: 0.55; } to { opacity: 1; } }
 
 /* life and breath: two strings, each starting at a diamond */
-#hud .vitals { position: absolute; left: 44px; bottom: 36px; transition: opacity 0.4s; }
+#hud .vitals { position: absolute; left: 40px; bottom: 34px; display: flex; align-items: center; gap: 18px; transition: opacity 0.4s; }
+#hud .vitals .bars { padding-top: 14px; }
 .meter { position: relative; height: 3px; background: rgba(0, 0, 0, 0.45); margin-top: 9px; transition: width 0.8s var(--ease); }
 .meter i { position: absolute; inset: 0; transform-origin: left; }
 .meter .fill { background: var(--ink); transition: transform 0.16s var(--ease); }
 .meter .ghost { background: var(--gold); opacity: 0.8; transition: transform 0.7s var(--ease) 0.25s; }
-#hud .vitals .meter::before { content: ''; position: absolute; left: -11px; top: 50%; width: 6px; height: 6px; margin-top: -3px; background: var(--ink); transform: rotate(45deg); }
+#hud .vitals .meter.health::before { content: ''; position: absolute; right: 100%; top: 50%; width: 12px; height: 1px; background: var(--gold); }
 .meter.health.low .fill { background: #f0b6a8; }
 .meter.health.hit { animation: thrum 0.4s linear; }
 .meter.stamina { height: 2px; }
 .meter.stamina .fill { background: var(--gold); }
-#hud .vitals .meter.stamina::before { width: 4px; height: 4px; margin-top: -2px; left: -10px; background: var(--gold); }
+
 @keyframes thrum { 0% { transform: translateY(0); } 15% { transform: translateY(-2.5px); } 35% { transform: translateY(2px); } 55% { transform: translateY(-1.2px); } 75% { transform: translateY(0.6px); } 100% { transform: translateY(0); } }
-#hud .vitals .under { display: flex; align-items: center; gap: 18px; margin-top: 12px; margin-left: -12px; }
-#hud .res { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+#hud .res { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 #hud .res i { width: 7px; height: 7px; box-shadow: inset 0 0 0 1px var(--gold); transform: rotate(45deg); }
 #hud .res.gain span { animation: tick 0.6s var(--ease); display: inline-block; }
-#hud .pulse { position: relative; width: 14px; height: 14px; transform: rotate(45deg); box-shadow: inset 0 0 0 1px var(--ink-3); overflow: hidden; opacity: 0; transition: opacity 0.4s, box-shadow 0.3s; }
-#hud .pulse.have { opacity: 1; }
-#hud .pulse i { position: absolute; inset: 0; background: var(--ink-2); transform-origin: bottom right; transform: translate(calc((1 - var(--p, 1)) * 100%), calc((1 - var(--p, 1)) * 100%)); }
-#hud .pulse.ready { box-shadow: inset 0 0 0 1px var(--gold); }
+#hud .pulse { flex: none; position: relative; width: 30px; height: 30px; transform: rotate(45deg); background: rgba(10, 12, 16, 0.42); box-shadow: inset 0 0 0 1.5px var(--gold-2); overflow: hidden; transition: box-shadow 0.3s; }
+/* the pulse fills the diamond from its lower point as it comes back */
+#hud .pulse i { position: absolute; inset: 0; background: var(--ink-2); opacity: 0; transform: translate(calc((1 - var(--p, 1)) * 100%), calc((1 - var(--p, 1)) * 100%)); }
+#hud .pulse.have i { opacity: 0.85; }
+#hud .pulse.have { box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+#hud .pulse.ready { box-shadow: inset 0 0 0 1.5px var(--gold), 0 0 14px rgba(231, 194, 125, 0.35); }
 #hud .pulse.ready i { background: var(--gold); }
+#hud .pulse::after { content: ''; position: absolute; inset: 9px; background: var(--night); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25); }
 
 /* a key to press: the key in a diamond, the deed beside it */
 #hud .prompt { position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; font-size: 16px; opacity: 0; transition: opacity 0.25s; white-space: nowrap; }
@@ -115,7 +122,11 @@
 
 #hud .boss { position: absolute; left: 50%; top: 74px; transform: translateX(-50%); width: min(480px, 46vw); text-align: center; opacity: 0; transition: opacity 0.6s; }
 #hud .boss.on { opacity: 1; }
-#hud .boss .name { font-family: var(--display); font-size: 19px; font-weight: 300; letter-spacing: 0.02em; }
+#hud .boss .name { font-family: var(--display); font-size: 20px; font-weight: 300; letter-spacing: 0.02em; display: flex; align-items: center; gap: 16px; justify-content: center; padding-top: 3px; }
+#hud .boss .name::before, #hud .boss .name::after { content: ''; flex: 1; height: 1px; margin-top: -4px; background: linear-gradient(90deg, rgba(231, 194, 125, 0), var(--gold-2)); }
+#hud .boss .name::after { transform: scaleX(-1); }
+#hud .boss .meter::before, #hud .boss .meter::after { content: ''; position: absolute; top: 50%; width: 6px; height: 6px; margin-top: -3px; background: var(--gold); transform: rotate(45deg); z-index: 1; }
+#hud .boss .meter::before { left: -3px; } #hud .boss .meter::after { right: -3px; }
 #hud .boss .meter { height: 2px; margin-top: 8px; }
 #hud .boss .notches i { position: absolute; top: -3px; width: 1px; height: 8px; background: var(--night); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); inset: auto; }
 
@@ -151,7 +162,8 @@
 
 #hud .hints { position: absolute; right: 38px; bottom: 34px; display: grid; grid-template-columns: auto auto; gap: 7px 14px; font-size: 13.5px; color: var(--ink-2); opacity: 0; transition: opacity 0.8s; }
 #hud .hints.on { opacity: 1; }
-#hud .hints b { font-weight: 500; color: var(--ink); text-align: right; }
+#hud .hints { align-items: center; }
+#hud .hints b { justify-self: end; font-weight: 500; font-size: 12.5px; color: var(--ink); padding: 3px 9px 2px; background: rgba(10, 12, 16, 0.4); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); text-shadow: none; white-space: nowrap; }
 #hud .grab { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font-size: 14.5px; color: var(--ink); padding: 8px 18px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); opacity: 0; transition: opacity 0.3s; }
 #hud .grab.on { opacity: 1; }
 
@@ -198,6 +210,7 @@
 .panel::-webkit-scrollbar { width: 6px; }
 .panel::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.22); }
 .panel h2 { font-size: 46px; font-weight: 200; letter-spacing: 0.01em; padding-top: 0.1em; }
+.panel .emblem { margin: 0 0 4px -4px; }
 .panel.wide h2 { margin-bottom: 22px; }
 .tabs { display: flex; gap: 26px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
 #ui .tabs button { font-family: var(--display); font-size: 17px; font-weight: 400; color: var(--ink-2); padding: 4px 0 9px; position: relative; transition: color 0.2s; }
@@ -236,6 +249,7 @@ input[type='range']::-moz-range-thumb { width: 11px; height: 11px; background: v
 /* --- the journey: map, journal, hero --- */
 #journey { background: rgba(8, 10, 14, 0.9); display: grid; grid-template-rows: auto 1fr; padding: clamp(18px, 3.4vh, 40px) clamp(24px, 5vw, 84px) clamp(18px, 3vh, 36px); }
 #journey .head { display: flex; align-items: flex-end; justify-content: space-between; }
+#journey .head .emblem { width: 38px; height: 38px; margin: 0 22px 8px 0; flex: none; }
 #journey .head .tabs { flex: 1; margin: 0; gap: 34px; }
 #ui #journey .tabs button { font-size: 24px; font-weight: 300; padding: 6px 0 12px; }
 #ui #journey .close { font-size: 14.5px; color: var(--ink-2); padding: 0 0 13px 24px; border-bottom: 1px solid var(--line); }
@@ -301,6 +315,7 @@ input[type='range']::-moz-range-thumb { width: 11px; height: 11px; background: v
 
 /* --- ending --- */
 #ending { background: radial-gradient(ellipse at center, rgba(8, 10, 14, 0.3), rgba(8, 10, 14, 0.76)); display: grid; place-items: center; text-align: center; transition-duration: 2s; }
+#ending .emblem { width: 70px; height: 70px; margin: 0 auto 6px; }
 #ending h2 { font-size: clamp(40px, 5.4vw, 76px); font-weight: 200; letter-spacing: 0.01em; padding-top: 0.1em; }
 #ending .rule { width: 260px; margin: 12px auto 18px; background: linear-gradient(90deg, rgba(231, 194, 125, 0), var(--gold), rgba(231, 194, 125, 0)); transform-origin: center; }
 #ending .rule i { left: 50%; margin-left: -3.5px; }

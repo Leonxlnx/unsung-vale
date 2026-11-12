@@ -13,6 +13,8 @@
       #boot { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: #0b0d10; color: rgba(255, 255, 255, 0.94); font-family: 'Jost Variable', 'Segoe UI', system-ui, sans-serif; transition: opacity 0.9s; }
       #boot.gone { opacity: 0; pointer-events: none; }
       #boot div { width: min(360px, 70vw); }
+      #boot svg { display: block; width: 58px; height: 58px; margin: 0 0 4px -4px; animation: bootmark 2.6s ease-in-out infinite; }
+      @keyframes bootmark { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
       #boot h1 { font-family: 'Josefin Sans Variable', 'Century Gothic', 'Segoe UI Light', 'Segoe UI', sans-serif; font-size: 38px; font-weight: 200; letter-spacing: 0.01em; margin: 0 0 18px; }
       #boot .bar { height: 1px; background: rgba(255, 255, 255, 0.16); position: relative; margin-left: 5px; }
       #boot .bar::before { content: ''; position: absolute; left: -5px; top: -3px; width: 7px; height: 7px; background: #e7c27d; transform: rotate(45deg); }
@@ -22,7 +24,7 @@
   </head>
   <body>
     <canvas id="view" tabindex="0"></canvas>
-    <div id="boot"><div><h1>Unsung Vale</h1><div class="bar"><i></i></div><p>Preparing the valley</p></div></div>
+    <div id="boot"><div><svg viewBox="0 0 64 64" fill="none" stroke="#e7c27d" stroke-width="1.3" stroke-linecap="round" aria-hidden="true"><path d="M11.2 50 A24 24 0 1 1 52.8 50"/><path d="M17.7 46.25 A16.5 16.5 0 1 1 46.3 46.25" opacity="0.75"/><path d="M24.2 42.5 A9 9 0 1 1 39.8 42.5" opacity="0.5"/><path d="M32 5 V59"/><path d="M32 33.4 L36.6 38 L32 42.6 L27.4 38 Z" fill="#e7c27d" stroke="none"/></svg><h1>Unsung Vale</h1><div class="bar"><i></i></div><p>Preparing the valley</p></div></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

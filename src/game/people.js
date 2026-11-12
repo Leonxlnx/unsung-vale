@@ -20,8 +20,8 @@ const STONE = [[0.4, 0.4, 0.42], 0.92, 0, 0, 0];
 const GOLD = [[1.0, 0.76, 0.36], 0.32, 1, 0, 0], MASK = [[0.88, 0.86, 0.82], 0.26, 0, 0, 0], DARK = [[0.02, 0.02, 0.025], 0.6, 0, 0, 0], WOOD = [[0.16, 0.1, 0.06], 0.7, 0, 0.1, 0];
 // Dyes: deep, a little dusty, each court its own.
 const DYE = {
-  teal: [0.03, 0.16, 0.17], wine: [0.3, 0.03, 0.05], indigo: [0.06, 0.07, 0.24], ochre: [0.42, 0.24, 0.05], moss: [0.1, 0.17, 0.05],
-  plum: [0.2, 0.05, 0.2], slate: [0.12, 0.15, 0.19], rust: [0.36, 0.11, 0.04], cream: [0.6, 0.54, 0.42], rose: [0.4, 0.12, 0.14],
+  teal: [0.03, 0.12, 0.13], wine: [0.22, 0.03, 0.045], indigo: [0.045, 0.055, 0.15], ochre: [0.3, 0.17, 0.045], moss: [0.08, 0.125, 0.045],
+  plum: [0.14, 0.045, 0.13], slate: [0.09, 0.11, 0.14], rust: [0.26, 0.085, 0.035], cream: [0.5, 0.45, 0.35], rose: [0.3, 0.1, 0.11],
 };
 const cloth = (c) => [DYE[c], 0.86, 0, 0.5, 0];
 
@@ -88,31 +88,50 @@ export class People {
     root.position.set(n.x, n.y, n.z); root.rotation.y = n.yaw; root.scale.setScalar(d.h);
     const add = (parent, geo, mat) => { const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; parent.add(m); n.meshes.push(m); this.pipe.shadows.addCaster(m, depth, { dynamic: true }); return m; };
     const body = (n.body = new THREE.Group()); root.add(body);
-    add(body, lathe([[0.37, 0], [0.34, 0.04], [0.27, 0.5], [0.205, 0.95], [0.2, 1.05], [0.225, 1.28], [0.2, 1.4], [0.085, 1.5], [0.0, 1.5]], 16, 0.8), robe);
-    add(body, lathe([[0.315, 1.14], [0.3, 1.2], [0.25, 1.36], [0.16, 1.47], [0.09, 1.53], [0, 1.53]], 16, 0.86), mantle);
-    add(body, merged([ring(0.362, 0.035, 0.013, 0.8), ring(0.212, 1.0, 0.016, 0.8), ring(0.315, 1.145, 0.011, 0.86), ...(d.prop === 'scroll' ? [tube([-0.16, 0.9, -0.2], [0.14, 1.34, -0.2], 0.035, 0.035, 8)] : [])]), gold);
-    // Sleeves: from the shoulders down and in, the hands hidden where they meet.
+    // The robe: long and narrow, gathered at the waist, falling in pleats that deepen toward
+    // the hem. Its outline at any height, for laying the stole against it:
+    const PROFILE = [[0.33, 0], [0.315, 0.05], [0.245, 0.5], [0.185, 0.95], [0.178, 1.04], [0.205, 1.27], [0.198, 1.38], [0.08, 1.5], [0.0, 1.5]], DEPTH = 0.76;
+    const rAt = (y) => { for (let i = 1; i < PROFILE.length; i++) if (y <= PROFILE[i][1]) { const [r0, y0] = PROFILE[i - 1], [r1, y1] = PROFILE[i]; return r0 + (r1 - r0) * ((y - y0) / Math.max(1e-4, y1 - y0)); } return 0; };
+    { const g = lathe(PROFILE, 40, 1), p = g.attributes.position, seed = d.h * 13;
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i), an = Math.atan2(z, x), fold = Math.max(0, 1 - y / 1.02);
+        const k = 1 + (0.05 * Math.sin(an * 9 + seed) + 0.025 * Math.sin(an * 17 + seed * 2)) * fold * fold;
+        p.setXYZ(i, x * k, y, z * k * DEPTH);
+      }
+      g.computeVertexNormals(); add(body, g, robe); }
+    // A short collar over the shoulders, and a stole hanging from it down the front.
+    add(body, lathe([[0.25, 1.29], [0.243, 1.35], [0.17, 1.455], [0.09, 1.52], [0, 1.52]], 24, DEPTH + 0.06), mantle);
+    { const pos = [], idx = [], W = 0.082, N = 7;
+      for (let j = 0; j <= N; j++) { const y = 1.4 + (0.34 - 1.4) * (j / N), zz = rAt(y) * DEPTH * (1 + 0.06 * Math.max(0, 1 - y)) + 0.014; pos.push(-W, y, zz, W, y, zz); if (j < N) { const o = j * 2; idx.push(o, o + 2, o + 1, o + 1, o + 2, o + 3); } }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+      add(body, g, mantle);
+      const zz = rAt(0.34) * DEPTH * 1.04 + 0.016;
+      add(body, merged([new THREE.BoxGeometry(0.18, 0.03, 0.012).translate(0, 0.34, zz), new THREE.BoxGeometry(0.18, 0.012, 0.012).translate(0, 0.41, zz - 0.003), ring(0.19, 1.02, 0.014, DEPTH), ring(0.325, 0.03, 0.011, DEPTH), ring(0.248, 1.295, 0.009, DEPTH + 0.06),
+        ...(d.prop === 'scroll' ? [tube([-0.15, 0.92, -0.18], [0.13, 1.32, -0.18], 0.032, 0.032, 8)] : [])]), gold); }
+    // Sleeves: from the shoulders down and in to hands folded at the waist.
     for (const sg of [1, -1]) {
-      const arm = new THREE.Group(); arm.position.set(sg * 0.205, 1.34, 0); body.add(arm);
-      add(arm, merged([tube([0, 0, 0], [sg * 0.03, -0.31, 0.03], 0.07, 0.085), tube([sg * 0.03, -0.3, 0.02], [-sg * 0.15, -0.36, 0.2], 0.085, 0.1)]), robe);
+      const arm = new THREE.Group(); arm.position.set(sg * 0.19, 1.36, 0); body.add(arm);
+      add(arm, merged([tube([0, 0, 0], [sg * 0.045, -0.3, 0.02], 0.058, 0.066, 10), tube([sg * 0.045, -0.29, 0.01], [-sg * 0.135, -0.33, 0.17], 0.066, 0.088, 10)]), robe);
+      add(arm, new THREE.SphereGeometry(0.042, 8, 6).translate(-sg * 0.155, -0.335, 0.19), mask);
       n[sg > 0 ? 'armL' : 'armR'] = arm;
     }
-    const head = (n.head = new THREE.Group()); head.position.set(0, 1.61, 0); body.add(head);
-    { const hood = new THREE.SphereGeometry(0.14, 14, 10); hood.scale(1, 1.08, 1.12); hood.translate(0, 0.01, -0.025);
-      const drape = lathe([[0.15, -0.1], [0.135, -0.02], [0.1, 0.06]], 14, 1.0); drape.translate(0, -0.04, -0.03);
-      add(head, merged([hood, drape]), robe); }
-    { const face = new THREE.SphereGeometry(0.1, 14, 10); face.scale(0.86, 1.1, 0.5); face.translate(0, -0.005, 0.085); add(head, face, mask); }
-    add(head, merged([new THREE.BoxGeometry(0.036, 0.009, 0.012).translate(0.036, 0.012, 0.133), new THREE.BoxGeometry(0.036, 0.009, 0.012).translate(-0.036, 0.012, 0.133)]), dark);
-    add(head, ring(0.139, 0.075, 0.008, 1.1).translate(0, 0, -0.025), gold);
+    const head = (n.head = new THREE.Group()); head.position.set(0, 1.6, 0); body.add(head);
+    { const hood = new THREE.SphereGeometry(0.128, 18, 12); hood.scale(1, 1.1, 1.14); hood.translate(0, 0.012, -0.022);
+      const drape = lathe([[0.14, -0.1], [0.126, -0.02], [0.1, 0.05]], 18, 1.0); drape.translate(0, -0.04, -0.026);
+      const peak = new THREE.ConeGeometry(0.06, 0.2, 8); peak.rotateX(-2.1); peak.translate(0, 0.07, -0.17);
+      add(head, merged([hood, drape, peak]), robe); }
+    { const face = new THREE.SphereGeometry(0.094, 18, 12); face.scale(0.84, 1.1, 0.5); face.translate(0, -0.006, 0.084); add(head, face, mask); }
+    add(head, merged([new THREE.BoxGeometry(0.034, 0.008, 0.012).translate(0.034, 0.012, 0.128), new THREE.BoxGeometry(0.034, 0.008, 0.012).translate(-0.034, 0.012, 0.128)]), dark);
+    add(head, ring(0.128, 0.078, 0.007, 1.12).translate(0, 0, -0.022), gold);
     if (d.prop === 'staff') {
       const wood = this._mat(n, WOOD);
-      add(body, tube([-0.34, 0, 0.16], [-0.3, 1.86, 0.1], 0.018, 0.015, 7), wood);
-      add(body, new THREE.OctahedronGeometry(0.07, 0).scale(0.7, 1.5, 0.7).translate(-0.298, 1.96, 0.097), gold);
+      add(body, tube([-0.31, 0, 0.17], [-0.275, 1.9, 0.11], 0.017, 0.014, 7), wood);
+      add(body, merged([new THREE.OctahedronGeometry(0.06, 0).scale(0.7, 1.6, 0.7).translate(-0.273, 2.0, 0.108), ring(0.03, 1.9, 0.008, 1).translate(-0.275, 0, 0.11)]), gold);
     }
     if (d.prop === 'lute') {
       const wood = this._mat(n, WOOD);
-      const bowl = new THREE.SphereGeometry(0.15, 12, 8); bowl.scale(0.8, 1.1, 0.45);
-      const g = merged([bowl, tube([0, 0.12, 0], [0, 0.5, 0], 0.022, 0.018, 6)]); g.rotateZ(0.7); g.translate(0.02, 0.98, -0.2);
+      const bowl = new THREE.SphereGeometry(0.14, 14, 10); bowl.scale(0.8, 1.1, 0.42);
+      const g = merged([bowl, tube([0, 0.11, 0], [0, 0.48, 0], 0.02, 0.016, 6)]); g.rotateZ(0.7); g.translate(0.02, 0.98, -0.19);
       add(body, g, wood);
     }
     this.pipe.scene.add(root);
@@ -183,7 +202,7 @@ export class People {
       n.body.scale.y = 1 + 0.005 * Math.sin(n.t * 1.5) * k;
       n.head.rotation.set((1 - k) * 0.32 + 0.05 * Math.sin(n.t * 2.3) * n.gesture, n.headYaw, 0.05 * Math.sin(n.t * 1.1) * n.gesture);
       // A speaking hand: the right sleeve lifts and turns with the words.
-      n.armR.rotation.set(-(0.5 + 0.18 * Math.sin(n.t * 2.6)) * n.gesture, 0, -0.25 * n.gesture);
+      n.armR.rotation.set(-(0.42 + 0.16 * Math.sin(n.t * 2.6)) * n.gesture, 0.25 * n.gesture, -0.3 * n.gesture);
       n.armL.rotation.set(-0.12 * n.gesture, 0, 0);
       n.root.updateMatrixWorld(true);
     }

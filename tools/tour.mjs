@@ -52,8 +52,8 @@ if (want('talk')) {
   await sleep(700);
   await page.keyboard.press('KeyE');
   await sleep(1600); await shot('talk');
-  for (let i = 0; i < 7; i++) { await page.keyboard.press('KeyE'); await sleep(450); }
-  await sleep(1400); await shot('quest_toast');
+  for (let i = 0; i < 14; i++) { if (!(await ev(() => !!window.__game.people.talk))) break; await page.keyboard.press('KeyE'); await sleep(480); }
+  await sleep(1500); await shot('quest_toast');
 }
 if (want('journal')) { await page.keyboard.press('KeyJ'); await sleep(900); await shot('journal'); await ev(() => document.querySelector('[data-jtab="hero"]').click()); await sleep(500); await shot('hero'); await page.keyboard.press('KeyJ'); await sleep(600); await page.mouse.click(W / 2, H / 2); await sleep(300); }
 
