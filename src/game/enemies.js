@@ -89,7 +89,31 @@ const COLOSSUS = [
   S(-1.5, 4.2, 0, -1, 0.9, 0, 1.3, 0.4), S(1.5, 4.2, 0, 1, 0.9, 0, 1.3, 0.4),
 ];
 
+// Hound: long and low, fangs forward; it circles and then leaps.
+const HOUND = [
+  S(0, 0.82, 0.1, 0, 0.05, 1, 1.15, 0.44), S(0, 0.9, 0.78, 0, 0.3, 1, 0.5, 0.3, 'head'),
+  S(-0.1, 0.78, 1.08, -0.15, -0.5, 1, 0.42, 0.1, 'bladeL'), S(0.1, 0.78, 1.08, 0.15, -0.5, 1, 0.42, 0.1, 'bladeR'),
+  S(-0.24, 0.42, 0.5, -0.1, -1, 0.25, 0.72, 0.14, 'tail'), S(0.24, 0.42, 0.5, 0.1, -1, 0.25, 0.72, 0.14, 'tail'),
+  S(-0.24, 0.42, -0.42, -0.1, -1, -0.25, 0.72, 0.14, 'tail'), S(0.24, 0.42, -0.42, 0.1, -1, -0.25, 0.72, 0.14, 'tail'),
+  S(0, 1.16, 0.3, 0, 1, -0.5, 0.42, 0.12, 'mote'), S(0, 1.2, -0.05, 0, 1, -0.6, 0.5, 0.12, 'mote'), S(0, 1.12, -0.4, 0, 1, -0.7, 0.4, 0.1, 'mote'),
+  S(0, 0.92, -0.85, 0, 0.45, -1, 0.85, 0.12, 'tail'),
+];
+// Warden: a tall figure behind a wall of long shards. Blows from the front glance off.
+const WARDEN = [
+  ...THRALL.map((s) => S(s.p.x * 1.4, s.p.y * 1.4, s.p.z * 1.4, s.d.x, s.d.y, s.d.z, s.len * 1.4, s.th * 1.4, s.tag)),
+  ...Array.from({ length: 7 }, (_, k) => S((k - 3) * 0.27, 1.6 - Math.abs(k - 3) * 0.08, 1.0, (k - 3) * 0.05, 1, 0, 2.0 - Math.abs(k - 3) * 0.12, 0.3, 'shield')),
+];
+// Chorister: hangs in the air under a turning halo and calls blasts down where the hero stands.
+const CHORISTER = [
+  S(0, 2.2, 0, 0, 1, 0, 1.05, 0.4), S(0, 2.95, 0.02, 0, 1, 0.1, 0.42, 0.27, 'head'),
+  S(0, 1.4, 0, 0, -1, 0, 0.95, 0.24, 'tail'), S(-0.5, 1.95, 0, -0.4, -1, 0, 1.15, 0.16, 'tail'), S(0.5, 1.95, 0, 0.4, -1, 0, 1.15, 0.16, 'tail'),
+  ...Array.from({ length: 10 }, (_, k) => { const a = (k / 10) * 6.283; return S(Math.cos(a) * 0.95, 3.45, Math.sin(a) * 0.95, Math.cos(a), 0.25, Math.sin(a), 0.5, 0.13, 'halo'); }),
+];
+
 export const KINDS = {
+  hound:     { slots: HOUND, hp: 36, speed: 6.4, reach: 2.4, windup: 0.42, strike: 0.26, recover: 0.7, damage: 11, poise: 16, radius: 0.5, sight: 30, hover: 0.12, core: 0.8, circle: true, lunge: 19, name: 'Mute Hound' },
+  warden:    { slots: WARDEN, hp: 150, speed: 2.3, reach: 3.1, windup: 0.85, strike: 0.22, recover: 1.0, damage: 24, poise: 80, radius: 0.8, sight: 28, hover: 0.3, core: 1.95, shield: true, name: 'Mute Warden' },
+  chorister: { slots: CHORISTER, hp: 64, speed: 2.6, reach: 20, windup: 1.1, strike: 0.2, recover: 1.6, damage: 18, poise: 26, radius: 0.6, sight: 36, hover: 1.2, core: 2.3, ranged: true, caster: true, name: 'Mute Chorister' },
   thrall:   { slots: THRALL, hp: 62, speed: 3.6, reach: 2.3, windup: 0.56, strike: 0.2, recover: 0.75, damage: 14, poise: 30, radius: 0.55, sight: 26, hover: 0.3, core: 1.4, name: 'Mute Thrall' },
   lancer:   { slots: LANCER, hp: 44, speed: 3.0, reach: 15, windup: 0.95, strike: 0.15, recover: 1.3, damage: 12, poise: 20, radius: 0.55, sight: 34, hover: 0.35, core: 1.62, ranged: true, name: 'Mute Lancer' },
   colossus: { slots: COLOSSUS, hp: 560, speed: 2.5, reach: 5.2, windup: 0.95, strike: 0.25, recover: 1.15, damage: 26, poise: 150, radius: 1.5, sight: 60, hover: 0.5, core: 3.2, boss: true, name: 'The Unsung' },
@@ -121,8 +145,8 @@ class Enemy {
 export class Enemies {
   constructor(pipe, world, particles) {
     this.pipe = pipe; this.world = world; this.particles = particles;
-    this.list = []; this.projectiles = []; this.events = [];
-    this.max = 420;
+    this.list = []; this.projectiles = []; this.events = []; this.blasts = [];
+    this.max = 960;
     const geo = shardGeometry();
     this.glowAttr = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 2), 2);
     this.glowAttr.setUsage(THREE.DynamicDrawUsage);
@@ -152,6 +176,14 @@ export class Enemies {
   // Applies a hit. Returns true if it connected.
   hit(e, dmg, from, heavy = false) {
     if (!e.alive || e.state === 'dormant') return false;
+    if (e.def.shield && e.state !== 'stagger') {
+      // In front of the wall of shards a light blow only rings on it; a heavy one cracks it.
+      const dx = from.x - e.pos.x, dz = from.z - e.pos.z, l = Math.hypot(dx, dz) || 1;
+      if ((dx * Math.sin(e.yaw) + dz * Math.cos(e.yaw)) / l > 0.35) {
+        if (!heavy) { e.poise -= dmg * 0.6; e.glow = 1.2; this.events.push({ type: 'blocked', enemy: e }); if (e.poise <= 0) { e.poise = e.def.poise; e.state = 'stagger'; e.t = 0; } return false; }
+        dmg *= 0.5;
+      }
+    }
     e.hp -= dmg; e.poise -= dmg * (heavy ? 2.2 : 1);
     e.glow = 1.7; e.staggerK = Math.min(1, e.staggerK + (heavy ? 1 : 0.55));
     _v.copy(e.pos).sub(from).setY(0).normalize();
@@ -201,6 +233,11 @@ export class Enemies {
             // Lancers keep their distance and back off when crowded.
             if (dist < 7) { wantSpeed = d.speed; dirSign = -1; } else if (dist > 14) wantSpeed = d.speed;
             if (dist < 22 && e.t > 1.4 + e.seed * 1.2) { e.state = 'windup'; e.t = 0; this.events.push({ type: 'charge', enemy: e }); }
+          } else if (d.circle && dist < 8.5) {
+            // Round the hero at a few paces, then in.
+            const s = (e.orbit ??= e.seed < 0.5 ? 1 : -1), inw = dist > 5.5 ? 0.7 : dist < 3.6 ? -0.5 : 0.05;
+            if (e.t > 1.1 + e.seed * 1.3 && dist < 6.5) { e.state = 'windup'; e.t = 0; e.attackKind = 0; this.events.push({ type: 'charge', enemy: e }); }
+            else { const tx = -toP.z * s, tz = toP.x * s; toP.set(tx * 0.9 + toP.x * inw, 0, tz * 0.9 + toP.z * inw).normalize(); wantSpeed = d.speed * 0.8; }
           } else {
             if (dist > d.reach * 0.82) wantSpeed = d.speed;
             else if (e.t > 0.25) { e.state = 'windup'; e.t = 0; e.attackKind = d.boss ? Math.floor(Math.random() * 2) : 0; this.events.push({ type: 'charge', enemy: e }); }
@@ -215,7 +252,17 @@ export class Enemies {
           if (e.t >= d.windup) { e.state = 'strike'; e.t = 0; e.didHit = false; this.events.push({ type: 'attack', enemy: e }); }
         } else if (e.state === 'strike') {
           const f = _v2.set(Math.sin(e.yaw), 0, Math.cos(e.yaw));
-          if (d.ranged || e.attackKind === 2) {
+          if (d.caster) {
+            if (!e.didHit) {
+              e.didHit = true;
+              // Where he stands now, and where he is heading: two marks, a breath apart.
+              for (const [lead, wait] of [[0, 1.05], [0.55, 1.5]]) {
+                const b = { x: player.pos.x + player.vel.x * lead, z: player.pos.z + player.vel.z * lead, t: wait, r: 2.7, dmg: d.damage, y: 0 };
+                b.y = W.floorBelow(b.x, player.pos.y + 1.5, b.z, 6);
+                this.blasts.push(b); this.events.push({ type: 'blastMark', blast: b, enemy: e });
+              }
+            }
+          } else if (d.ranged || e.attackKind === 2) {
             if (!e.didHit) {
               e.didHit = true;
               const n = d.boss ? 3 : 1;
@@ -229,7 +276,7 @@ export class Enemies {
             }
           } else {
             // Melee: a short lunge; the hit lands once, in a cone ahead.
-            if (!d.boss) e.vel.copy(f).multiplyScalar(11 * (1 - e.t / d.strike));
+            if (!d.boss) e.vel.copy(f).multiplyScalar((d.lunge ?? 11) * (1 - e.t / d.strike));
             if (!e.didHit && e.t > d.strike * 0.3) {
               const reach = d.reach + (d.boss ? 1.2 : 0.7), cone = d.boss && e.attackKind === 1 ? -0.2 : 0.35;
               const slam = d.boss && e.attackKind === 0;
@@ -303,6 +350,14 @@ export class Enemies {
       if (hitPlayer || hitGround || p.life <= 0) { P.burst(p.pos.x, p.pos.y, p.pos.z, 10, { speed: 4, life: 0.35, size: 0.07, color: [3, 1.5, 6], gravity: 6 }); this.events.push({ type: 'shotHit', pos: p.pos.clone() }); this.projectiles.splice(i, 1); }
     }
 
+    for (let i = this.blasts.length - 1; i >= 0; i--) {
+      const b = this.blasts[i];
+      b.t -= dt;
+      if (b.t > 0) continue;
+      this.blasts.splice(i, 1);
+      this.events.push({ type: 'blast', blast: b });
+      if (Math.hypot(player.pos.x - b.x, player.pos.z - b.z) < b.r && Math.abs(player.pos.y - b.y) < 2.6) this.events.push({ type: 'hitPlayer', damage: b.dmg, from: new THREE.Vector3(b.x, b.y, b.z) });
+    }
     this._writeInstances(dt, time, player);
     // Dead constructs disappear once their shards have faded.
     this.list = this.list.filter((e) => e.alive || e.t < 3.2);
@@ -331,6 +386,8 @@ export class Enemies {
           if (s.tag === 'mote') { const a = time * 0.9 + sh.phase; t.x += Math.cos(a) * 0.12; t.z += Math.sin(a) * 0.12; }
           if (s.tag === 'ring') { const a = time * (1.2 + wind * 9) + sh.phase * 0; const c = Math.cos(a), sn = Math.sin(a); const x = s.p.x, y = s.p.y - d.core; t.x = x * c - y * sn; t.y = d.core + x * sn + y * c + hover; dir.set(t.x, t.y - d.core - hover, 0).normalize(); }
           if (s.tag === 'spear') { t.z += -0.5 * wind + 1.2 * strike; }
+          if (s.tag === 'halo') { const a = Math.atan2(s.p.z, s.p.x) + time * (0.7 + wind * 6), r = 0.95 + 0.25 * wind; t.x = Math.cos(a) * r; t.z = Math.sin(a) * r; t.y += 0.2 * wind; dir.set(Math.cos(a), 0.25 + wind, Math.sin(a)).normalize(); }
+          if (s.tag === 'shield') { t.z += 0.15 * wind - 0.5 * strike; t.y += 0.1 * Math.sin(time * 1.3 + s.p.x * 3); }
           const right = s.tag === 'bladeR' || s.tag === 'armR', arm = right || s.tag === 'bladeL' || s.tag === 'armL';
           if (arm && !d.ranged) {
             const k = s.tag.startsWith('blade') ? 1 : 0.5, sc = d.boss ? 2.3 : 1;

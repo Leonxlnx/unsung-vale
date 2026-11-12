@@ -57,6 +57,9 @@ export function connectAudio(audio, game, ui, falls) {
       if (d.type === 'charge' && e) at('enemy_charge', e.pos, { volume: 0.6, range: 14, pitch: (boss ? 0.8 : 1) * 0.95 / Math.max(0.5, e.def.windup) });
       if (d.type === 'attack' && e && !e.def.ranged && e.attackKind !== 2) at('enemy_swing', e.pos, { volume: 0.6, range: 12, pitch: boss ? 0.75 : 1 });
       if (d.type === 'shot' && e) at('enemy_shot', e.pos, { volume: 0.5, range: 16 });
+      if (d.type === 'blocked' && e) at('block', e.pos, { volume: 0.6, range: 14 });
+      if (d.type === 'blastMark') at('enemy_charge', new THREE.Vector3(d.blast.x, d.blast.y, d.blast.z), { volume: 0.4, range: 16, pitch: 1.3 });
+      if (d.type === 'blast') at('enemy_shot_hit', new THREE.Vector3(d.blast.x, d.blast.y, d.blast.z), { volume: 0.8, range: 18, pitch: 0.8 });
       if (d.type === 'shotHit') at('enemy_shot_hit', d.pos, { volume: 0.5, range: 12 });
       if (d.type === 'slam' && e) at('slam', e.pos, { volume: 1, range: 24 });
       if (d.type === 'wake' && e) at('enemy_wake', e.pos, { volume: boss ? 0.9 : 0.6, range: 18, pitch: boss ? 0.7 : 1 });

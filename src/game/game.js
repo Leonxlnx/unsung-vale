@@ -255,12 +255,12 @@ export class Game {
   _spawnEncounters() {
     const E = this.enemies, tuned = (id) => this.spires.find((s) => s.id === id)?.tuned;
     const ring = (kind, cx, cz, r, n, group, a0 = 0) => { for (let i = 0; i < n; i++) { const a = a0 + (i / n) * 6.283; E.spawn(kind, cx + Math.cos(a) * r, cz + Math.sin(a) * r, group); } };
-    if (!tuned('petal')) ring('thrall', -372, -392, 8.5, 3, 'petal', 0.4);
+    if (!tuned('petal')) { ring('thrall', -372, -392, 8.5, 3, 'petal', 0.4); E.spawn('hound', -384, -404, 'petal'); }
     if (!tuned('cantor')) {
       E.spawn('thrall', -100, -455, 'stair'); E.spawn('thrall', -96, -465, 'stair'); E.spawn('lancer', -84, -459, 'stair');
-      ring('thrall', 66, -498, 10, 3, 'cantor', 1.2); E.spawn('lancer', 92, -520, 'cantor'); E.spawn('lancer', 40, -476, 'cantor');
+      ring('thrall', 66, -498, 10, 2, 'cantor', 1.2); E.spawn('warden', 58, -508, 'cantor'); E.spawn('lancer', 92, -520, 'cantor'); E.spawn('hound', 40, -476, 'cantor'); E.spawn('hound', 80, -482, 'cantor');
     }
-    if (!tuned('choir')) { E.spawn('colossus', 156, -4, 'choir'); E.spawn('lancer', 130, -32, 'choir'); E.spawn('lancer', 167, 6, 'choir'); }
+    if (!tuned('choir')) { E.spawn('colossus', 156, -4, 'choir'); E.spawn('chorister', 130, -32, 'choir'); E.spawn('lancer', 167, 6, 'choir'); }
   }
 
   // --- progress ------------------------------------------------------------------------
@@ -508,6 +508,22 @@ export class Game {
       const q = e.enemy?.pos ?? this.player.pos;
       this.vfx.wave(q.x, q.y + 0.1, q.z, { r0: 1, r1: 11, life: 0.7, strength: 1.5, width: 0.08, color: [2.4, 1.15, 4.6] });
       this.particles.burst(q.x, q.y + 0.3, q.z, 40, { speed: 9, life: 0.6, size: 0.07, color: [2.4, 1.15, 4.6], gravity: 8, drag: 1.5, streak: 0.1, up: 3 });
+    }
+    if (e.type === 'blastMark') {
+      const b = e.blast;
+      this.vfx.wave(b.x, b.y + 0.08, b.z, { r0: b.r, r1: b.r - 0.01, life: b.t, linear: true, rise: true, strength: 0.3, width: 0.05, color: [2.4, 1.15, 4.6] });
+      this.vfx.wave(b.x, b.y + 0.08, b.z, { r0: b.r * 2.6, r1: b.r, life: b.t, linear: true, rise: true, strength: 0.5, width: 0.05, color: [2.4, 1.15, 4.6] });
+    }
+    if (e.type === 'blast') {
+      const b = e.blast;
+      this.vfx.wave(b.x, b.y + 0.1, b.z, { r0: 0.3, r1: b.r * 1.5, life: 0.45, strength: 1.3, width: 0.1, color: [2.4, 1.15, 4.6] });
+      this.vfx.wave(b.x, b.y + 1.2, b.z, { kind: 1, r0: 0.3, r1: b.r, life: 0.35, strength: 1.2, width: 0.14, color: [2.0, 1.0, 3.8] });
+      for (let k = 0; k < 30; k++) { const a = Math.random() * 6.283, r = Math.random() * b.r * 0.7; this.particles.spawn(b.x + Math.cos(a) * r, b.y + 0.2, b.z + Math.sin(a) * r, { vel: [Math.cos(a) * 2, 6 + Math.random() * 10, Math.sin(a) * 2], life: 0.7, size: 0.08, color: [3.2, 1.9, 5.6], drag: 1.0, streak: 0.1 }); }
+      if (Math.hypot(this.player.pos.x - b.x, this.player.pos.z - b.z) < 14) this.rig.addShake(0.3);
+    }
+    if (e.type === 'blocked') {
+      const c = e.enemy.center;
+      this.particles.burst(c.x, c.y, c.z, 12, { speed: 8, life: 0.3, size: 0.05, color: [3, 2.6, 4], gravity: 12, drag: 1.5, streak: 0.14 });
     }
     if (e.type === 'wake' && e.enemy.def.boss) { this.boss = e.enemy; this.emit('boss', { enemy: e.enemy }); }
     if (e.type === 'death') {
