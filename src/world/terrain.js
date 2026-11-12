@@ -353,7 +353,7 @@ void main() {
   float fam = meadowFamily(n1, n2, pn.r);
   float clover = meadowClover(pn.g);
   vec3 meadow = meadowTip(fam, vec2(0.5)) * mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), n1.r);
-  meadow = mix(meadow, meadow * vec3(0.62, 0.92, 0.78), clover);
+  meadow = mix(meadow, meadow * vec3(0.62, 0.92, 0.78), clover) * meadowShade(pn.b, n2.g);
   alb = mix(alb, meadow * (0.34 + 3.4 * dot(A.rgb, vec3(0.3, 0.6, 0.1))), grass * 0.9);
   // Away from the valley the green is alpine: paler and browner with height, with dark woods
   // on the middle slopes.

@@ -27,6 +27,7 @@ ${MEADOW_GLSL}
 // x: height above sea level, y: growth 0..1 (0 = nothing grows here), z: macro tone,
 // w: meadow family (lush to dry). clover is set to how much of a low clover patch this is.
 float gClover;
+vec3 gShade;
 vec4 groundInfo(vec2 xz) {
   float h = terrainHeight(xz);
   vec4 nm = textureLod(uNCore, xz / CORE_SIZE + 0.5, 0.0);
@@ -43,6 +44,7 @@ vec4 groundInfo(vec2 xz) {
   grow *= 1.0 - smoothstep(0.25, 0.7, textureLod(uPathTex, xz / CORE_SIZE + 0.5, 0.0).r);
   vec4 pn = textureLod(uNoise, xz / 13.0 + 0.7, 0.0);
   gClover = meadowClover(pn.g);
+  gShade = meadowShade(pn.b, n2.g);
   return vec4(h, grow, n1.r, meadowFamily(n1, n2, pn.r));
 }
 // One unfiltered shadow lookup is plenty for a blade of grass.
@@ -104,7 +106,7 @@ void main() {
   vec3 tip = meadowTip(gi.w, rr);
   // A few dry straws stand in any patch; clover is darker and bluer.
   tip = mix(tip, vec3(0.36, 0.31, 0.14), step(0.94, rr.x) * 0.8);
-  tip = mix(tip, tip * vec3(0.62, 0.92, 0.78), gClover);
+  tip = mix(tip, tip * vec3(0.62, 0.92, 0.78), gClover) * gShade;
   vec3 root = tip * vec3(0.58, 0.66, 0.6);
   vec3 alb = mix(root, tip, t) * mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), gi.z);
   vec3 N = normalize(vec3(bend.x * 0.6, 1.0, bend.y * 0.6));
