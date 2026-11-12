@@ -669,6 +669,13 @@ export class Game {
       for (let k = 0; k < 30; k++) { const a = Math.random() * 6.283, r = Math.random() * b.r * 0.7; this.particles.spawn(b.x + Math.cos(a) * r, b.y + 0.2, b.z + Math.sin(a) * r, { vel: [Math.cos(a) * 2, 6 + Math.random() * 10, Math.sin(a) * 2], life: 0.7, size: 0.08, color: [3.2, 1.9, 5.6], drag: 1.0, streak: 0.1 }); }
       if (Math.hypot(this.player.pos.x - b.x, this.player.pos.z - b.z) < 14) this.rig.addShake(0.3);
     }
+    if (e.type === 'rung') {
+      const c = e.enemy.center;
+      this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 0.3, r1: 4.2, life: 0.4, strength: 1.5, width: 0.09, color: [3.6, 2.7, 1.2] });
+      this.vfx.wave(e.enemy.pos.x, e.enemy.pos.y + 0.08, e.enemy.pos.z, { r0: 0.4, r1: 6, life: 0.55, strength: 1.1, width: 0.07, color: [3.6, 2.7, 1.2] });
+      this.particles.burst(c.x, c.y, c.z, 30, { speed: 11, life: 0.5, size: 0.06, color: [5, 3.8, 1.7], gravity: 10, drag: 1.2, streak: 0.16 });
+      this.hitStop = Math.max(this.hitStop, 0.15); this.rig.addShake(0.5); this.flash = Math.max(this.flash, 0.25);
+    }
     if (e.type === 'blocked') {
       const c = e.enemy.center;
       this.particles.burst(c.x, c.y, c.z, 12, { speed: 8, life: 0.3, size: 0.05, color: [3, 2.6, 4], gravity: 12, drag: 1.5, streak: 0.14 });

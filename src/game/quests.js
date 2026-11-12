@@ -107,6 +107,19 @@ const IDLE = {
   hesk: [[0, ['Trees do not hurry and neither do I. We get on.']]],
   first: [[0, ['I sang the first note here, before there was a spire to hold it.', 'You carried the last one all this way. That makes us colleagues.', 'Go where you like now. It is all singing. It will go on singing.']]],
 };
+// What else they say when asked again, one after another.
+const CHAT = {
+  maren: ['I keep the terrace swept. It is not much, but it was all there was to keep.', 'When the wind is right you can hear which courts are singing. Count them with me some evening.'],
+  odo: ['A string wants to be at one pitch and no other. People are the same; they take longer to tune.', 'Every construct you break was holding a little of the song. That is all resonance is: the song, coming home.'],
+  sel: ['I walked every one of these mesas when I was young. My knees have opinions about it now.', 'If you find a place that is not on the map, tell me. Or do not. Some places should stay found only once.'],
+  ilse: ['Lantern flowers close when it is quiet. Look, they are open.', 'I talked to these beds the whole time I stood here. I think it helped. Them, I mean.'],
+  tam: ['A ringer is only someone who shows up at the same hour every day. The bell does the rest.', 'Mind the long stair when it is wet.'],
+  vey: ['Three spires made a chord. Eight will make a choir. I shall need more chairs.', 'You hum when you fight. Did you know? A little flat.'],
+  ruu: ['I light them at dusk and put them out at dawn, and in between I worry about them.', 'The tower behind the court was the first thing ships saw. It will be again.'],
+  nan: ['The pool has fish in it the size of your arm. They did not mind the quiet at all.', 'Reeds make good pipes if you cut them at the right moon. I always forget which.'],
+  pell: ['I have found the tune your blade sings, in the archive. It is a lullaby. I thought you should know.', 'Do not touch the scrolls with wet gloves.'],
+  hesk: ['That pergola was my grandmother\'s idea. The wisteria was the wisteria\'s.', 'You want a pear? Take two. They only fall otherwise.'],
+};
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
 
 export class Quests {
@@ -183,12 +196,20 @@ export class Quests {
     const tuned = g.spires.filter((s) => s.tuned).length;
     let lines, done = null;
     if (ready) { lines = ready.done; done = () => this._finish(ready); }
-    else if (active) lines = active.wait;
+    else if (active) {
+      // What they are waiting for, and between reminders whatever else is on their mind.
+      const n0 = ((this.chatN ??= {})[id] = (this.chatN[id] ?? -1) + 1), more = CHAT[id];
+      lines = n0 % 2 === 0 || !more ? active.wait : [more[((n0 - 1) >> 1) % more.length]];
+    }
     else if (fresh && !(g.metPeople ??= []).includes(id) && IDLE[id]) {
       // A first meeting: who they are, then what they want.
       lines = [...this._idle(id, tuned), ...fresh.offer]; done = () => this._start(fresh);
     } else if (fresh) { lines = fresh.offer; done = () => this._start(fresh); }
-    else lines = this._idle(id, tuned);
+    else {
+      // Their line for where the journey stands, the first time; after that, whatever else is on their mind.
+      const n0 = ((this.chatN ??= {})[id] = (this.chatN[id] ?? -1) + 1), more = CHAT[id];
+      lines = n0 === 0 || !more ? this._idle(id, tuned) : [more[(n0 - 1) % more.length]];
+    }
     if (!(g.metPeople ??= []).includes(id)) g.metPeople.push(id);
     // The luthier's bench opens once he has said his piece.
     if (id === 'odo') { const after = done; done = () => { after?.(); g.openMenu('bench'); }; }

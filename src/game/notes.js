@@ -29,6 +29,13 @@ export const LINES = [
   'The bridge to the Choir was never stone. It stood for as long as someone sang.',
   'When the first spire fell silent, the gardens kept flowering. Nobody had told them.',
   'The Mute did not break the song. They only waited for a breath between notes.',
+  'Each court kept three bells out on its mesa, so that no one working in the fields was ever out of hearing.',
+  'The strings of light were roads once. People rode them to market with baskets on their knees.',
+  'Lamplighters went round the Lantern mesa at dusk. From the sea it looked like a second sunset.',
+  'The archive at the Aurel Court holds every tune the Vale ever made, written small.',
+  'In the orchard they sang to the trees at blossom time. The pears came sweeter for it, or so they said.',
+  'Nobody was hurt when the silence came. They only stopped, each where they stood, mid-word.',
+  'The Crown was the first spire raised and the first to fall quiet.',
 ];
 // Steps of a major scale, as playback rates.
 const SCALE = [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2, 5 / 3, 15 / 8, 2];

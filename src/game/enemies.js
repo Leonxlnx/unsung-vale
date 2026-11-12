@@ -215,6 +215,8 @@ export class Enemies {
         dmg *= 0.5;
       }
     }
+    // Caught off balance, it takes a heavy blow half as hard again, and everyone hears it.
+    if (heavy && e.state === 'stagger' && !e.def.boss) { dmg *= 1.5; this.events.push({ type: 'rung', enemy: e }); }
     e.hp -= dmg; e.poise -= dmg * (heavy ? 2.2 : 1);
     e.glow = 1.7; e.staggerK = Math.min(1, e.staggerK + (heavy ? 1 : 0.55));
     _v.copy(e.pos).sub(from).setY(0).normalize();
