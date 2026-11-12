@@ -8,6 +8,7 @@ import { GroundCover } from './world/flora/grass.js';
 import { Architecture } from './world/arch/sites.js';
 import { Waterfalls } from './world/waterfalls.js';
 import { Lattice } from './world/landmarks.js';
+import { Dressing } from './world/dressing.js';
 import { Game } from './game/game.js';
 import { Settings, applySettings } from './game/settings.js';
 import { UI } from './ui/ui.js';
@@ -62,11 +63,23 @@ const forest = new Forest(pipe, terrain);
 window.__forest = forest;
 // Keep trees off the paved sites and the routes between them.
 const clear = [[-512, -70, 34], [-540, -22, 9], [-372, -392, 24], [66, -498, 27], [96, -590, 34], [98, -336, 13], [150, -15, 44], [-146, -459, 34]];
-forest.populate((x, z) => clear.some(([cx, cz, r]) => (x - cx) * (x - cx) + (z - cz) * (z - cz) < r * r));
+forest.populate((x, z) => clear.some(([cx, cz, r]) => (x - cx) * (x - cx) + (z - cz) * (z - cz) < r * r), [
+  { x: -531, z: -93, species: 'ember', scale: 1.3 }, { x: -533, z: -46, species: 'blossom', scale: 1.25 }, { x: -549, z: -34, species: 'elder', scale: 1.0 },
+  { x: -356, z: -420, species: 'blossom', scale: 1.2 }, { x: -392, z: -376, species: 'ember', scale: 1.15 }, { x: 40, z: -520, species: 'blossom', scale: 1.2 },
+]);
 forest.addGreatTree(2750, terrain.heightAt(2750, 1480) - 6, 1480);
 pipe.scene.add(forest.group);
 const cover = new GroundCover(pipe, terrain, forest.leafAtlas, forest.wind);
 pipe.scene.add(cover.group);
+
+// Banners and wisteria on the Dawn Terrace arcades, petals on the wind, birds over the valley.
+const dressing = new Dressing(pipe, terrain, forest);
+for (const [z, face] of [[-87.5, 1], [-52.5, -1]]) {
+  for (const off of [-0.6, 0.6]) dressing.vines([-523, 219.2, z + off], [-503, 219.2, z + off], { drop: 3.4, density: 1.5 });
+  for (let i = 1; i <= 3; i++) dressing.banner(-523 + 5 * i, 215.4, z + face * 0.62, face > 0 ? 0 : Math.PI, 1.25, 3.8);
+}
+dressing.finish();
+pipe.scene.add(dressing.group);
 
 await stage(0.82, 'Waking the valley');
 const game = new Game({ pipe, terrain, arch, sites, canvas });
@@ -84,7 +97,7 @@ for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, () => a
 if (params.get('scale')) settings.values.renderScale = Number(params.get('scale'));
 apply();
 
-pipe.onBeforeScene.push((cam) => { terrain.bakeStep(2); terrain.select(cam); forest.update(cam); cover.update(cam); });
+pipe.onBeforeScene.push((cam) => { terrain.bakeStep(2); terrain.select(cam); forest.update(cam); cover.update(cam); dressing.update(cam); });
 
 function resize() { pipe.setSize(window.innerWidth, window.innerHeight); }
 window.addEventListener('resize', resize);
@@ -129,7 +142,7 @@ const director = new Director({ pipe, game, sites, terrain });
 window.__director = director;
 async function runCapture() {
   const w = Number(params.get('w')) || 1920, h = Number(params.get('h')) || 1080, fps = Number(params.get('fps')) || 60;
-  const seconds = Math.min(Number(params.get('seconds')) || director.duration, director.duration), sub = Number(params.get('sub')) || 3;
+  const seconds = Math.min(Number(params.get('to') ?? params.get('seconds')) || director.duration, director.duration), sub = Number(params.get('sub')) || 3;
   const server = params.get('server'), from = Number(params.get('from')) || 0;
   ui.root.style.display = 'none';
   // Film quality: full resolution, densest detail, clouds refreshed quickly.

@@ -39,6 +39,7 @@
 #home .foot { position: absolute; right: clamp(28px, 4vw, 60px); bottom: 28px; font-size: 12px; color: var(--ink-3); }
 
 /* --- HUD --- */
+#hud, #hud.on { pointer-events: none; }
 #hud .vitals { position: absolute; left: 36px; bottom: 34px; width: 220px; }
 .meter { height: 4px; background: rgba(0, 0, 0, 0.42); border-radius: 2px; overflow: hidden; margin-top: 7px; }
 .meter i { display: block; height: 100%; width: 100%; background: var(--ink); border-radius: 2px; transform-origin: left; transition: transform 0.18s var(--ease); }
@@ -102,6 +103,10 @@ input[type='range']::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .credits { font-size: 14px; line-height: 1.6; color: var(--ink-2); }
 .credits h3 { font-size: 15px; font-weight: 500; color: var(--ink); margin: 22px 0 6px; }
 .credits p { margin: 0 0 4px; }
+.credits .item { display: grid; grid-template-columns: 1fr auto; gap: 2px 18px; padding: 7px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.credits .item b { font-weight: 500; color: var(--ink); }
+.credits .item span { color: var(--ink-3); font-size: 13px; }
+.credits .item i { font-style: normal; grid-column: 1 / -1; font-size: 13px; }
 #ending { background: radial-gradient(ellipse at center, rgba(8, 10, 14, 0.25), rgba(8, 10, 14, 0.7)); display: grid; place-items: center; text-align: center; transition-duration: 2s; }
 #ending h2 { font-size: clamp(36px, 5vw, 68px); font-weight: 300; letter-spacing: -0.035em; margin: 0 0 14px; }
 #ending p { color: var(--ink-2); font-size: 16px; margin: 0 0 34px; }

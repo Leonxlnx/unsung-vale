@@ -210,7 +210,7 @@ check(ok and len(rig.data.bones) == len(EXPECT_PARENT), 'imported bones and pare
 bpy.context.view_layer.update()
 dg = bpy.context.evaluated_depsgraph_get()
 for o in bpy.data.objects:
-    if o.type != 'MESH':
+    if o.type != 'MESH' or o.name not in ('Hero', 'Sword'):   # (the importer adds a bone-shape helper)
         continue
     ev = o.evaluated_get(dg)
     me = ev.to_mesh()

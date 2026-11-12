@@ -146,7 +146,12 @@ uniform float uLeafLayer;
 in vec3 vWorld; in vec3 vNormal; in vec2 vUv; in vec3 vLeaf;
 void main() {
   vec4 t = texture(uLeaves, vec3(vUv, uLeafLayer));
-  if (t.a < 0.4) discard;
+  // Far crowns keep more of each card so they stay full instead of thinning into specks.
+#if defined(BAKE_ALBEDO) || defined(BAKE_NORMAL)
+  if (t.a < 0.22) discard;
+#else
+  if (t.a < mix(0.4, 0.2, saturate(vTreeDist / 110.0))) discard;
+#endif
   lodFade();
   // Per-tree and per-card colour drift.
   vec3 alb = t.rgb * mix(vec3(0.78, 0.84, 0.92), vec3(1.2, 1.08, 0.94), vLeaf.z) * (0.66 + 0.6 * vLeaf.y);
@@ -425,7 +430,7 @@ export class Forest {
   }
 
   // Scatters trees with noise-driven groves. Returns the number placed.
-  populate(exclude = () => false) {
+  populate(exclude = () => false, extra = []) {
     const T = this.terrain, rnd = mulberry32(90210);
     const byName = {};
     this.variants.forEach((v, i) => { (byName[v.species] ??= []).push(i); });
@@ -458,6 +463,8 @@ export class Forest {
     };
     scatter(1000, 7.5, 0, false);
     scatter(4600, 15, 1000, true);
+    // Hand-placed trees that frame particular views.
+    for (const e of extra) trees.push({ x: e.x, y: T.heightAt(e.x, e.z) - 0.15, z: e.z, s: e.scale ?? 1, yaw: rnd() * 6.283, seed: rnd(), v: pick(e.species) });
     this._buildChunks();
     return trees.length;
   }

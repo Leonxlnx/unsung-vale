@@ -108,6 +108,7 @@ export class UI {
 
   _begin() {
     this.onSound?.('ui_open');
+    this.game.input.lockPointer();          // must happen inside the click to be allowed
     this._fadeThen(() => {
       this.game.respawnAtCheckpoint();
       this.game.start();
@@ -188,10 +189,21 @@ export class UI {
   }
 
   _renderCredits() {
-    // A light pass over the Markdown: headings and plain lines.
-    const lines = creditsText.split(/\r?\n/).filter((l) => l.trim() && !l.startsWith('|--'));
+    // CREDITS.md keeps one table row per file; show each distinct work once.
     const esc = (s) => s.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
-    const html = lines.map((l) => (l.startsWith('#') ? `<h3>${esc(l.replace(/^#+\s*/, ''))}</h3>` : `<p>${esc(l.replace(/^[-*]\s*/, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[*_`|]/g, ' '))}</p>`)).join('');
-    this.root.querySelector('#credits .credits').innerHTML = `<p>Design, code, models and textures are procedural and original to this project. Music and sound come from the artists below.</p>${html}`;
+    const plain = (s) => s.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/<[^>]+>/g, '').replace(/[*_`]/g, '').trim();
+    let html = '', section = '';
+    const seen = new Set();
+    for (const line of creditsText.split(/\r?\n/)) {
+      if (/^#{2,3}\s/.test(line)) { section = plain(line.replace(/^#+\s*/, '')); if (/Music|Ambience|Sound effects/.test(section)) html += `<h3>${esc(section)}</h3>`; continue; }
+      if (!line.startsWith('|') || line.startsWith('| ---') || line.startsWith('| File')) continue;
+      const c = line.split('|').slice(1, -1).map(plain);
+      if (c.length < 5) continue;
+      const key = c[1] + c[2];
+      if (seen.has(key)) continue;
+      seen.add(key);
+      html += `<div class="item"><b>${esc(c[1].replace(/\s*\(.*?\)\s*$/, ''))}</b><span>${esc(c[4])}</span><i>${esc(c[2].replace(/\s*\(.*?\)\s*$/, ''))}</i></div>`;
+    }
+    this.root.querySelector('#credits .credits').innerHTML = `<p>Design, code, models and textures are original to this project and generated procedurally. Music and sound come from the artists below; full details are in CREDITS.md.</p>${html}`;
   }
 }

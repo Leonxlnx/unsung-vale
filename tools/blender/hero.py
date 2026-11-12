@@ -7,17 +7,30 @@ scene.  No external assets, no image textures.
 Run (headless):
   blender --background --threads 4 --python tools/blender/hero.py -- [options]
 
+Writes  public/models/hero.glb  and  tools/out/hero_{front,back,side,34,pose}.png
+(tools/blender/hero_verify.py re-imports and checks the GLB).
+
 Options (after "--"):
   --no-render        skip the preview renders
   --no-export        skip the GLB export
   --views a,b,c      subset of front,back,side,34,pose
   --samples N        EEVEE TAA samples (default 24)
-  --shot "path;az;elev;tx,ty,tz;height;WxH;posed"   extra debug render
+  --shot "path;az;elev;tx,ty,tz;height;WxH;pose"   extra debug render
+                     (pose: 0 = rest, 1 = rig test pose, 2 = arms-down idle,
+                     3 = idle with the cape lifted)
   --blend path       also save a .blend (debugging only)
 
-Blender space while building: +Z up, character faces -Y, character's left is
-+X.  The glTF exporter converts to +Y up, so in the GLB the character faces
-+Z with +X on its left.  Units are metres.
+Conventions
+  * Blender space while building: +Z up, character faces -Y, character's left
+    is +X.  The glTF exporter converts to +Y up, so in the GLB the character
+    faces +Z with +X on its left.  Units are metres, feet on the ground plane.
+  * One skinned mesh "Hero" (one glTF primitive per material) on the armature
+    "Rig", plus the unskinned object "Sword" parented to the bone Hand.R.
+  * Every part is a closed solid with outward winding (materials are single
+    sided).  Plates and cloth panels come from shell(): a parametric surface
+    with thickness, chamfered rims and optional raised trim strips.
+  * Rigid plates carry a single bone; undersuit, hood, tabards and cape get
+    analytic smooth weights (never more than four influences).
 """
 import bpy, bmesh, sys, os, math, time, bisect, warnings
 from math import sin, cos, pi, radians, degrees, sqrt, atan2, hypot
@@ -1106,7 +1119,8 @@ def hood_pt(u, v):
     ct, st = cos(t), sin(t)
     k = (1 + ct) / 2
     hem = smooth(0.80, 1.0, v)
-    pl = 1.0 + 0.028 * hem * cos(9 * t)                      # soft pleats towards the hem
+    # soft pleats towards the hem, fading out where the pauldrons sit on the mantle
+    pl = 1.0 + 0.028 * hem * cos(9 * t) * (1.0 - 0.85 * st ** 4)
     x = lerp(ab, at, k) * spow(st, lerp(pb, pt, k)) * pl
     e = b * ct * pl
     n = sad * abs(st) ** 2.5
@@ -1115,7 +1129,7 @@ def hood_pt(u, v):
     z = cz + cos(tr) * e + sin(tr) * n
     kb = max(0.0, ct) ** 3 * hem                             # pointed hems, back and front
     kf = max(0.0, -ct) ** 3 * hem
-    return V(x, y + 0.004 * kb - 0.020 * kf, z - 0.105 * kb - 0.045 * kf)
+    return V(x, y + 0.012 * kb - 0.020 * kf, z - 0.105 * kb - 0.045 * kf)
 
 
 def _hood_n(u, v):
@@ -1245,7 +1259,7 @@ def cape_base(u, v):
 
 def cape_pt(u, v):
     p = cape_base(u, v)
-    amp = 0.004 * smooth(0.0, 0.05, v) + 0.034 * smooth(0.03, 0.75, v)
+    amp = 0.012 * smooth(0.04, 0.14, v) + 0.026 * smooth(0.10, 0.80, v)
     ph = 2 * pi * (3.6 * u + 0.12 + 0.05 * sin(3.0 * v))
     p.y += amp * (cos(ph) + 0.28 * cos(2 * ph + 0.6))
     p.x += 0.45 * amp * sin(ph)
@@ -1689,7 +1703,7 @@ VIEWS = {'front': dict(az=0, elev=2, target=(0, 0, 0.93), height=2.12, res=(720,
          'back': dict(az=180, elev=2, target=(0, 0, 0.93), height=2.12, res=(720, 900)),
          'side': dict(az=90, elev=2, target=(0, -0.30, 0.93), height=2.12, res=(900, 900)),
          '34': dict(az=-38, elev=8, target=(-0.10, -0.18, 0.93), height=2.12, res=(900, 900)),
-         'pose': dict(az=148, elev=10, target=(0.05, 0.0, 0.98), height=2.35, res=(900, 900))}
+         'pose': dict(az=-24, elev=8, target=(0.02, 0.0, 0.98), height=2.30, res=(900, 900))}
 
 
 def pose_rot(rig, name, axis, deg):
@@ -1726,6 +1740,16 @@ def apply_idle_pose(rig):
     pose_rot(rig, 'UpperArm.R', (0, 1, 0), -44)
     pose_rot(rig, 'LowerArm.L', tuple(AN), -14)
     pose_rot(rig, 'LowerArm.R', (-AN.x, 0, AN.z), 14)
+    bpy.context.view_layer.update()
+
+
+def apply_cape_up_pose(rig):
+    """idle pose with the cape blown up and back, to inspect what it normally hides"""
+    apply_idle_pose(rig)
+    for c in 'LCR':
+        pose_rot(rig, 'Cape.%s.1' % c, (1, 0, 0), 38)
+        pose_rot(rig, 'Cape.%s.2' % c, (1, 0, 0), 30)
+        pose_rot(rig, 'Cape.%s.3' % c, (1, 0, 0), 12)
     bpy.context.view_layer.update()
 
 
@@ -1808,8 +1832,9 @@ def main():
             if nm in want:
                 render_view(os.path.join(OUT_DIR, 'hero_%s.png' % nm), rig_l=lrig, cam=cam, env_map=env,
                             **VIEWS[nm])
-        # pose key: 0 = rest, 1 = rig test pose, 2 = arms-down idle
-        for key, poser in (('0', None), ('1', apply_test_pose), ('2', apply_idle_pose)):
+        # pose key: 0 = rest, 1 = rig test pose, 2 = arms-down idle, 3 = idle + cape lifted
+        for key, poser in (('0', None), ('1', apply_test_pose), ('2', apply_idle_pose),
+                           ('3', apply_cape_up_pose)):
             mine = [s.split(';') for s in shots if s.split(';')[6] == key]
             if not mine and not (key == '1' and 'pose' in want):
                 continue

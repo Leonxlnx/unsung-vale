@@ -14,7 +14,9 @@ import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 
 const arg = (name, def) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : def; };
-const W = Number(arg('w', 3840)), H = Number(arg('h', 2160)), FPS = Number(arg('fps', 60)), SECONDS = Number(arg('seconds', 45));
+const W = Number(arg('w', 3840)), H = Number(arg('h', 2160)), FPS = Number(arg('fps', 60));
+// --from / --to (seconds) render only part of the film; --seconds is a synonym for --to.
+const SECONDS = Number(arg('to', arg('seconds', 45)));
 const SUB = Number(arg('sub', 3)), FROM = Number(arg('from', 0)), PORT = Number(arg('port', 5199));
 const OUT = arg('out', 'renders/unsung-vale'), URL_BASE = arg('url', 'http://localhost:5183');
 const SDR = arg('sdr', '1') !== '0', THREADS = Number(arg('threads', 6));
@@ -57,7 +59,7 @@ const server = http.createServer(async (req, res) => {
     for await (const chunk of req) { if (!enc.stdin.write(chunk)) await new Promise((r) => enc.stdin.once('drain', r)); }
     if (req.url.includes('/hdr')) {
       frames++;
-      if (frames % 30 === 0) { const el = (Date.now() - t0) / 1000; console.log(`[capture] ${frames}/${Math.round(SECONDS * FPS)} frames, ${(el / frames).toFixed(2)} s/frame, about ${Math.round(((SECONDS * FPS - frames) * el) / frames / 60)} min left`); }
+      if (frames % 30 === 0) { const el = (Date.now() - t0) / 1000; const total = Math.round((SECONDS - FROM) * FPS); console.log(`[capture] ${frames}/${total} frames, ${(el / frames).toFixed(2)} s/frame, about ${Math.round(((total - frames) * el) / frames / 60)} min left`); }
     }
     res.writeHead(200).end('ok');
     return;
@@ -74,7 +76,7 @@ const browser = await puppeteer.launch({
 const page = (await browser.pages())[0] ?? (await browser.newPage());
 page.on('console', (m) => { const t = m.text(); if (t.startsWith('[cine]') || m.type() === 'error') console.log(t); });
 page.on('pageerror', (e) => console.log('[page error]', e.message));
-const q = new URLSearchParams({ capture: '1', w: W, h: H, fps: FPS, seconds: SECONDS, sub: SUB, from: FROM, server: `http://localhost:${PORT}` });
+const q = new URLSearchParams({ capture: '1', w: W, h: H, fps: FPS, to: SECONDS, sub: SUB, from: FROM, server: `http://localhost:${PORT}` });
 await page.goto(`${URL_BASE}/?${q}`, { waitUntil: 'load', timeout: 0 });
 await done;
 hdr.stdin.end(); sdr?.stdin.end();

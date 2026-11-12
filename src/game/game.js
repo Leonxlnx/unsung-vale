@@ -176,6 +176,7 @@ export class Game {
   // --- progress ------------------------------------------------------------------------
 
   save() {
+    if (this.cine) return;        // the film must never overwrite a player's progress
     try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended })); } catch { /* storage may be unavailable */ }
   }
   load() {

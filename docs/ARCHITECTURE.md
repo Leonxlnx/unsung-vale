@@ -89,3 +89,28 @@ work for ground cover, and measure with `__dbg.gpuMs()` after the load-time bake
   (`pipe.fog.mute[i]`) that the fog pass renders as drained colour; tuning collapses it.
 - `settings.js`: quality presets and options. `ui/ui.js` + `ui/ui.css`: all interface.
 - `main.js`: boot sequence with staged loading, the title camera drift, and `window.__dbg`.
+## Hero, audio and film
+
+- `anim/rig.js`: `Rig` (poses as character-space rotations relative to rest; bone names are
+  matched with punctuation stripped, so `UpperArm.L` and `UpperArmL` are the same) and
+  `SpringChains` (verlet cape and tabard bones with body collision).
+- `anim/hero.js`: loads `public/models/hero.glb` (built by `tools/blender/hero.py`), swaps in
+  the game's materials by glTF material name (Armor, Gold, Cloth, Cape, Leather, Mask, Blade,
+  Undersuit), and animates procedurally from `Player` state. `hero.debugPose` is a hook for
+  trying pose offsets from the console.
+- `audio/audio.js` + `audio/director.js`: Web Audio buses, music cross-fades, ambience by
+  location, positional one-shots; everything comes from `public/audio/manifest.json`.
+- `cine/director.js`: the 45 s film as a list of shots (`setup`, `update`), driving the hero
+  through `input.puppet` and the story state through `game.cineSetup()`.
+  `cine/output.js`: sub-frame accumulation (motion blur), HDR10 (PQ, BT.2020) and SDR output.
+  `tools/capture.mjs` receives frames over HTTP and pipes them into ffmpeg.
+  After any raw GL call use `pipe.resetGL()`, never `renderer.resetState()` alone: three's
+  reset turns the reversed depth buffer off.
+
+## Development helpers
+
+`window.__dbg` in the page: `step(n)`, `pos/look` (free camera), `play(frames, moveY, moveX,
+{ tp, press, hold })` (scripted play), `sheet()` (four test views in one image), `cine(t)`
+(jump the film to a time), `gpuMs()`. `?perf=1` benchmarks the presets (`tools/perf.mjs`),
+`?capture=1...` is used by the film capture. Editing files under `src/` while a capture is
+running makes Vite reload the page and ruins the render.
