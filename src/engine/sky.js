@@ -371,7 +371,9 @@ export class Sky {
     this.fadeSeconds = opts.fadeSeconds ?? 4;
     this.sunDir = new THREE.Vector3(1, 0.15, 0.3).normalize();
     this.sunIrradiance = new THREE.Vector3(1.0, 0.97, 0.93).multiplyScalar(22);
-    this.turbidity = 5.5;
+    // Clear evening air: a low turbidity keeps the sky blue and the distance in full colour
+    // (5.5 gave a yellow, dusty veil over everything toward the sun).
+    this.turbidity = 2.6;
     this.cloudTime = 2600;      // start over a stretch of sky with well-separated cumulus
     this.windSpeed = 1;
     this.sunColor = new THREE.Color();
@@ -476,11 +478,11 @@ export class Sky {
     // Sunlight this low is very orange; pull it part-way back toward white so sunlit stone
     // reads as warm gold rather than rust.
     const c = [this.sunIrradiance.x * t[0], this.sunIrradiance.y * t[1], this.sunIrradiance.z * t[2]];
-    const lum = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], k = this.sunWarmth ?? 0.82;
+    const lum = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], k = this.sunWarmth ?? 0.6;
     // The direct beam is also lifted above what the baked sky implies. Evening light in the
     // open is roughly twice the skylight on level ground; the bake alone gives about equal
     // parts, which reads flat and grey.
-    const boost = this.sunBoost ?? 1.45;
+    const boost = this.sunBoost ?? 1.25;
     this.sunColor.setRGB(lum + (c[0] - lum) * k, lum + (c[1] - lum) * k, lum + (c[2] - lum) * k).multiplyScalar(boost);
     this.invalidate();
   }

@@ -54,7 +54,7 @@ vec3 agx(vec3 c) {
   c = pow(max(outMat * c, 0.0), vec3(2.2));
   // Split tone: shadows lean cool, highlights lean warm, as in evening light.
   float lt = luma(c);
-  return c * mix(vec3(0.9, 0.97, 1.09), vec3(1.07, 1.0, 0.9), smoothstep(0.04, 0.55, lt));
+  return c * mix(vec3(0.9, 0.97, 1.09), vec3(1.04, 1.0, 0.95), smoothstep(0.04, 0.55, lt));
 }`;
 
 const TONEMAP = /* glsl */ `
@@ -134,7 +134,7 @@ export class Pipeline {
     this.scene.matrixWorldAutoUpdate = false; this.sceneT.matrixWorldAutoUpdate = false;
     this.camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.3, 120000);
     this.renderScale = opts.renderScale ?? 1;
-    this.exposure = 0.27;
+    this.exposure = 0.29;
     this.bloomStrength = 0.1;
     this.time = 0;
     this.onBeforeScene = [];     // callbacks(camera) run after the camera is final for the frame
@@ -181,7 +181,7 @@ export class Pipeline {
       fragment: TONEMAP,
       uniforms: {
         uColor: { value: null }, uBloom: { value: null }, uBloomStrength: { value: 0.06 }, uExposure: { value: this.exposure },
-        uSaturation: { value: 1.22 }, uContrast: { value: 1.16 }, uVignette: { value: 0.22 }, uSharpen: { value: 0.5 }, uTexel: { value: new THREE.Vector2() },
+        uSaturation: { value: 1.5 }, uContrast: { value: 1.14 }, uVignette: { value: 0.22 }, uSharpen: { value: 0.5 }, uTexel: { value: new THREE.Vector2() },
       },
     });
     this._viewProj = new THREE.Matrix4();

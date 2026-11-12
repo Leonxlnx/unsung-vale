@@ -189,6 +189,9 @@ void main() {
   vec3 alb = t.rgb * mix(vec3(0.8, 0.86, 0.92), vec3(1.18, 1.07, 0.94), vLeaf.z) * (0.84 + 0.3 * vLeaf.y);
   // Some sprays of a red or pink crown turn toward orange and peach, as real crowns do.
   alb.g += 0.3 * alb.r * step(alb.g, alb.r * 0.62) * smoothstep(0.58, 0.95, fract(vLeaf.y * 7.31 + vLeaf.z));
+#ifdef LEAF_ROSE
+  alb *= vec3(1.1, 0.8, 0.98);       // the great tree: a deeper rose that stays pink in warm light
+#endif
   vec3 Nc = normalize(vNormal);
   // Each leaf leans its own way: tilt the crown normal by the baked leaf normal, using the
   // card's frame rebuilt from screen-space derivatives.
@@ -459,7 +462,7 @@ export class Forest {
     const tree = generateTree('great', 4);
     const one = (arr) => new THREE.InstancedBufferAttribute(new Float32Array(arr), 4);
     const iTree = one([x, y, z, 1]), iParam = one([0.6, 0.35, SPECIES.great.leaf, 0]);
-    const parts = [[buildWood(tree, 3, [14, 9, 6, 4]), this._mkWood(BARK_TINT.elder, [0, 0])], [buildLeaves(tree, 1, 1), this._mkLeaf(SPECIES.great.leaf, [0, 0], { LEAF_TILED: 1 }, 4)]];
+    const parts = [[buildWood(tree, 3, [14, 9, 6, 4]), this._mkWood(BARK_TINT.elder, [0, 0])], [buildLeaves(tree, 1, 1), this._mkLeaf(SPECIES.great.leaf, [0, 0], { LEAF_TILED: 1, LEAF_ROSE: 1 }, 4)]];
     for (const [data, mat] of parts) {
       const geo = geometryFrom(data);
       geo.setAttribute('iTree', iTree); geo.setAttribute('iParam', iParam);
