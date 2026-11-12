@@ -35,12 +35,17 @@ void main() {
   vec3 V = normalize(cameraPosition - vWorld);
   if (dot(N, V) < 0.0) N = -N;
   float vis = sunVisibility(vWorld + N * 0.05 + uSunDir * 0.1);
-  vec3 col = shadeSurface(vec3(0.15, 0.14, 0.23), 0.2, 0.92, N, V, vis, 1.0, 0.0);
-  // Violet light bleeding through the edges and along inner fractures.
-  float fres = pow(1.0 - saturate(dot(N, V)), 2.4);
-  float vein = smoothstep(0.72, 0.95, vnoise3(vLocal * vec3(9.0, 3.0, 9.0) + uTime * 0.2));
+  // Dark glass with a faint oil-film sheen that shifts from violet to teal across each facet.
+  float ndv = saturate(dot(N, V));
+  vec3 base = mix(vec3(0.16, 0.13, 0.26), vec3(0.1, 0.2, 0.24), smoothstep(0.2, 0.9, ndv));
+  vec3 col = shadeSurface(base, 0.14, 0.92, N, V, vis, 1.0, 0.0);
+  // Light bleeding through the edges and along inner fractures, so the figure keeps a
+  // bright outline even where the silence has drained the colour around it.
+  float fres = pow(1.0 - ndv, 3.0);
+  float vein = smoothstep(0.7, 0.95, vnoise3(vLocal * vec3(9.0, 3.0, 9.0) + uTime * 0.2));
   vec3 violet = vec3(0.62, 0.24, 1.0);
-  col += violet * (fres * 0.9 + vein * 0.7) * (0.35 + vGlow.x * 2.2);
+  col += violet * (fres * 1.7 + vein * 0.9) * (0.55 + vGlow.x * 2.2);
+  col += vec3(0.8, 0.85, 1.0) * pow(fres, 3.0) * 0.6;
   col += vec3(1.0, 0.8, 1.0) * max(vGlow.x - 1.0, 0.0) * 3.0;
   gl_FragColor = vec4(col, 1.0);
 }`;
