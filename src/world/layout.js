@@ -53,6 +53,28 @@ export const POOLS = [
   { id: 'crownPool',  x: -865, z: 65,   r: 44, level: 264.5, depth: 3.5, out: [0.75, 0.66] },
 ];
 
+// Level ground for the paved courts. Each court is laid at the height of the ground under
+// its middle; round that the ground is brought down (never up) to just under the stone and
+// eased back into its own shape beyond, so turf never stands above a court's edge and no
+// cut bank is left where the ground is opened for the paving.
+//   r: the cap holds out to here; dy: the cap, over the middle's own height;
+//   edge: [from, to, dy]: the cap sinks further toward the rim (a court with a lower terrace);
+//   ref: [x, z]: measure dy from the ground there instead of from the middle;
+//   blend: metres over which the ground finds its own height again.
+export const PADS = [
+  { x: -372, z: -392, r: 19.6, dy: -0.03, blend: 12 },
+  { x: 66, z: -498, r: 22.6, dy: -0.03, blend: 12 },
+  { x: 150, z: -15, r: 40.6, dy: -0.03, blend: 14 },
+  { x: 578, z: -437, r: 23.0, dy: 0.06, blend: 10 },
+  { x: 517, z: 437, r: 23.0, dy: 0.06, blend: 10 },
+  { x: 136, z: 546, r: 23.0, dy: 0.06, blend: 10 },
+  { x: -405, z: 435, r: 23.0, dy: 0.06, blend: 10 },
+  // The Crown lies where the height map is coarse: a wider cap, and well under its steps.
+  { x: -1005, z: -168, r: 43, dy: 0.06, edge: [17, 24, -0.7], blend: 16 },
+  // The landing at the head of the long stair, which is laid by the height of the stair's foot.
+  { x: -178.5, z: -459, r: 9.4, ref: [-118, -459], dy: 25.2, blend: 8 },
+];
+
 export function valleyAxisZ(x) {
   return 150 * Math.sin(x / 2600 + 0.2) + 50 * Math.sin(x / 1100 + 2.0) - 75;
 }
@@ -183,7 +205,7 @@ export function makeTerrain() {
     return dist - m.r + n;
   }
 
-  function height(x, z) {
+  function height0(x, z) {
     const base = floorHeight(x, z);
     let h = base;
     const gi = Math.floor((x + half) / G), gj = Math.floor((z + half) / G);
@@ -225,6 +247,23 @@ export function makeTerrain() {
         const chan = lerp(lip, h, smoothstep(3.2, 8.5, across));
         if (h > lip && h < p.level + 14) h = Math.min(h, chan);
       }
+    }
+    return h;
+  }
+
+  // The ground as the mesas and pools leave it, then levelled under the courts.
+  function height(x, z) {
+    let h = height0(x, z);
+    for (let k = 0; k < PADS.length; k++) {
+      const p = PADS[k], dx = x - p.x, dz = z - p.z, reach = p.r + p.blend;
+      if (Math.abs(dx) > reach || Math.abs(dz) > reach) continue;
+      const d = Math.hypot(dx, dz);
+      if (d >= reach) continue;
+      if (p.h0 === undefined) p.h0 = p.ref ? height0(p.ref[0], p.ref[1]) : height0(p.x, p.z);
+      let cap = p.h0 + p.dy;
+      if (p.edge) cap += (p.edge[2] - p.dy) * smoothstep(p.edge[0], p.edge[1], d);
+      const lim = lerp(cap, h, smoothstep(p.r, reach, d));
+      if (lim < h) h = lim;
     }
     return h;
   }

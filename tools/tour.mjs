@@ -46,6 +46,16 @@ await ev(() => {
   };
 });
 if (want('terrace')) { await sleep(1200); await shot('terrace'); }
+// --at "x,z,yaw,pitch,dist,over;..." : stand the hero at each place and photograph it. He is
+// set on the highest floor within "over" metres above the ground there (40: roofs count).
+if (arg('at', '')) {
+  let i = 0;
+  for (const spec of arg('at', '').split(';').filter(Boolean)) {
+    const [x, z, yaw = 0, pitch = -0.2, dist = 7, over = 40] = spec.split(',').map(Number);
+    await ev((x, z, yaw, pitch, dist, over) => { const g = window.__game; window.__dbg.ui(false); for (let k = 0; k < 6; k++) g.world.stream(x, z, 8); window.__tour.tp(x, g.world.floorBelow(x, g.terrain.heightAt(x, z) + over, z, over + 20) + 0.1, z, yaw, pitch, dist); }, x, z, yaw, pitch, dist, over);
+    await sleep(1500); await shot('at_' + (i++));
+  }
+}
 
 if (want('menus')) {
   await page.keyboard.press('Escape'); await sleep(900); await shot('pause');

@@ -302,5 +302,7 @@ export function balustrade(b, length, { height = 1.05, detail = 1 } = {}) {
 export function stairs(b, run, rise, width, { solid = true } = {}) {
   const n = Math.max(1, Math.round(rise / 0.17)), tr = run / n, rs = rise / n;
   b.mat_(M.PAVING);
-  for (let i = 0; i < n; i++) b.box(i * tr, solid ? 0 : i * rs, -width / 2, tr + 0.02, solid ? (i + 1) * rs : rs, width, i === 0 ? '-y' : '-y-x');
+  // Each step keeps its riser (the face toward the foot of the flight); what is left out is
+  // the back of a step, which the next one stands against.
+  for (let i = 0; i < n; i++) b.box(i * tr, solid ? 0 : i * rs, -width / 2, tr + 0.02, solid ? (i + 1) * rs : rs, width, !solid ? '' : i === n - 1 ? '-y' : '-y+x');
 }

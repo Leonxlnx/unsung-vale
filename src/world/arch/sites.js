@@ -248,7 +248,7 @@ export class Architecture {
             q.mat_(M.MARBLE).box(x - 0.1, top, sz * 4.5 - 0.6, run / 7 + 0.3, 0.25, 1.2);
           }
         }
-        q.mat_(M.PAVING).box(run, rise - 0.4, -7, 9, 0.4, 14);
+        q.mat_(M.PAVING).box(run, rise - 6, -7, 9, 6, 14, '-y');
       });
       for (const sz of [-1, 1]) b.at(bx + 5, y0, bz + sz * 9.5, 0, (q) => tower(q, { r: 2.6, h: 17, sides: 6, stages: 2, top: 'spire', spireH: 12, detail: 1, foot: 8 }));
       finish(b);
