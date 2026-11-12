@@ -205,6 +205,21 @@ if (want('tuning')) {
   await sleep(3200); await shot('finale');
   await sleep(6500); await shot('woken');
 }
+if (want('finish')) {
+  // The last note: a named Mute nearly spent, ended with one leaping stroke.
+  await ev(() => {
+    const g = window.__game, p = g.player; window.__dbg.ui(true); window.__tour.clear('finish');
+    window.__tour.tp(-512, 210.5, -66, 1.57, -0.08, 7.5);
+    const e = g.enemies.spawn('thrall', p.pos.x + 4.5, p.pos.z + 0.6, 'finish', { scale: 1.4, hp: 3.2, dmg: 1.3, elite: true, name: 'The Lantern Thrall' }, p.pos.y);
+    e.state = 'recover'; e.assembled = 1; e.t = -30; e.hp = e.def.hp * 0.1; e.yaw = -1.57;
+  });
+  await sleep(700); await shot('finish_prompt');
+  await page.keyboard.press('KeyE'); await sleep(420); await shot('finish_leap');
+  await sleep(330); await shot('finish_dive');
+  await sleep(260); await shot('finish_land');
+  await sleep(500); await shot('finish_after');
+  await ev(() => window.__tour.clear('finish'));
+}
 if (want('photo')) {
   // Photo mode: the world held still, the camera flown up and back, the interface gone.
   await ev(() => { window.__dbg.ui(true); window.__tour.tp(-512, 210.5, -66, 1.57, -0.12, 5.5); });

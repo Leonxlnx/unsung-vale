@@ -268,6 +268,7 @@ export class UI {
     if (type === 'people' && d.type === 'wake') { clearTimeout(this._wakeT); const n = (this._wakeN = (this._wakeN ?? 0) + 1); this._wakeT = setTimeout(() => { this._wakeN = 0; this.card(n > 1 ? 'The court wakes' : `${d.name} wakes`, n > 1 ? `${n} people here can speak again.` : 'Someone at this court can speak again.'); }, 9500); }
     if (type === 'hit' && d.enemy) (this._hit ??= new Map()).set(d.enemy, performance.now());
     if (type === 'hint') this.card(d.title, d.text);
+    if (type === 'finisher' && d.phase === 'end') this.toast('The last note', d.enemy.def.name);
     if (type === 'bark') { if (d.off) { el.bark.classList.remove('on'); this._bark = null; } else { el.bark.textContent = d.text; el.bark.classList.add('on'); this._bark = d.n; } }
     if (type === 'opening' && !this._ripHint) { this._ripHint = true; this.card('Riposte', 'A blow slipped at the last instant leaves an opening. Strike at once and the cut lands far harder.'); }
     if (type === 'photo') { const f = this.el.fade; f.classList.add('flash'); setTimeout(() => f.classList.remove('flash'), 90); this.onSound?.('ui_click'); }

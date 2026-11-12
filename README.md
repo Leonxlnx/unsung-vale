@@ -99,7 +99,8 @@ turns exactly as far as the hand moves, whatever the system's pointer settings.
 - A fight with some depth to it: a bolt met with the blade goes back at whoever is nearest,
   a heavy blow on a staggered construct rings it like a bell, and blows landed without one
   taken build cadence in four steps, each putting more weight in the blade, until every cut
-  rings. One hit taken and it is lost. Wounds are mended with the refrain, a note the hero
+  rings. One hit taken and it is lost. A blow slipped at the last instant opens a riposte, and
+  a named Mute or a giant that is nearly spent can be ended with one leaping stroke. Wounds are mended with the refrain, a note the hero
   hums: a few to a journey, given back at spires, bells, pylons and with lost notes.
 - The people of the Vale: masked, robed figures who stand as grey statues until their spire
   is tuned, then wake and ask for something. Sixteen side quests, seven trials (wave rings and

@@ -550,6 +550,7 @@ export class Game {
     for (const e of p.events) this._onPlayerEvent(e);
     p.events.length = 0;
     this._spireLogic(dt);
+    if (!busy) this._finisher(dt);
     this.strings.update(dt, !this.cine && !busy);
     this.quests.update(dt, !this.cine && !busy);
     this.trials.update(dt, !this.cine && !busy);
@@ -661,6 +662,40 @@ export class Game {
     }
   }
 
+  // The last note. A named one or a giant that is nearly spent can be ended at a stroke: he
+  // goes up, turns in the air and comes down on it blade first, and nothing is left standing.
+  _finisher(dt) {
+    const p = this.player, f = this.finisher;
+    if (f) {
+      f.t += dt;
+      if (!f.dived && f.t >= 0.3) {
+        f.dived = true;
+        p.setState('plunge'); p.plungeHit = false; p.plungeTop = p.pos.y; p.plungeAim = f.e.pos.clone();
+        p.yaw = Math.atan2(f.e.pos.x - p.pos.x, f.e.pos.z - p.pos.z); p.emit('plungeStart');
+      }
+      if (f.t > 3 || p.state === 'dead') this.finisher = null;
+      return;
+    }
+    if (this.cine || this.prompt || p.state !== 'move' || !p.grounded) return;
+    let best = null, bd = 7.5;
+    for (const e of this.enemies.list) {
+      if (!e.alive || !(e.elite || e.def.boss) || e.state === 'dormant' || e.state === 'rise' || e.hp > e.def.hp * 0.14 || Math.abs(e.pos.y - p.pos.y) > 3) continue;
+      const d = e.pos.distanceTo(p.pos) - e.def.radius; if (d < bd) { bd = d; best = e; }
+    }
+    if (!best) return;
+    this.prompt = { key: 'E', text: 'End it' };
+    if (!this.input.pressed.has('interact')) return;
+    this.prompt = null;
+    this.finisher = { e: best, t: 0 };
+    p.invulnerable = Math.max(p.invulnerable, 2.4); p.lockTarget = null;
+    const dx = best.pos.x - p.pos.x, dz = best.pos.z - p.pos.z, d = Math.hypot(dx, dz) || 1, sp = Math.min(6, d * 2);
+    p.vel.set((dx / d) * sp, 11.5, (dz / d) * sp); p.grounded = false; p.yaw = Math.atan2(dx, dz);
+    this.slow = Math.max(this.slow, 1.3);
+    this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.3, r1: 4.5, life: 0.45, strength: 1.0, width: 0.07, color: [3.4, 2.5, 1.1] });
+    this.particles.burst(p.pos.x, p.pos.y + 0.2, p.pos.z, 18, { speed: 4, life: 0.5, size: 0.05, color: [4, 3, 1.4], gravity: -3, drag: 1.2, up: 3 });
+    this.emit('finisher', { phase: 'leap', enemy: best });
+  }
+
   // Cadence: every blow that lands without one taken in between counts toward it. Three make
   // a step, four steps the whole of it; each step puts more weight in the blade, and at the
   // top every cut rings. It fades if the blade rests, and a blow taken breaks it at once.
@@ -713,6 +748,20 @@ export class Game {
     if (e.type === 'land') this.hero?.onLand(e.fell ?? 0);
     if (e.type === 'land' && e.fell > 0.8 && !this.cine) this._dust(Math.min(14, 4 + Math.round(e.fell * 2)), 2.2);
     if (e.type === 'roll' && !this.cine) this._dust(9, 1.6, 2.5);
+    if (e.type === 'plunge' && this.finisher?.dived) {
+      // It lands: whatever the thing had left goes at once, and the whole court knows.
+      const q = this.finisher.e; this.finisher = null;
+      if (q.alive) {
+        const c = q.center.clone();
+        q.ward = 0; q.shelled = false; q.hp = 1; this.enemies.hit(q, 9999, p.pos, true);
+        for (const [dl, r, s] of [[0, 9, 1.8], [0.12, 14, 1.2], [0.28, 20, 0.8]]) this.vfx.wave(q.pos.x, q.pos.y + 0.1, q.pos.z, { r0: 0.5, r1: r, life: 0.9, strength: s, width: 0.06, color: [3.6, 2.7, 1.2], delay: dl });
+        this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 0.4, r1: 6, life: 0.5, strength: 1.8, width: 0.1, color: [4.2, 3.4, 2.0] });
+        for (let k = 0; k < 70; k++) { const a = Math.random() * 6.283, sp = 3 + Math.random() * 9; this.particles.spawn(c.x, c.y, c.z, { vel: [Math.cos(a) * sp, 4 + Math.random() * 12, Math.sin(a) * sp], life: 0.8 + Math.random() * 0.7, size: 0.06, color: [5, 3.9, 1.8], gravity: 10, drag: 0.8, streak: 0.16 }); }
+        this.hitStop = Math.max(this.hitStop, 0.22); this.rig.addShake(1.0); this.flash = Math.max(this.flash, 0.5); this.slow = Math.max(this.slow, 0.9);
+        this._cadence(3);
+        this.emit('finisher', { phase: 'end', enemy: q });
+      }
+    }
     if (e.type === 'plunge') {
       const storm = p.skills.has('storm'), P = storm ? { ...TUNE.plunge, radius: TUNE.plunge.radius * 1.5, dmg: TUNE.plunge.dmg * 1.5 } : TUNE.plunge;
       const x = p.pos.x, y = p.pos.y + 0.08, z = p.pos.z, power = Math.min(1, 0.45 + e.height * 0.07);
