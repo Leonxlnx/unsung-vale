@@ -344,6 +344,19 @@ void main() {
   vec3 meadow = meadowTip(fam, vec2(0.5)) * mix(vec3(0.82, 0.9, 0.8), vec3(1.16, 1.08, 0.94), n1.r);
   meadow = mix(meadow, meadow * vec3(0.62, 0.92, 0.78), clover);
   alb = mix(alb, meadow * (0.34 + 3.4 * dot(A.rgb, vec3(0.3, 0.6, 0.1))), grass * 0.9);
+  // The worn routes are pale, sandy earth: a warm line through the green that leads the eye.
+  alb = mix(alb, vec3(0.44, 0.34, 0.215) * (0.55 + 1.9 * dot(A.rgb, vec3(0.3, 0.6, 0.1))), path * flat_ * 0.62);
+  // Petals blown onto the bare earth of the paths.
+  if (dist < 30.0 && path > 0.05) {
+    vec2 pc = xz * 5.5, pid = floor(pc), pf = fract(pc) - 0.5;
+    vec3 ph = hash32(pid);
+    float pdrift = smoothstep(0.5, 0.72, textureLod(uNoise, xz / 37.0, 0.0).b) * 0.6 + 0.04;
+    float pa = ph.z * 6.2832;
+    vec2 pq = mat2(cos(pa), -sin(pa), sin(pa), cos(pa)) * (pf - (ph.xy - 0.5) * 0.6);
+    pq.x *= 1.75;
+    float petal = (1.0 - smoothstep(0.1, 0.13, length(pq))) * step(hash12(pid + 7.3), pdrift) * (1.0 - smoothstep(20.0, 30.0, dist)) * path;
+    alb = mix(alb, mix(vec3(0.86, 0.5, 0.58), vec3(0.93, 0.8, 0.82), ph.x), petal * 0.9);
+  }
   // Past the reach of the drawn blades and flowers the ground has to be the whole meadow:
   // the drifts of lupin, poppy, daisy and buttercup show as a broken wash of their colour.
   float farMeadow = grass * gFar;

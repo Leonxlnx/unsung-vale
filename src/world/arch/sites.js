@@ -16,6 +16,7 @@ export class Architecture {
     this.depthMaterial = Shadows.depthMaterial();
     this.group = new THREE.Group();
     this.stats = { meshes: 0, tris: 0 };
+    this.quarters = [];        // [x, z, radius] of the quarters built on the cliff rims
   }
 
   // Finishes a builder into a mesh. near = also drawn into the camera cascades.
@@ -72,6 +73,7 @@ export class Architecture {
       let s = 0; const h0 = this.terrain.heightAt(x, z);
       while (s < 80 && this.terrain.heightAt(x + dx * (s + 6), z + dz * (s + 6)) > h0 - 8) s += 2;
       b.at(x + dx * s, h0 + 0.4, z + dz * s, yaw, (q) => cliffTiers(q, { w, tiers, step: 24, out: 10, detail: 0, seed }));
+      this.quarters.push([x + dx * s, z + dz * s, w / 2 + 10]);
       this.add(b);
     }
     // Smaller holds scattered over the outer mesas.
