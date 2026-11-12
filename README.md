@@ -100,7 +100,7 @@ turns exactly as far as the hand moves, whatever the system's pointer settings.
   rings. One hit taken and it is lost. Wounds are mended with the refrain, a note the hero
   hums: a few to a journey, given back at spires, bells, pylons and with lost notes.
 - The people of the Vale: masked, robed figures who stand as grey statues until their spire
-  is tuned, then wake and ask for something. Nine side quests, seven trials (wave rings and
+  is tuned, then wake and ask for something. Sixteen side quests, seven trials (wave rings and
   timed runs through gates of light), seventy lost notes.
 - Growth: each spire teaches an ability (resonance pulse, running cut, echo step, and more),
   and gifts and the luthier's bench raise life, breath and the blade's edge.

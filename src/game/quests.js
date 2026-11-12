@@ -32,8 +32,21 @@ const SHAPES = {
 };
 
 // kind: gather (spots, taken by touch) | slay (packs of the wilds) | notes (lost notes found)
-// | elites (named Mute brought down) | trials (trials won). after: offered once that one is done.
+// | elites (named Mute brought down) | trials (trials won) | relics (reliquaries opened)
+// | bells (bells rung) | echoes (echoes answered). after: offered once that one is done.
 export const QUESTS = [
+  { id: 'kept', giver: 'quill', title: 'What the Singers Kept', kind: 'relics', verb: 'Open reliquaries on the mesas', need: 4, reward: { up: 'stamina', xp: 150 },
+    offer: ['The archive lists them. A reliquary on every mesa, each with one keepsake in it. A whistle, a bead, a splinter of something.', 'Nobody has opened one since the quiet. I should like to cross four off the list before the ink dries on today.'],
+    wait: ['Four reliquaries. They stand off the paths; the map marks the ones people have told you of.'],
+    done: ['Four, and each of them worn by somebody again. That is what they were for.', 'A copyist learns to sit still without tiring. It works standing up as well. Like so.'] },
+  { id: 'nine', giver: 'imre', title: 'Nine Bells', kind: 'bells', verb: 'Ring the bells out on the mesas', need: 9, reward: { up: 'health', xp: 140 },
+    offer: ['You rang ours. I heard them from inside the quiet, all three, and then I could move my hands.', 'There are fifteen out there on the five mesas. Ring nine and the wind will carry it the rest of the way.'],
+    wait: ['Nine bells in all, counting ours. You will hear which ones are still dumb.'],
+    done: ['Nine. On a still evening you can hear them answer each other now.', 'Here. Lamp oil and honey. Do not ask which is which; it does you good either way.'] },
+  { id: 'answer', giver: 'sova', title: 'An Answer for the Silence', kind: 'echoes', verb: 'Answer echoes at the spires of courts that sing', need: 3, reward: { up: 'blade', xp: 300 },
+    offer: ['It is over, and it is not. Stand at a spire that sings and you can hear the court remember its silence.', 'Wake that memory and the Mute come back as they were, and worse. Answer three of them. A valley that has been afraid should see it done more than once.'],
+    wait: ['Three echoes, at any three courts. Stand at the spire and wake it.'],
+    done: ['Three times, and the song did not falter once. I counted the lights the whole while.', 'Give me the blade. The Crown kept one whetstone back for a day like this.'] },
   { id: 'vellum2', giver: 'sel', after: 'vellum', title: 'The Far Sheets', kind: 'gather', thing: 'survey mark', verb: 'Reach the survey marks by the five pools beyond the water', r: 3.2,
     spots: [[568.8, -373.1], [610.5, 370.7], [71.3, 457.4], [-343.8, 363.7], [-902.5, 32]], reward: { up: 'stamina', xp: 160 },
     offer: ['You rode the strings. I can tell: people come back from it with their hair on sideways.', 'I set a mark by the pool on each of the five mesas, the summer before the quiet. If they stand, the far sheets of my map are still true.', 'Find them for me. They will show on your map once you are near.'],
@@ -187,6 +200,9 @@ export class Quests {
     if (q.kind === 'slay') return [q.packs.filter((i) => g.wildDone.includes(i)).length, q.packs.length];
     if (q.kind === 'elites') return [Math.min(q.need, (g.elitesDown ?? []).length), q.need];
     if (q.kind === 'trials') return [Math.min(q.need, g.trials.doneCount), q.need];
+    if (q.kind === 'relics') return [Math.min(q.need, g.reliquaries?.openCount ?? 0), q.need];
+    if (q.kind === 'bells') return [Math.min(q.need, g.bells?.list.filter((b) => b.rung).length ?? 0), q.need];
+    if (q.kind === 'echoes') return [Math.min(q.need, (g.echoes ?? []).length), q.need];
     return [Math.min(q.need, g.notes.count), q.need];
   }
 

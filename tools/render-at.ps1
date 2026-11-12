@@ -33,6 +33,10 @@ Log "starting: snapshot of HEAD"
 try {
   $head = (git -C $root rev-parse --short HEAD).Trim()
   Log "commit $head"
+  # A preview server left over from an earlier run of this script would hold the old folder
+  # and serve the old build: stop it (it is known by its port on its command line).
+  Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -match 'vite' -and $_.CommandLine -match "preview --port $Port\b" } | ForEach-Object { Log "stopping old preview server $($_.ProcessId)"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Start-Sleep -Seconds 1
   if (Test-Path $snap) { cmd /c "rmdir `"$snap\node_modules`"" 2>$null | Out-Null; Remove-Item -Recurse -Force $snap -ErrorAction SilentlyContinue }
   New-Item -ItemType Directory -Force $snap | Out-Null
   # Windows' own tar, by its full path: a GNU tar earlier on the PATH (Git's) reads "E:\..."
