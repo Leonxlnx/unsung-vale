@@ -51,7 +51,7 @@ vec3 agx(vec3 c) {
   c = pow(max(outMat * c, 0.0), vec3(2.2));
   // Split tone: shadows lean cool, highlights lean warm, as in evening light.
   float lt = luma(c);
-  return c * mix(vec3(0.93, 0.98, 1.07), vec3(1.05, 1.0, 0.92), smoothstep(0.04, 0.55, lt));
+  return c * mix(vec3(0.9, 0.97, 1.09), vec3(1.07, 1.0, 0.9), smoothstep(0.04, 0.55, lt));
 }`;
 
 const TONEMAP = /* glsl */ `

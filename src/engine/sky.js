@@ -434,7 +434,7 @@ export class Sky {
     // Sunlight this low is very orange; pull it part-way back toward white so sunlit stone
     // reads as warm gold rather than rust.
     const c = [this.sunIrradiance.x * t[0], this.sunIrradiance.y * t[1], this.sunIrradiance.z * t[2]];
-    const lum = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], k = this.sunWarmth ?? 0.72;
+    const lum = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], k = this.sunWarmth ?? 0.82;
     this.sunColor.setRGB(lum + (c[0] - lum) * k, lum + (c[1] - lum) * k, lum + (c[2] - lum) * k);
     this.invalidate();
   }

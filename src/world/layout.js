@@ -12,7 +12,7 @@ export const WORLD = {
   waterLevel: 0,
   heightMin: -64,     // quantisation range for the 16-bit height files
   heightMax: 3136,
-  sun: { azimuthDeg: 16, elevationDeg: 10.5 },
+  sun: { azimuthDeg: 16, elevationDeg: 8.5 },
 };
 
 // Hand-placed mesas for the playable core. h is the absolute top height in metres.
