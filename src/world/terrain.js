@@ -111,8 +111,8 @@ void main() {
 
 // Rasterises the walking routes into a mask over the core so the ground can show a worn path.
 const PATH_BAKE = /* glsl */ `
-uniform vec4 uSeg[40];
-uniform float uRad[40];      // 0: a worn path; above 0: paved ground cleared to this radius
+uniform vec4 uSeg[80];
+uniform float uRad[80];      // 0: a worn path; above 0: paved ground cleared to this radius
 uniform int uCount;
 uniform float uSize;
 float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -120,7 +120,7 @@ float vn(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 
 void main() {
   vec2 p = (vUv - 0.5) * uSize;
   float d = 1e6, clear = 0.0, cut = 0.0;
-  for (int i = 0; i < 40; i++) {
+  for (int i = 0; i < 80; i++) {
     if (i >= uCount) break;
     vec2 a = uSeg[i].xy, b = uSeg[i].zw, ab = b - a;
     float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-4), 0.0, 1.0);
@@ -491,10 +491,10 @@ export class Terrain {
   bakePaths(paths, clearings = []) {
     const segs = [], rad = [];
     for (const c of clearings) { segs.push(new THREE.Vector4(c[0], c[1], c[2], c[3])); rad.push(c[4]); }
-    for (const p of paths) for (let i = 0; i < p.length - 1 && segs.length < 40; i++) segs.push(new THREE.Vector4(p[i][0], p[i][1], p[i + 1][0], p[i + 1][1]));
+    for (const p of paths) for (let i = 0; i < p.length - 1 && segs.length < 80; i++) segs.push(new THREE.Vector4(p[i][0], p[i][1], p[i + 1][0], p[i + 1][1]));
     const count = segs.length;
-    while (segs.length < 40) segs.push(new THREE.Vector4());
-    while (rad.length < 40) rad.push(0);
+    while (segs.length < 80) segs.push(new THREE.Vector4());
+    while (rad.length < 80) rad.push(0);
     const pass = new FullscreenPass({ fragment: PATH_BAKE, uniforms: { uSeg: { value: segs }, uRad: { value: rad }, uCount: { value: count }, uSize: { value: this.coreSize } } });
     pass.render(this.pipe.renderer, this.pathMask);
     pass.dispose();
