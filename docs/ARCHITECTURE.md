@@ -162,6 +162,8 @@ the opaque scene at the far plane with the depth test on, so it is only shaded w
   little health and sounds the next step of a scale.
 - `enemies.js`: the Mute (thrall, lancer, colossus). Each body is a set of instanced crystal
   shards moved toward formation slots; they lie dormant as rubble until approached.
+  They move through `tryMove`: follow the floor, get pushed aside by walls, shafts and trunks
+  (`world.resolveCapsule`), and go round to one side when the straight line is blocked.
 - Spires are tuned (hold E) once their guards are gone. Untuned spires project a "mute zone"
   (`pipe.fog.mute[i]`) that the fog pass renders as drained colour; tuning collapses it.
 - `particles.js`: pooled additive sparks, embers and glows, stretched along their velocity.
@@ -207,6 +209,16 @@ the opaque scene at the far plane with the depth test on, so it is only shaded w
   `tools/capture.mjs` receives frames over HTTP and pipes them into ffmpeg.
   After any raw GL call use `pipe.resetGL()`, never `renderer.resetState()` alone: three's
   reset turns the reversed depth buffer off.
+
+## Checks that need no rendering
+
+Most of the play feel was tuned by measuring rather than by eye, with the page held
+(`sessionStorage.uvHold = '1'`) and `game.update(1 / 60)` called in a loop from the console:
+foot speed while planted (it should be zero), knee and wrist angles through every move, the
+largest jump of any joint between two frames (pose pops), the capsule's step-by-step motion
+on stairs, camera jerk, whether every construct reaches a player who stands still, how many
+strikes of a combo land from a given distance, and a fuzz run of random input at twenty places
+looking for stuck spots, falls through the world and NaNs. `__dbg.bot()` plays the whole game.
 
 ## Development helpers
 

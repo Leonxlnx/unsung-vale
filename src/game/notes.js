@@ -44,12 +44,15 @@ export class Notes {
       for (let i = 1; i < pts.length; i++) {
         const [ax, az] = pts[i - 1], [bx, bz] = pts[i], len = Math.hypot(bx - ax, bz - az);
         if (len > 200) { carry = gap * 0.5; continue; }             // a leap between mesas, not a path
+        // Heights of the path at both ends: between them a note sits on whatever carries the
+        // path there (a viaduct deck high over the valley floor, a stair), not on the ground below.
+        const ya = W.floorBelow(ax, W.groundHeight(ax, az) + 40, az, 60), yb = W.floorBelow(bx, W.groundHeight(bx, bz) + 40, bz, 60);
         for (let d = carry; d < len; d += gap) {
           const t = d / len, nx = -(bz - az) / len, nz = (bx - ax) / len;
           const x = ax + (bx - ax) * t + nx * 1.1 * side, z = az + (bz - az) * t + nz * 1.1 * side;
           side = -side;
           if (avoid.some(([cx, cz, r]) => Math.hypot(x - cx, z - cz) < r)) continue;
-          const y = W.floorBelow(x, W.groundHeight(x, z) + 40, z, 60);
+          const y = W.floorBelow(x, Math.max(ya + (yb - ya) * t + 6, W.groundHeight(x, z) + 3), z, 40);
           list.push({ x, y: y + 1.15, z, taken: false, phase: list.length * 1.7, k: 1 });
         }
         carry = (carry + Math.ceil((len - carry) / gap) * gap) - len;
