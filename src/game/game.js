@@ -6,6 +6,7 @@ import { CollisionWorld } from './collision.js';
 import { Player, TUNE } from './player.js';
 import { CameraRig } from './camera.js';
 import { Particles } from './particles.js';
+import { Vfx } from './vfx.js';
 import { Enemies } from './enemies.js';
 import { MeshBuilder, M } from '../world/arch/builder.js';
 import { spireRadius } from '../world/arch/kit.js';
@@ -114,8 +115,11 @@ export class Game {
     this.input = new Input(canvas);
     this.player = new Player(this.world);
     this.rig = new CameraRig(pipe.camera, this.world);
-    this.particles = new Particles(pipe);
+    this.particles = new Particles(pipe, 1600);
     pipe.sceneT.add(this.particles.mesh);
+    this.vfx = new Vfx(pipe);
+    pipe.sceneT.add(this.vfx.group);
+    this.flash = 0; this.baseExposure = pipe.exposure;      // a brief lift of exposure on the big moments
     this.enemies = new Enemies(pipe, this.world, this.particles);
     pipe.scene.add(this.enemies.mesh);
     this.state = 'home';          // home | playing | paused | ending | free
@@ -306,7 +310,7 @@ export class Game {
     if (!this.cine && this.input.pressed.has('pause')) { if (this.state === 'playing') this.pause(); else if (this.state === 'paused') this.resume(); }
     if (this.state !== 'playing' && this.state !== 'ending') {
       // The world keeps breathing behind the menus.
-      this.particles.update(realDt);
+      this.particles.update(realDt); this.vfx.update(realDt);
       this._animateWorld(realDt);
       this.enemies.update(0, this.player, this.time);
       this.hero?.update(realDt, this.player, this);
@@ -328,7 +332,7 @@ export class Game {
     p.events.length = 0;
     this._spireLogic(dt);
     this._animateWorld(dt);
-    this.particles.update(dt);
+    this.particles.update(dt); this.vfx.update(dt);
     // In a cinematic the director owns the camera; the rig only tracks yaw for movement.
     if (!this.cine) this.rig.update(realDt, p, this.input);
 
@@ -374,6 +378,11 @@ export class Game {
       if (this.enemies.hit(e, a.dmg, p.pos, heavy)) {
         this.hitStop = heavy ? 0.11 : 0.06;
         this.rig.addShake(heavy ? 0.5 : 0.28);
+        const c = e.center ?? e.pos, hy = c.y + (e.center ? 0 : 1.2);
+        this.particles.burst(c.x, hy, c.z, heavy ? 34 : 18, { speed: heavy ? 15 : 11, life: 0.3, size: 0.05, color: [9, 6.5, 3], gravity: 14, drag: 1.2, streak: 0.14, dir: [f.x, 0.35, f.z], bias: 5 });
+        this.particles.spawn(c.x, hy, c.z, { life: 0.09, size: heavy ? 2.6 : 1.6, color: [7, 5.5, 3.6], alpha: 0.9 });
+        this.vfx.wave(c.x, hy, c.z, { kind: 1, r0: 0.2, r1: heavy ? 3.4 : 2.0, life: heavy ? 0.32 : 0.22, strength: heavy ? 1.3 : 0.8, width: 0.16, color: [2.4, 1.8, 1.0] });
+        if (heavy) this.vfx.wave(e.pos.x, e.pos.y + 0.08, e.pos.z, { r0: 0.4, r1: 5.5, life: 0.5, strength: 1.0, width: 0.1, color: [5, 3.6, 1.6] });
         this.emit('hit', { heavy, enemy: e });
       }
     }
@@ -382,12 +391,17 @@ export class Game {
   _onPlayerEvent(e) {
     const p = this.player;
     if (e.type === 'land' && e.fell > 3) this.rig.addShake(Math.min(0.5, e.fell * 0.03));
+    if (e.type === 'land' && e.fell > 1.5) this.vfx.wave(p.pos.x, p.pos.y + 0.06, p.pos.z, { r0: 0.2, r1: 1.2 + Math.min(3, e.fell * 0.3), life: 0.4, strength: 0.5, width: 0.16, color: [0.5, 0.42, 0.3] });
     if (e.type === 'land') this.hero?.onLand(e.fell ?? 0);
     if (e.type === 'hurt') { this.rig.addShake(0.55); this.hero?.onHit(); }
     if (e.type === 'pulse') {
       // Resonance pulse: a ring of force that staggers everything nearby.
       for (let k = 0; k < 56; k++) { const a = (k / 56) * 6.283; this.particles.spawn(p.pos.x, p.pos.y + 1, p.pos.z, { vel: [Math.cos(a) * 15, 0.4, Math.sin(a) * 15], life: 0.55, size: 0.28, color: [4, 2.9, 1.4], drag: 2.5 }); }
       this.particles.spawn(p.pos.x, p.pos.y + 1, p.pos.z, { life: 0.4, size: 5, color: [2.4, 1.8, 0.9], grow: 1.6, alpha: 0.6 });
+      this.vfx.wave(p.pos.x, p.pos.y + 1.0, p.pos.z, { kind: 1, r0: 0.5, r1: TUNE.pulseRadius * 0.9, life: 0.55, strength: 1.5, width: 0.1, color: [5, 3.6, 1.6] });
+      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.5, r1: TUNE.pulseRadius * 1.25, life: 0.75, strength: 1.2, width: 0.07, color: [5, 3.6, 1.6] });
+      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.5, r1: TUNE.pulseRadius * 0.9, life: 0.7, strength: 0.7, width: 0.09, color: [2.5, 1.8, 0.8], delay: 0.14 });
+      this.flash = Math.max(this.flash, 0.35);
       for (const en of this.enemies.list) if (en.alive && en.state !== 'dormant' && en.pos.distanceTo(p.pos) < TUNE.pulseRadius) { this.enemies.hit(en, 12, p.pos, true); }
       this.rig.addShake(0.4);
     }
@@ -396,9 +410,21 @@ export class Game {
 
   _onEnemyEvent(e) {
     if (e.type === 'hitPlayer') { this.player.damage(e.damage, e.from ?? e.enemy.pos); }
-    if (e.type === 'slam') this.rig.addShake(0.7);
+    if (e.type === 'slam') {
+      this.rig.addShake(0.7);
+      const q = e.enemy?.pos ?? this.player.pos;
+      this.vfx.wave(q.x, q.y + 0.1, q.z, { r0: 1, r1: 11, life: 0.7, strength: 1.5, width: 0.08, color: [3.4, 1.6, 6.5] });
+      this.particles.burst(q.x, q.y + 0.3, q.z, 40, { speed: 9, life: 0.6, size: 0.07, color: [3.4, 1.6, 6.5], gravity: 8, drag: 1.5, streak: 0.1, up: 3 });
+    }
     if (e.type === 'wake' && e.enemy.def.boss) { this.boss = e.enemy; this.emit('boss', { enemy: e.enemy }); }
     if (e.type === 'death') {
+      // The construct comes apart: a bubble of force, a ring over the ground, and its light
+      // rising out of it as slow embers.
+      const en = e.enemy, c = en.center ?? en.pos, big = en.def.boss ? 2.6 : 1;
+      this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 0.4, r1: 4.5 * big, life: 0.5 * big, strength: 1.4, width: 0.12, color: [3.4, 1.6, 6.5] });
+      this.vfx.wave(en.pos.x, en.pos.y + 0.08, en.pos.z, { r0: 0.5, r1: 7 * big, life: 0.8 * big, strength: 1.0, width: 0.08, color: [3.4, 1.6, 6.5] });
+      this.particles.burst(c.x, c.y, c.z, en.def.boss ? 140 : 46, { speed: 2.6 * big, life: 2.2, size: 0.06, color: [4.5, 2.6, 8], gravity: -1.6, drag: 0.9, up: 1.2 });
+      this.flash = Math.max(this.flash, en.def.boss ? 0.9 : 0.25);
       if (e.enemy === this.boss) { this.boss = null; this.emit('boss', { enemy: null }); }
       if (e.enemy === this.player.lockTarget) { this.player.lockTarget = null; this.emit('lock', { target: null }); }
       this._refreshObjective();
@@ -433,6 +459,14 @@ export class Game {
     this.checkpoint = { x: p.pos.x, y: p.pos.y + 0.1, z: p.pos.z, yaw: p.yaw };
     for (let k = 0; k < 120; k++) { const a = Math.random() * 6.283, r = Math.random() * 3; this.particles.spawn(s.x + Math.cos(a) * r, s.base + 1 + Math.random() * 18, s.z + Math.sin(a) * r, { vel: [Math.cos(a) * 3, 6 + Math.random() * 10, Math.sin(a) * 3], life: 1.8, size: 0.14, color: [5, 3.6, 1.6], drag: 0.8 }); }
     this.rig.addShake(0.6);
+    const gy = s.base + 0.2;
+    this.vfx.wave(s.x, gy, s.z, { r0: 1, r1: 80, life: 2.6, strength: 1.8, width: 0.045, color: [5, 3.6, 1.6] });
+    this.vfx.wave(s.x, gy, s.z, { r0: 1, r1: 60, life: 2.6, strength: 1.2, width: 0.06, color: [3.5, 2.6, 1.2], delay: 0.35 });
+    this.vfx.wave(s.x, gy, s.z, { r0: 1, r1: 44, life: 2.6, strength: 0.9, width: 0.08, color: [2.6, 2.0, 1.0], delay: 0.75 });
+    this.vfx.wave(s.x, s.base + (s.h ?? 24) * 0.5, s.z, { kind: 1, r0: 1, r1: 30, life: 1.3, strength: 1.6, width: 0.07, color: [5, 3.6, 1.6] });
+    for (let k = 0; k < 90; k++) { const a = (k / 90) * 6.283; this.particles.spawn(s.x + Math.cos(a) * 3, s.base + 0.5, s.z + Math.sin(a) * 3, { vel: [Math.cos(a) * (16 + Math.random() * 8), 1.5 + Math.random() * 3, Math.sin(a) * (16 + Math.random() * 8)], life: 1.1, size: 0.09, color: [7, 5, 2.2], drag: 1.6, gravity: 2, streak: 0.12 }); }
+    s.helix?.start();
+    this.flash = 1;
     if (s.id === 'cantor') this.bridgeOpen = true;
     if (!this.spires.some((x) => !x.tuned)) { this.ended = true; this.emit('ending'); }
     this.save();
@@ -443,7 +477,13 @@ export class Game {
   // Slow world animation that runs in every state: crystals, beams, colour returning, the bridge.
   _animateWorld(dt) {
     const t = this.pipe.time;
+    this.flash *= Math.exp(-dt * 3.2);
+    this.pipe.exposure = this.baseExposure * (1 + 0.45 * this.flash);
     for (const s of this.spires) {
+      // Strands of light around each spire: climbing when it is tuned, steady afterwards.
+      s.helix ??= this.vfx.helix({ x: s.x, base: s.base, z: s.z, h: s.h ?? 24 });
+      if (s.tuned && s.helix.rise === 0) s.helix.set(true);
+      if (!s.tuned && s.helix.rise > 0) s.helix.set(false);
       if (s.tuned) {
         s.power += (1 - s.power) * Math.min(1, 1.5 * dt);
         // The silence retreats: its radius collapses toward the spire.
@@ -461,6 +501,13 @@ export class Game {
     if (this.bridgeOpen) {
       this.bridge.visible = true;
       this.bridgeProgress = Math.min(1, this.bridgeProgress + dt / 4.5);
+      if (this.bridgeProgress < 1) {
+        // Sparks pour off the leading edge as the span weaves itself across the gap.
+        const { from, to } = this.sites.bridge, k = this.bridgeProgress;
+        const bx = from[0] + (to[0] - from[0]) * k, by = from[1] + (to[1] - from[1]) * k, bz = from[2] + (to[2] - from[2]) * k;
+        const n = Math.min(6, Math.floor(dt * 150 + Math.random()));
+        for (let i = 0; i < n; i++) this.particles.spawn(bx + (Math.random() - 0.5) * 6, by + 0.2, bz + (Math.random() - 0.5) * 2, { vel: [(Math.random() - 0.5) * 5, 2 + Math.random() * 5, (Math.random() - 0.5) * 5], life: 0.9, size: 0.07, color: [7, 5.2, 2.4], gravity: 6, drag: 0.8, streak: 0.1 });
+      }
       this.bridgeMat.uniforms.uProgress.value = this.bridgeProgress;
       // Solid from the first moment, so nobody can step onto the visible part and fall through.
       if (!this.bridgeSolid) { this.world.addGeometry(this.bridgeSlab); this.bridgeSolid = true; }

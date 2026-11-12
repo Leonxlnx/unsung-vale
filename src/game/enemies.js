@@ -333,6 +333,11 @@ export class Enemies {
         n++;
       }
       e.snap = false;
+      // While a construct pulls itself together, motes of its light spiral in from the floor.
+      if (e.alive && e.state === 'rise' && Math.random() < dt * 55) {
+        const a = Math.random() * 6.283, r = (d.boss ? 4 : 1.8) + Math.random() * 2;
+        this.particles.spawn(e.pos.x + Math.cos(a) * r, e.pos.y + 0.1 + Math.random() * 0.5, e.pos.z + Math.sin(a) * r, { vel: [-Math.cos(a) * r * 1.5 - Math.sin(a) * 2.4, 1.4 + Math.random() * 1.6, -Math.sin(a) * r * 1.5 + Math.cos(a) * 2.4], life: 0.75, size: 0.06, color: [3.4, 1.6, 6.5], streak: 0.12, drag: 0.4 });
+      }
       if (e.alive && e.state !== 'dormant') {
         const c = e.center;
         this.particles.spawn(c.x, c.y + d.hover, c.z, { life: 0.08, size: (d.boss ? 1.6 : 0.62) * (1 + e.glow * 0.25), color: [1.6 + e.glow, 0.7 + e.glow * 0.4, 3.2 + e.glow], alpha: 0.55 });
