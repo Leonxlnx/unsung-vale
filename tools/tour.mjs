@@ -205,6 +205,30 @@ if (want('tuning')) {
   await sleep(3200); await shot('finale');
   await sleep(6500); await shot('woken');
 }
+if (want('foes')) {
+  // What the Mute have learnt: a chorister's ward on a thrall, a brute's rush, and the hero
+  // in full cadence.
+  await ev(() => {
+    const g = window.__game, p = g.player; window.__dbg.ui(true);
+    window.__tour.tune(['petal']); window.__tour.tp(-512, 210.5, -66, 1.57, -0.1, 7); window.__tour.clear('foes');
+    const E = g.enemies, y = p.pos.y;
+    const c = E.spawn('chorister', p.pos.x + 9, p.pos.z + 5, 'foes', null, y), t = E.spawn('thrall', p.pos.x + 6, p.pos.z - 1.5, 'foes', null, y);
+    for (const e of [c, t]) { e.state = 'chase'; e.assembled = 1; e.t = 0; }
+    c.wardCd = 0;
+  });
+  await sleep(1500); await shot('foes_ward');
+  await page.mouse.down(); await page.mouse.up(); await sleep(260); await shot('foes_warded');
+  await ev(() => {
+    const g = window.__game, p = g.player; window.__tour.clear('foes');
+    window.__tour.tp(-512, 210.5, -78, 0, -0.1, 7.5);
+    const b = g.enemies.spawn('brute', p.pos.x + 1, p.pos.z + 12, 'foes', null, p.pos.y); b.state = 'chase'; b.assembled = 1; b.t = 1; b.rushCd = 0;
+  });
+  await sleep(900); await shot('foes_rush_mark');
+  await sleep(700); await shot('foes_rush');
+  await ev(() => { const g = window.__game; window.__tour.clear('foes'); window.__tour.tp(-512, 210.5, -66, 1.57, -0.1, 5.5); g.cadence = 0; g._cadence(11); });
+  await sleep(300); await ev(() => window.__game._cadence(1)); await sleep(350); await shot('foes_cadence');
+  await ev(() => { const g = window.__game; g._cadenceBreak(); }); await sleep(250); await shot('foes_cadence_broke');
+}
 if (want('outro')) {
   await ev(() => { const g = window.__game; window.__tour.tune(g.spires.map((s) => s.id)); g.ended = true; g.outroSeen = true; window.__dbg.ui(true); window.__story.outro(); });
   for (const [t, name] of [[4000, 'outro_1'], [8500, 'outro_2'], [9000, 'outro_3'], [10000, 'outro_4']]) { await sleep(t); await shot(name); }

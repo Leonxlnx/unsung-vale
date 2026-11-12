@@ -44,7 +44,7 @@ export class UI {
           <div class="bars">
             <div class="meter health"><i class="ghost"></i><i class="fill"></i></div>
             <div class="meter stamina"><i class="fill"></i></div>
-            <div class="under"><div class="refrain"></div><div class="res"><i></i><span>0</span></div></div>
+            <div class="under"><div class="refrain"></div><div class="cadence"><i></i><i></i><i></i><i></i></div><div class="res"><i></i><span>0</span></div></div>
           </div>
         </div>
         <div class="prompt"><div class="key"><span></span></div><div class="text"></div></div>
@@ -103,7 +103,7 @@ export class UI {
       marker: $('#hud .marker.main'), markerText: $('#hud .marker.main span'), marker2: $('#hud .marker.side'), marker2Text: $('#hud .marker.side span'),
       reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), toastBig: $('#hud .toast .big'), toastSmall: $('#hud .toast .small'), card: $('#hud .card'), cardTitle: $('#hud .card b'), cardText: $('#hud .card span'),
       hints: $('#hud .hints'), fps: $('#hud .fps'), grab: $('#hud .grab'), tally: $('#hud .tally'), beat: $('#hud .beat'), beatCue: $('#hud .beat .cue'), beatRing: $('#hud .beat .cue i'), beatPips: $('#hud .beat .pips'),
-      foes: $$('#hud .foe'), refrain: $('#hud .refrain'),
+      foes: $$('#hud .foe'), refrain: $('#hud .refrain'), cadence: $('#hud .cadence'),
       compass: $('#hud .compass'), ticks: $('#hud .compass .ticks'), card4: $$('#hud .compass b'), pinGoal: $('#hud .compass .pin.goal'), pinSide: $('#hud .compass .pin.side'),
       talk: $('#talk'), talkName: $('#talk .who b'), talkRole: $('#talk .who span'), talkText: $('#talk p'), talkNext: $('#talk .next'),
       tabBody: $('#settings .tabbody'), play: $('[data-act="play"]'), newGame: $('[data-act="new"]'),
@@ -241,6 +241,13 @@ export class UI {
     if (type === 'map' && d.phase === 'given') setTimeout(() => this.card('The map', 'M opens it. J opens the journal.'), 800);
     if (type === 'people' && d.type === 'wake') { clearTimeout(this._wakeT); const n = (this._wakeN = (this._wakeN ?? 0) + 1); this._wakeT = setTimeout(() => { this._wakeN = 0; this.card(n > 1 ? 'The court wakes' : `${d.name} wakes`, n > 1 ? `${n} people here can speak again.` : 'Someone at this court can speak again.'); }, 9500); }
     if (type === 'hit' && d.enemy) (this._hit ??= new Map()).set(d.enemy, performance.now());
+    if (type === 'hint') this.card(d.title, d.text);
+    if (type === 'cadence') {
+      const c = el.cadence;
+      c.dataset.lv = d.level; c.classList.toggle('on', d.level > 0); c.classList.toggle('full', d.level === 4);
+      c.classList.remove('up', 'broke'); void c.offsetWidth; if (d.up) c.classList.add('up'); if (d.broke) c.classList.add('broke');
+      if (d.up && !this._cadHint) { this._cadHint = true; this.card('Cadence', 'Blow after blow without being struck, the blade finds its time and cuts deeper. One hit taken and it is lost.'); }
+    }
     if (type === 'rest') { el.refrain.classList.remove('gain'); void el.refrain.offsetWidth; el.refrain.classList.add('gain'); }
     if (type === 'xp') { el.res.classList.remove('gain'); void el.res.offsetWidth; el.res.classList.add('gain'); }
     if (type === 'player' && d.type === 'hurt') { el.hurt.style.transition = 'none'; el.hurt.style.opacity = '1'; requestAnimationFrame(() => { el.hurt.style.transition = ''; el.hurt.style.opacity = '0'; }); el.health.classList.remove('hit'); void el.health.offsetWidth; el.health.classList.add('hit'); }

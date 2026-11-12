@@ -483,6 +483,7 @@ export class Game {
     this.slow = Math.max(0, this.slow - realDt); this.slowCd = Math.max(0, this.slowCd - realDt);
     const edt = this.slow > 0 ? dt * (0.22 + 0.78 * Math.max(0, 1 - this.slow / 0.35)) : dt;
     p.update(dt, busy ? this._idle : this.input, this.rig.yaw);
+    this._cadenceTick(dt);
     this._bodies();
     if (!busy && p.state !== 'ride') { this._lockOn(); this._combat(); }
     this.enemies.update(edt, p, this.time);
@@ -582,7 +583,8 @@ export class Game {
       if (dist > 0.6 && d.normalize().dot(f) < Math.cos(a.arc / 2 + 0.25)) continue;
       p.hitDone.add(e);
       const heavy = p.comboStep >= 2;
-      if (this.enemies.hit(e, a.dmg * p.power, p.pos, heavy)) {
+      if (this.enemies.hit(e, a.dmg * p.power * (1 + 0.08 * this.cadenceLevel), p.pos, heavy)) {
+        this._cadence(heavy ? 2 : 1, e);
         this.hitStop = heavy ? 0.11 : 0.06;
         this.rig.addShake(heavy ? 0.5 : 0.28);
         const c = e.center ?? e.pos, hy = c.y + (e.center ? 0 : 1.2);
@@ -597,8 +599,51 @@ export class Game {
     }
   }
 
+  // Cadence: every blow that lands without one taken in between counts toward it. Three make
+  // a step, four steps the whole of it; each step puts more weight in the blade, and at the
+  // top every cut rings. It fades if the blade rests, and a blow taken breaks it at once.
+  get cadenceLevel() { return Math.min(4, Math.floor((this.cadence ?? 0) / 3)); }
+  _cadence(n, e = null) {
+    if (this.cine) return;
+    const was = this.cadenceLevel;
+    this.cadence = Math.min(12, (this.cadence ?? 0) + n); this.cadenceT = 5;
+    const lv = this.cadenceLevel, p = this.player;
+    if (lv > was) {
+      this.emit('cadence', { level: lv, up: true });
+      this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.3, r1: 2.2 + lv * 0.9, life: 0.5, strength: 0.5 + 0.2 * lv, width: 0.05, color: [3.4, 2.5, 1.1] });
+      if (lv === 4) { this.vfx.wave(p.pos.x, p.pos.y + 1.1, p.pos.z, { kind: 1, r0: 0.3, r1: 3.6, life: 0.45, strength: 1.2, width: 0.08, color: [3.6, 2.7, 1.2] }); this.flash = Math.max(this.flash, 0.16); }
+    }
+    // In full cadence a cut gives a little breath back and rings where it lands.
+    if (lv === 4 && e) {
+      p.stamina = Math.min(p.staminaMax, p.stamina + 5);
+      const c = e.center ?? e.pos;
+      this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 0.2, r1: 2.0, life: 0.3, strength: 0.9, width: 0.07, color: [3.6, 2.7, 1.2] });
+    }
+  }
+  _cadenceTick(dt) {
+    if (!(this.cadence > 0)) return;
+    const lv = this.cadenceLevel;
+    this.cadenceT -= dt;
+    if (this.cadenceT <= 0) { this.cadence = Math.max(0, this.cadence - 3); this.cadenceT = 1.1; if (this.cadenceLevel < lv) this.emit('cadence', { level: this.cadenceLevel }); }
+    // The blade itself shows it: a thread of sparks off the point, thicker with every step.
+    const tip = this.hero?.tip;
+    if (tip && lv >= 2 && Math.random() < dt * (10 + 14 * (lv - 2))) this.particles.spawn(tip.x, tip.y, tip.z, { vel: [(Math.random() - 0.5) * 0.6, 0.5 + Math.random() * 0.8, (Math.random() - 0.5) * 0.6], life: 0.3 + 0.1 * lv, size: 0.03 + 0.008 * lv, color: [4.2, 3.1, 1.4], drag: 1.6 });
+  }
+  _cadenceBreak() {
+    if (!(this.cadence > 0)) return;
+    const lv = this.cadenceLevel, p = this.player;
+    this.cadence = 0;
+    if (lv > 0) {
+      this.emit('cadence', { level: 0, broke: true });
+      this.particles.burst(p.pos.x, p.pos.y + 1.2, p.pos.z, 8 + lv * 5, { speed: 4, life: 0.5, size: 0.04, color: [2.6, 2.0, 1.0], gravity: 6, drag: 1.6 });
+    }
+  }
+
   _onPlayerEvent(e) {
     const p = this.player;
+    if (e.type === 'hurt' || e.type === 'death' || e.type === 'wind') this._cadenceBreak();
+    // A blow slipped at the last instant keeps the time, and adds to it.
+    if (e.type === 'evade') this._cadence(1);
     if (e.type === 'land' && e.fell > 3) this.rig.addShake(Math.min(0.5, e.fell * 0.03));
     if (e.type === 'land' && e.fell > 1.5) this.vfx.wave(p.pos.x, p.pos.y + 0.06, p.pos.z, { r0: 0.2, r1: 1.2 + Math.min(3, e.fell * 0.3), life: 0.4, strength: 0.5, width: 0.16, color: [0.5, 0.42, 0.3] });
     if (e.type === 'land') this.hero?.onLand(e.fell ?? 0);
@@ -694,6 +739,7 @@ export class Game {
       if (Math.hypot(this.player.pos.x - b.x, this.player.pos.z - b.z) < 14) this.rig.addShake(0.3);
     }
     if (e.type === 'returned') {
+      this._cadence(2);
       this.vfx.wave(e.pos.x, e.pos.y, e.pos.z, { kind: 1, r0: 0.2, r1: 2.4, life: 0.3, strength: 1.3, width: 0.12, color: [3.6, 2.7, 1.2] });
       this.particles.burst(e.pos.x, e.pos.y, e.pos.z, 16, { speed: 8, life: 0.35, size: 0.05, color: [5, 3.8, 1.7], gravity: 8, drag: 1.4, streak: 0.14 });
       this.hitStop = Math.max(this.hitStop, 0.07); this.rig.addShake(0.3);
@@ -716,6 +762,25 @@ export class Game {
       this.flash = Math.max(this.flash, 0.6); this.rig.addShake(0.8); this.hitStop = Math.max(this.hitStop, 0.12);
       for (const [dl, r] of [[0, 16], [0.25, 24]]) this.vfx.wave(q.x, q.y + 0.1, q.z, { r0: 1, r1: r, life: 1.1, strength: 1.4, width: 0.07, color: [2.4, 1.15, 4.6], delay: dl });
       this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 1, r1: 12, life: 0.7, strength: 1.5, width: 0.1, color: [2.4, 1.15, 4.6] });
+    }
+    if (e.type === 'ward') {
+      const a = e.ally.center, c = e.enemy.center;
+      this.vfx.wave(a.x, e.ally.pos.y + 0.08, a.z, { r0: 2.6, r1: 0.6, life: 0.5, strength: 1.0, width: 0.07, color: [2.4, 1.15, 4.6] });
+      this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 0.3, r1: 1.8, life: 0.4, strength: 0.9, width: 0.1, color: [2.4, 1.15, 4.6] });
+      if (!this._wardHint && !this.cine) { this._wardHint = true; this.emit('hint', { title: 'Warded', text: 'A chorister has thrown its ward over one of the Mute. Break the singer and the ward goes with it.' }); }
+    }
+    if (e.type === 'warded') {
+      const c = e.enemy.center;
+      this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 0.9, r1: 1.5, life: 0.2, strength: 0.9, width: 0.05, color: [2.6, 1.3, 5.2] });
+    }
+    if (e.type === 'wardBreak') {
+      const c = e.enemy.center;
+      this.particles.burst(c.x, c.y, c.z, 18, { speed: 5, life: 0.5, size: 0.06, color: [2.6, 1.3, 5.2], gravity: 4, drag: 1.5 });
+    }
+    if (e.type === 'rushMark') {
+      // A line on the ground where it means to go: time enough to step off it.
+      const q = e.enemy, f = [Math.sin(q.yaw), Math.cos(q.yaw)];
+      for (let k = 1; k <= 6; k++) this.vfx.wave(q.pos.x + f[0] * k * 2.2, q.pos.y + 0.08, q.pos.z + f[1] * k * 2.2, { r0: 0.9, r1: 0.25, life: 0.75, delay: k * 0.05, strength: 0.6, width: 0.06, color: [2.4, 1.15, 4.6] });
     }
     if (e.type === 'summon') {
       const q = e.enemy.pos, n = 1 + e.phase;

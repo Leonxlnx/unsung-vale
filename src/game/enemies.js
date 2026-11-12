@@ -224,6 +224,7 @@ export class Enemies {
         dmg *= 0.5;
       }
     }
+    if (e.ward > 0) { dmg *= heavy ? 0.6 : 0.35; this.events.push({ type: 'warded', enemy: e }); }
     // Caught off balance, it takes a heavy blow half as hard again, and everyone hears it.
     if (heavy && e.state === 'stagger' && !e.def.boss) { dmg *= 1.5; this.events.push({ type: 'rung', enemy: e }); }
     e.hp -= dmg; e.poise -= dmg * (heavy ? 2.2 : 1);
@@ -258,6 +259,21 @@ export class Enemies {
       e.t += dt;
       e.glow += ((e.state === 'windup' ? 0.6 + 0.9 * (e.t / d.windup) : 0.12) - e.glow) * Math.min(1, 6 * dt);
       e.staggerK *= Math.exp(-5 * dt);
+      if (e.wardCd > 0) e.wardCd -= dt;
+      if (e.rushCd > 0) e.rushCd -= dt;
+      if (e.ward > 0) {
+        const w = e.warder;
+        e.ward -= dt;
+        if (!e.alive || !w?.alive || w.state === 'stagger' || e.ward <= 0) { if (e.alive && e.ward > 0) this.events.push({ type: 'wardBreak', enemy: e }); e.ward = 0; e.warder = null; }
+        else {
+          // The thread itself, and a slow ring turning round the one it keeps.
+          const a = w.center, b = e.center;
+          for (let k = 0; k < 7; k++) { const u = Math.random(); P.spawn(a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u + Math.sin(u * 3.1416) * 0.5, a.z + (b.z - a.z) * u, { life: 0.2, size: 0.13, color: [3.4, 1.7, 6.8], alpha: 0.9 }); }
+          const an = time * 3.2 + e.seed * 6, rr = d.radius + 0.55;
+          P.spawn(b.x + Math.cos(an) * rr, b.y + Math.sin(time * 2.1) * 0.35, b.z + Math.sin(an) * rr, { life: 0.35, size: 0.1, color: [3.0, 1.6, 6.0], alpha: 0.9 });
+          P.spawn(b.x - Math.cos(an) * rr, b.y - Math.sin(time * 2.1) * 0.35, b.z - Math.sin(an) * rr, { life: 0.35, size: 0.1, color: [3.0, 1.6, 6.0], alpha: 0.9 });
+        }
+      }
       const toP = _toP.copy(player.pos).sub(e.pos); toP.y = 0;
       const dist = toP.length(); if (dist > 1e-3) toP.multiplyScalar(1 / dist);
       e.far = dist > 240 && e.state === 'dormant';
@@ -278,6 +294,13 @@ export class Enemies {
           else if (d.ranged) {
             // Lancers keep their distance and back off when crowded.
             if (dist < 7) { wantSpeed = d.speed; dirSign = -1; } else if (dist > 14) wantSpeed = d.speed;
+            // A chorister first looks to its own: whoever is nearest the fight gets its ward.
+            if (d.caster && !(e.wardCd > 0) && dist < 30) {
+              let best = null, bd = 18;
+              for (const o of this.list) { if (o === e || !o.alive || o.def.ranged || o.def.boss || o.def.burst || o.ward > 0 || o.state === 'dormant' || o.state === 'rise') continue; const dd = o.pos.distanceTo(e.pos); if (dd < bd) { bd = dd; best = o; } }
+              e.wardCd = best ? 10 : 2;
+              if (best) { best.ward = 5.5; best.warder = e; this.events.push({ type: 'ward', enemy: e, ally: best }); }
+            }
             if (dist < 22 && e.t > 1.4 + e.seed * 1.2) { e.state = 'windup'; e.t = 0; this.events.push({ type: 'charge', enemy: e }); }
           } else if (d.circle && dist < 8.5) {
             // Round the hero at a few paces, then in.
@@ -287,6 +310,9 @@ export class Enemies {
           } else {
             if (d.burst) {
               if (dist > d.reach) wantSpeed = d.speed; else { e.state = 'windup'; e.t = 0; this.events.push({ type: 'charge', enemy: e }); }
+            } else
+            if (d.slam && !d.boss && dist > 7 && dist < 17 && !(e.rushCd > 0) && e.t > 0.5) {
+              e.state = 'windup'; e.t = 0; e.attackKind = 5; e.rushCd = 7 + e.seed * 3; this.events.push({ type: 'charge', enemy: e }); this.events.push({ type: 'rushMark', enemy: e });
             } else
             if (dist > d.reach * 0.82) wantSpeed = d.speed * (1 + 0.16 * e.phase);
             else if (e.t > 0.25 && (d.boss || melee < this.crowd)) { melee++; e.state = 'windup'; e.t = 0; e.attackKind = d.boss ? (e.phase > 0 && Math.random() < 0.22 * e.phase ? 3 : Math.floor(Math.random() * 2)) : 0; this.events.push({ type: 'charge', enemy: e }); }
@@ -329,6 +355,11 @@ export class Enemies {
                 this.blasts.push(b); this.events.push({ type: 'blastMark', blast: b, enemy: e });
               }
             }
+          } else if (e.attackKind === 5) {
+            // The rush: straight on at a run, and woe to whoever is still in the way.
+            e.vel.copy(f).multiplyScalar(13.5 * Math.min(1, e.t / 0.12));
+            if (Math.random() < dt * 40) P.spawn(e.pos.x + (Math.random() - 0.5) * 1.2, e.pos.y + 0.25, e.pos.z + (Math.random() - 0.5) * 1.2, { vel: [-f.x * 2, 1.2, -f.z * 2], life: 0.5, size: 0.3, color: [2.4, 1.15, 4.6], alpha: 0.5, drag: 2 });
+            if (!e.didHit && dist < d.radius + 1.25 && Math.abs(player.pos.y - e.pos.y) < 2.5) { e.didHit = true; this.events.push({ type: 'hitPlayer', enemy: e, damage: Math.round(d.damage * 1.15) }); this.events.push({ type: 'slam', enemy: e, at: player.pos.clone() }); }
           } else if (e.attackKind === 4) {
             if (!e.didHit) { e.didHit = true; this.events.push({ type: 'summon', enemy: e, phase: e.phase }); }
           } else if (d.ranged || e.attackKind === 2) {
@@ -359,10 +390,12 @@ export class Enemies {
               }
             }
           }
-          if (e.t >= d.strike) {
-            // On Standard and above a thrall follows one cut with another before it rests.
+          if (e.t >= (e.attackKind === 5 ? 0.95 : d.strike)) {
+            // On Standard and above a thrall follows one cut with another before it rests; a
+            // lancer of rank, or any lancer on Hard, looses a second bolt on the heels of the first.
             if (e.kind === 'thrall' && this.haste > 1.05 && !e.again && e.alive && dist < d.reach + 1.5) { e.again = true; e.state = 'windup'; e.t = d.windup * 0.45; this.events.push({ type: 'charge', enemy: e }); }
-            else { e.state = 'recover'; e.t = 0; e.slamFx = false; e.again = false; }
+            else if (e.kind === 'lancer' && (this.haste > 1.3 || e.tint > 0) && !e.again && e.alive) { e.again = true; e.state = 'windup'; e.t = d.windup * 0.62; }
+            else { e.state = 'recover'; e.t = 0; e.slamFx = false; e.again = false; if (e.attackKind === 5) e.attackKind = 0; }
           }
         } else if (e.state === 'recover') {
           if (e.t >= d.recover * (1 - 0.16 * e.phase) / this.haste) { e.state = 'chase'; e.t = 0; }
