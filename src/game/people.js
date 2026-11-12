@@ -39,17 +39,17 @@ export const PEOPLE = [
   { id: 'hesk', name: 'Hesk', role: 'Keeper of the Orchard', site: 'south1', ring: [13, 14], robe: 'moss', mantle: 'rust', prop: 'staff', h: 0.92 },
   { id: 'first', name: 'The First Singer', role: 'of the Crown', site: 'crown', ring: [16, 14], robe: 'cream', mantle: 'wine', h: 1.1 },
   // And the rest of the Vale: they ask for nothing, but they are glad to be spoken to.
-  { id: 'wen', name: 'Wen', role: 'a singer\'s child', site: 'dawn', at: [-503, -78], yaw: -1.2, robe: 'rose', mantle: 'cream', h: 0.7 },
-  { id: 'bram', name: 'Bram', role: 'Stonemason', site: 'dawn', at: [-522, -60], yaw: 1.9, robe: 'slate', mantle: 'rust', h: 1.06 },
-  { id: 'ode', name: 'Ode', role: 'Beekeeper', site: 'petal', ring: [13, 8], robe: 'ochre', mantle: 'moss', h: 0.98 },
-  { id: 'lio', name: 'Lio', role: 'Sweeper of the long stair', site: 'cantor', ring: [15, 13], robe: 'moss', mantle: 'slate', h: 0.96 },
-  { id: 'ansa', name: 'Ansa', role: 'Singer of the Choir', site: 'choir', ring: [22, 14], robe: 'indigo', mantle: 'cream', h: 1.0 },
-  { id: 'corr', name: 'Corr', role: 'Singer of the Choir', site: 'choir', ring: [22, 4], robe: 'plum', mantle: 'cream', h: 1.04 },
-  { id: 'imre', name: 'Imre', role: 'Lamp-trimmer', site: 'east', ring: [15.5, 15], robe: 'ochre', mantle: 'wine', h: 0.99 },
-  { id: 'tolly', name: 'Tolly', role: 'Net-mender', site: 'south3', ring: [15.5, 12], robe: 'slate', mantle: 'teal', h: 0.74 },
-  { id: 'quill', name: 'Quill', role: 'Copyist', site: 'aurel', ring: [15.5, 8], robe: 'wine', mantle: 'slate', h: 1.0 },
-  { id: 'marn', name: 'Marn', role: 'Picker', site: 'south1', ring: [15.5, 8], robe: 'rust', mantle: 'cream', h: 0.95 },
-  { id: 'sova', name: 'Sova', role: 'Keeper of the Crown', site: 'crown', ring: [19, 9], robe: 'indigo', mantle: 'ochre', prop: 'staff', h: 1.05 },
+  { id: 'wen', walk: 1, name: 'Wen', role: 'a singer\'s child', site: 'dawn', at: [-503, -78], yaw: -1.2, robe: 'rose', mantle: 'cream', h: 0.7 },
+  { id: 'bram', walk: 1, name: 'Bram', role: 'Stonemason', site: 'dawn', at: [-522, -60], yaw: 1.9, robe: 'slate', mantle: 'rust', h: 1.06 },
+  { id: 'ode', walk: 1, name: 'Ode', role: 'Beekeeper', site: 'petal', ring: [13, 8], robe: 'ochre', mantle: 'moss', h: 0.98 },
+  { id: 'lio', walk: 1, name: 'Lio', role: 'Sweeper of the long stair', site: 'cantor', ring: [15, 13], robe: 'moss', mantle: 'slate', h: 0.96 },
+  { id: 'ansa', walk: 1, name: 'Ansa', role: 'Singer of the Choir', site: 'choir', ring: [22, 14], robe: 'indigo', mantle: 'cream', h: 1.0 },
+  { id: 'corr', walk: 1, name: 'Corr', role: 'Singer of the Choir', site: 'choir', ring: [22, 4], robe: 'plum', mantle: 'cream', h: 1.04 },
+  { id: 'imre', walk: 1, name: 'Imre', role: 'Lamp-trimmer', site: 'east', ring: [15.5, 15], robe: 'ochre', mantle: 'wine', h: 0.99 },
+  { id: 'tolly', walk: 1, name: 'Tolly', role: 'Net-mender', site: 'south3', ring: [15.5, 12], robe: 'slate', mantle: 'teal', h: 0.74 },
+  { id: 'quill', walk: 1, name: 'Quill', role: 'Copyist', site: 'aurel', ring: [15.5, 8], robe: 'wine', mantle: 'slate', h: 1.0 },
+  { id: 'marn', walk: 1, name: 'Marn', role: 'Picker', site: 'south1', ring: [15.5, 8], robe: 'rust', mantle: 'cream', h: 0.95 },
+  { id: 'sova', walk: 1, name: 'Sova', role: 'Keeper of the Crown', site: 'crown', ring: [19, 9], robe: 'indigo', mantle: 'ochre', prop: 'staff', h: 1.05 },
 ];
 
 const tube = (a, b, r0, r1, seg = 9) => {
@@ -82,7 +82,18 @@ export class People {
       const y = W.floorBelow(x, (spire?.base ?? game.sites.spawn.y) + 1.6, z, 6);
       const n = { def, x, y, z, yaw, home: yaw, spire, awake: !spire || spire.tuned, k: !spire || spire.tuned ? 1 : 0, t: Math.random() * 10, headYaw: 0, gesture: 0, mats: [], meshes: [] };
       this._build(n, depth);
-      W.addCapsule([x, y, z], [x, y + 1.7 * def.h, z], 0.34);
+      if (def.walk) {
+        const cx = spire?.x ?? x - 4, cz = spire?.z ?? z, rad = Math.hypot(x - cx, z - cz) || 1, a0 = Math.atan2(z - cz, x - cx);
+        for (const sg of n.t % 2 < 1 ? [1, -1] : [-1, 1]) {
+          const a1 = a0 + sg * Math.min(0.9, 6.5 / rad), bx = cx + Math.cos(a1) * rad, bz = cz + Math.sin(a1) * rad, L = Math.hypot(bx - x, bz - z);
+          // Level stone the whole way, and nothing standing in it.
+          let ok = L > 2.5;
+          for (let i = 1; i <= 6 && ok; i++) ok = Math.abs(W.floorBelow(x + (bx - x) * i / 6, y + 1.2, z + (bz - z) * i / 6, 4) - y) < 0.2;
+          if (ok) { const free = W.raycast(_v.set(x, y + 0.9, z), _from.pos.set((bx - x) / L, 0, (bz - z) / L), L + 0.8); ok = free >= L + 0.7; }
+          if (ok) { n.a = [x, z]; n.b = [bx, bz]; n.yawA = yaw; n.yawB = Math.atan2(cx - bx, cz - bz); n.wt = 3 + (n.t % 7); break; }
+        }
+      }
+      if (!n.b) W.addCapsule([x, y, z], [x, y + 1.7 * def.h, z], 0.34);
       this.list.push(n);
     }
   }
@@ -206,11 +217,24 @@ export class People {
       n.t += dt * k;
       // Turn to whoever comes near, and back to their own business when left alone.
       const toP = Math.atan2(p.pos.x - n.x, p.pos.z - n.z), close = k > 0.9 && dist < 7;
-      n.yaw += wrap((close ? toP : n.home) - n.yaw) * Math.min(1, dt * (talking ? 5 : 1.6)) * k;
+      if (n.b && n.k >= 1) {
+        const near = dist < 4.6 || talking;
+        if (n.moving && !near) {
+          const dx = n.to[0] - n.x, dz = n.to[1] - n.z, dd = Math.hypot(dx, dz), sp = (n.def.h < 0.8 ? 1.45 : 0.82) * dt;
+          if (dd < 0.12) { n.moving = false; n.wt = 5 + Math.random() * 10; n.home = n.to === n.b ? n.yawB : n.yawA; }
+          else { n.x += (dx / dd) * Math.min(dd, sp); n.z += (dz / dd) * Math.min(dd, sp); n.walkYaw = Math.atan2(dx, dz); n.root.position.set(n.x, n.y, n.z); }
+        } else if (!n.moving && !near && (n.wt -= dt) <= 0) { n.moving = true; n.to = n.to === n.b ? n.a : n.b; }
+        // Nobody walks through anybody: he is eased out of the way of whoever he stands in.
+        if (dist < 0.62 && dist > 1e-3 && !talking) { p.pos.x += ((p.pos.x - n.x) / dist) * (0.62 - dist); p.pos.z += ((p.pos.z - n.z) / dist) * (0.62 - dist); }
+        n.gait = (n.gait ?? 0) + ((n.moving && !near ? 1 : 0) - (n.gait ?? 0)) * Math.min(1, dt * 4);
+      }
+      n.yaw += wrap((close ? toP : n.moving ? n.walkYaw : n.home) - n.yaw) * Math.min(1, dt * (talking ? 5 : n.moving && !close ? 4 : 1.6)) * k;
       n.headYaw += ((k > 0.9 && dist < 14 ? Math.max(-0.9, Math.min(0.9, wrap(toP - n.yaw))) : 0.25 * Math.sin(n.t * 0.3)) - n.headYaw) * Math.min(1, dt * 4);
       n.gesture += ((talking && this.talk.phase !== 'out' ? 1 : 0) - n.gesture) * Math.min(1, dt * 5);
       n.root.rotation.y = n.yaw;
-      n.body.rotation.z = 0.014 * Math.sin(n.t * 0.8) * k; n.body.rotation.x = 0.01 * Math.sin(n.t * 0.55 + 1) * k;
+      const gait = n.gait ?? 0;
+      n.body.rotation.z = (0.014 * Math.sin(n.t * 0.8) + 0.03 * Math.sin(n.t * 5.4) * gait) * k; n.body.rotation.x = (0.01 * Math.sin(n.t * 0.55 + 1) + 0.035 * gait) * k;
+      n.body.position.y = 0.016 * Math.abs(Math.sin(n.t * 5.4)) * gait;
       n.body.scale.y = 1 + 0.005 * Math.sin(n.t * 1.5) * k;
       n.head.rotation.set((1 - k) * 0.32 + 0.05 * Math.sin(n.t * 2.3) * n.gesture, n.headYaw, 0.05 * Math.sin(n.t * 1.1) * n.gesture);
       // A speaking hand: the right sleeve lifts and turns with the words.

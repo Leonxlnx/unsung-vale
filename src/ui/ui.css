@@ -338,6 +338,7 @@ input[type='range']::-moz-range-thumb { width: 11px; height: 11px; background: v
 #journey .charm.on em { color: var(--gold); }
 #journey .charm:not(.on) b { color: var(--ink); font-weight: 500; }
 #journey .charm:not(.on) span { color: var(--ink-2); }
+#journey .q.mute b { color: var(--ink); font-weight: 500; } #journey .q.mute span { color: var(--ink-2); } #journey .q.mute em { color: var(--ink-3); font-style: normal; font-variant-numeric: tabular-nums; }
 #journey h3 small { font-size: 13.5px; font-weight: 400; color: var(--ink-3); margin-left: 14px; letter-spacing: 0; }
 #journey .pane.hero .col:first-child { flex: 1.2; }
 @media (max-width: 1180px) { #journey .pane.hero { flex-wrap: wrap; overflow: auto; } #journey .pane.hero .col { flex: 1 1 320px; overflow: visible; } }

@@ -56,6 +56,7 @@ export function connectAudio(audio, game, ui, falls) {
       else { audio.sfx(k('ride_end', 'land'), { volume: 0.5 }); audio.sfx('land', { volume: 0.4, delay: 0.25 }); }
     }
     if (type === 'charm') { audio.sfx(k('upgrade', 'item'), { volume: 0.7, spread: 0, wet: 0.5 }); audio.sfx(k('trial_gate', 'crystal'), { volume: 0.4, pitch: 0.8, spread: 0, wet: 0.6 }); }
+    if (type === 'riposte') { audio.sfx('hit_heavy', { volume: 0.55, pitch: 1.25, spread: 0 }); audio.sfx(k('trial_gate', 'crystal'), { volume: 0.4, pitch: 1.6, spread: 0, wet: 0.4 }); }
     if (type === 'cadence') {
       if (d.up) audio.sfx(k('item', 'pickup'), { volume: 0.3, pitch: 0.85 + 0.16 * d.level, spread: 0, wet: 0.45 });
       if (d.up && d.level === 4) audio.sfx(k('bell', 'crystal'), { volume: 0.32, pitch: 1.5, spread: 0, wet: 0.5 });

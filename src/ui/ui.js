@@ -16,6 +16,18 @@ const h = (html) => { const t = document.createElement('template'); t.innerHTML 
 const cap = (s) => s.replace(/^the /, 'The ');
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
+// What the journal has to say about each kind of Mute once one has been brought down.
+const MUTE = [
+  ['thrall', 'Thrall', 'The rank and file. It cuts once and, given the chance, again.'],
+  ['hound', 'Hound', 'Circles before it lunges. Roll through it, not away.'],
+  ['lancer', 'Lancer', 'Keeps its distance. Its bolt can be struck back at it.'],
+  ['warden', 'Warden', 'Light blows ring off its wall of shards. A heavy one cracks it.'],
+  ['chorister', 'Chorister', 'Marks the ground under you and wards its own. Break it first.'],
+  ['seeker', 'Seeker', 'Flies straight at you and bursts. Cut it down, or be elsewhere.'],
+  ['brute', 'Brute', 'Slow, until it lowers its head. Step off the line it draws.'],
+  ['colossus', 'The Unsung', 'It kept the silence of the Choir. Its second song is harder than its first.'],
+  ['sovereign', 'The Stillness', 'It sat in the Crown since the fall. Three songs, each worse.'],
+];
 const KEYS = [
   ['Move', 'W A S D'], ['Look', 'Mouse'], ['Sprint', 'Shift'], ['Jump', 'Space'], ['Dodge roll', 'Ctrl or C'], ['Walk or run', 'X'],
   ['Strike', 'Left mouse'], ['Heavy strike', 'Right mouse'], ['Falling strike', 'Strike in the air'], ['Lock on', 'Q'], ['Refrain (mend yourself)', 'R'], ['Resonance pulse', 'F'],
@@ -248,6 +260,7 @@ export class UI {
     if (type === 'people' && d.type === 'wake') { clearTimeout(this._wakeT); const n = (this._wakeN = (this._wakeN ?? 0) + 1); this._wakeT = setTimeout(() => { this._wakeN = 0; this.card(n > 1 ? 'The court wakes' : `${d.name} wakes`, n > 1 ? `${n} people here can speak again.` : 'Someone at this court can speak again.'); }, 9500); }
     if (type === 'hit' && d.enemy) (this._hit ??= new Map()).set(d.enemy, performance.now());
     if (type === 'hint') this.card(d.title, d.text);
+    if (type === 'opening' && !this._ripHint) { this._ripHint = true; this.card('Riposte', 'A blow slipped at the last instant leaves an opening. Strike at once and the cut lands far harder.'); }
     if (type === 'photo') { const f = this.el.fade; f.classList.add('flash'); setTimeout(() => f.classList.remove('flash'), 90); this.onSound?.('ui_click'); }
     if (type === 'cadence') {
       const c = el.cadence;
@@ -511,11 +524,14 @@ export class UI {
     const g = this.game, Q = g.quests, next = g.spires.find((s) => !s.tuned);
     const row = (q) => { const st = Q.state[q.id], [a, b] = Q.progress(q), who = g.people.get(q.giver).def; return `<div class="q ${st.s}"><i></i><div><b>${q.title}</b><span>${st.s === 'done' ? `Done, for ${who.name}` : st.s === 'ready' ? `Return to ${who.name}` : q.verb}</span></div><em>${st.s === 'done' ? '' : `${a} / ${b}`}</em></div>`; };
     const active = Q.active, done = QUESTS.filter((q) => Q.state[q.id]?.s === 'done');
+    const slain = g.slain ?? {}, met = MUTE.filter(([k]) => slain[k]);
+    const mute = met.map(([k, name, what]) => `<div class="q done mute"><i></i><div><b>${name}</b><span>${what}</span></div><em>${slain[k]}</em></div>`).join('');
     this.el.journal.innerHTML = `<div class="col"><h3>The journey</h3>
         <div class="q main"><i></i><div><b>${g.objective}</b><span>${next ? `${g.spires.filter((s) => s.tuned).length} of ${g.spires.length} spires sing` : 'Every spire sings'}</span></div></div>
         <h3>Asked of you</h3>${active.length ? active.map(row).join('') : '<p class="none">Nobody is waiting on you. The people of the Vale wake when their spire is tuned.</p>'}
         ${done.length ? `<h3>Done</h3>${done.map(row).join('')}` : ''}</div>
-      <div class="col"><h3>The Vale</h3><dl><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Reliquaries opened</dt><dd>${g.reliquaries.openCount} / ${g.reliquaries.list.length}</dd><dt>Packs cleared</dt><dd>${g.wildDone.length} / 12</dd><dt>People awake</dt><dd>${g.people.list.filter((n) => n.awake).length} / ${g.people.list.length}</dd><dt>Time in the Vale</dt><dd>${this._time(g.playTime ?? 0)}</dd></dl></div>`;
+      <div class="col"><h3>The Vale</h3><dl><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Reliquaries opened</dt><dd>${g.reliquaries.openCount} / ${g.reliquaries.list.length}</dd><dt>Packs cleared</dt><dd>${g.wildDone.length} / 12</dd><dt>People awake</dt><dd>${g.people.list.filter((n) => n.awake).length} / ${g.people.list.length}</dd><dt>Time in the Vale</dt><dd>${this._time(g.playTime ?? 0)}</dd></dl></div>
+      <div class="col"><h3>The Mute<small>${met.length} of ${MUTE.length} kinds brought down</small></h3>${mute || '<p class="none">Nothing of them is known yet but that they stand where the song stopped.</p>'}</div>`;
   }
   _time(s) { const m = Math.floor(s / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; }
   _renderHero() {

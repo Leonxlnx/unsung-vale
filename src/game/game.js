@@ -386,7 +386,7 @@ export class Game {
 
   save() {
     if (this.cine) return;        // the film must never overwrite a player's progress
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, outro: !!this.outroSeen, elites: this.elitesDown ?? [], charms: this.charmsFound ?? [], worn: this.charmsWorn ?? [], time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, outro: !!this.outroSeen, elites: this.elitesDown ?? [], charms: this.charmsFound ?? [], worn: this.charmsWorn ?? [], slain: this.slain ?? {}, time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
   }
   load() {
     this.checkpoint = { ...this.sites.spawn };
@@ -396,7 +396,7 @@ export class Game {
       for (const s of this.spires) if (d.tuned?.includes(s.id)) { s.tuned = true; s.power = 1; s.zoneR = 0; s.zone.w = 0; s.crystal.material.uniforms.uPower.value = 1; s.beam.material.uniforms.uPower.value = 1; }
       if (d.checkpoint) this.checkpoint = d.checkpoint;
       this.xp = d.xp ?? 0; this.wildDone = d.wild ?? []; this.bought = d.bought ?? 0;
-      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {}; this.outroSeen = !!d.outro; this.elitesDown = d.elites ?? []; this.charmsFound = d.charms ?? []; this.charmsWorn = d.worn ?? [];
+      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {}; this.outroSeen = !!d.outro; this.elitesDown = d.elites ?? []; this.charmsFound = d.charms ?? []; this.charmsWorn = d.worn ?? []; this.slain = d.slain ?? {};
       this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? []; this.notesTaken = d.notes ?? [];
       if (this.spires[1].tuned) { this.bridgeOpen = true; this.bridgeProgress = 1; }
       // A journey that ended when the Vale had three spires goes on now that it has eight.
@@ -532,6 +532,11 @@ export class Game {
     const edt = this.slow > 0 ? dt * (0.22 + 0.78 * Math.max(0, 1 - this.slow / 0.35)) : dt;
     p.update(dt, busy ? this._idle : this.input, this.rig.yaw);
     this._cadenceTick(dt);
+    if (this.riposteT > 0) {
+      // While the opening lasts the blade shows it.
+      this.riposteT -= dt; const tip = this.hero?.tip;
+      if (tip) for (let k = 0; k < 2; k++) this.particles.spawn(tip.x, tip.y, tip.z, { vel: [(Math.random() - 0.5) * 1.5, Math.random() * 1.5, (Math.random() - 0.5) * 1.5], life: 0.22, size: 0.06, color: [5, 4.4, 3.0], drag: 2 });
+    }
     this._bodies();
     if (!busy && p.state !== 'ride') { this._lockOn(); this._combat(); }
     this.enemies.update(edt, p, this.time);
@@ -632,8 +637,11 @@ export class Game {
       if (dist > a.reach || Math.abs(dy) > 2.5 + e.def.core) continue;
       if (dist > 0.6 && d.normalize().dot(f) < Math.cos(a.arc / 2 + 0.25)) continue;
       p.hitDone.add(e);
-      const heavy = p.comboStep >= 2;
-      if (this.enemies.hit(e, a.dmg * p.power * (1 + 0.08 * this.cadenceLevel) * ({ gentle: 1, hard: 0.8 }[this.challenge] ?? 0.9), p.pos, heavy)) {
+      // The answer to a slipped blow: the first swing after it lands like a heavy one, and harder.
+      if (this.riposteT > 0) { this.riposteT = 0; this._ripUntil = this.time + 0.2; }
+      const rip = this.time < (this._ripUntil ?? 0), heavy = p.comboStep >= 2 || rip;
+      if (this.enemies.hit(e, a.dmg * p.power * (rip ? 1.7 : 1) * (1 + 0.08 * this.cadenceLevel) * ({ gentle: 1, hard: 0.8 }[this.challenge] ?? 0.9), p.pos, heavy)) {
+        if (rip) { const c0 = e.center ?? e.pos; this.vfx.wave(c0.x, c0.y, c0.z, { kind: 1, r0: 0.3, r1: 3.2, life: 0.32, strength: 1.5, width: 0.08, color: [4.2, 3.6, 2.4] }); this.flash = Math.max(this.flash, 0.2); this.emit('riposte', { enemy: e }); }
         this._cadence(heavy ? 2 : 1, e);
         this.hitStop = heavy ? 0.11 : 0.06;
         this.rig.addShake(heavy ? 0.5 : 0.28);
@@ -694,6 +702,7 @@ export class Game {
     if (e.type === 'hurt' || e.type === 'death' || e.type === 'wind') this._cadenceBreak();
     // A blow slipped at the last instant keeps the time, and adds to it.
     if (e.type === 'evade') this._cadence(1);
+    if (e.type === 'evade' && !this.cine) { this.riposteT = 1.25; this.emit('opening', {}); }
     if (e.type === 'evade' && p.charms?.has('tide') && p.health < p.healthMax) { p.health = Math.min(p.healthMax, p.health + 7); this.particles.burst(p.pos.x, p.pos.y + 1.1, p.pos.z, 10, { speed: 2.2, life: 0.6, size: 0.05, color: [1.6, 2.6, 2.4], gravity: -2, drag: 1.5 }); }
     if (e.type === 'land' && e.fell > 3) this.rig.addShake(Math.min(0.5, e.fell * 0.03));
     if (e.type === 'land' && e.fell > 1.5) this.vfx.wave(p.pos.x, p.pos.y + 0.06, p.pos.z, { r0: 0.2, r1: 1.2 + Math.min(3, e.fell * 0.3), life: 0.4, strength: 0.5, width: 0.16, color: [0.5, 0.42, 0.3] });
@@ -879,6 +888,7 @@ export class Game {
         if (en.elite && en.def.name && !(this.elitesDown ??= []).includes(en.def.name)) this.elitesDown.push(en.def.name);
         const gain = Math.round((en.def.xp ?? 10) * (this.player.charms?.has('gilt') ? 1.17 : 1));
         this.xp += gain; this.emit('xp', { amount: gain, total: this.xp });
+        (this.slain ??= {})[en.kind] = (this.slain[en.kind] ?? 0) + 1;
         const m = /^wild(\d+)$/.exec(en.group ?? '');
         if (m && this.enemies.aliveIn(en.group) === 0) { this.wildDone.push(+m[1]); this.emit('pack', { index: +m[1] }); }
         this.save();
