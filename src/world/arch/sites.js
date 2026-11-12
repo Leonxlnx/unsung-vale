@@ -17,6 +17,7 @@ export class Architecture {
     this.group = new THREE.Group();
     this.stats = { meshes: 0, tris: 0 };
     this.quarters = [];        // [x, z, radius] of the quarters built on the cliff rims
+    this.farSolids = [];       // geometry of the cities on mesas the hero can reach: solid, like the playable sites
   }
 
   // Finishes a builder into a mesh. near = also drawn into the camera cascades.
@@ -46,10 +47,10 @@ export class Architecture {
     const core = new Set(CORE_MESAS.map((m) => m.id));
     const byId = Object.fromEntries(this.mesas.map((m) => [m.id, m]));
     // The named cities around the playable valley.
-    this.citadelOn(byId.aurel, { seed: 11, scale: 1.35, detail: 1, along: 70, inset: 0.3 });
-    this.citadelOn(byId.crown, { seed: 12, scale: 1.2, detail: 1, along: -20, inset: 0.2 });
-    this.citadelOn(byId.south1, { seed: 13, scale: 0.85, detail: 0, along: -60, inset: 0.4 });
-    this.citadelOn(byId.south3, { seed: 14, scale: 0.95, detail: 0, along: 20, inset: 0.35 });
+    this.farSolids.push(this.citadelOn(byId.aurel, { seed: 11, scale: 1.35, detail: 1, along: 70, inset: 0.3 }).geometry);
+    this.farSolids.push(this.citadelOn(byId.crown, { seed: 12, scale: 1.2, detail: 1, along: -20, inset: 0.2 }).geometry);
+    this.farSolids.push(this.citadelOn(byId.south1, { seed: 13, scale: 0.85, detail: 0, along: -60, inset: 0.4 }).geometry);
+    this.farSolids.push(this.citadelOn(byId.south3, { seed: 14, scale: 0.95, detail: 0, along: 20, inset: 0.35 }).geometry);
     this.citadelOn(byId.elder, { seed: 15, scale: 1.5, detail: 0, inset: 0.55 });
     // The Evenspan: a two-tier viaduct striding across the lake east of the Choir, and
     // watchtowers on the pinnacles that stand in the water.
@@ -57,7 +58,7 @@ export class Architecture {
       const b = new MeshBuilder(), a = [592, -262], c = [628, 252];
       const deck = Math.min(this.terrain.heightAt(a[0], a[1]), this.terrain.heightAt(c[0], c[1])) - 1.5;
       viaduct(b, (x, z) => this.terrain.heightAt(x, z), a[0], a[1], c[0], c[1], deck, { width: 11, span: 46, detail: 0 });
-      this.add(b);
+      this.farSolids.push(this.add(b).geometry);
       for (const id of ['pin1', 'pin3', 'pin6', 'pin5']) {
         const m = byId[id], t = new MeshBuilder();
         const y = this.terrain.heightAt(m.x, m.z);
@@ -74,7 +75,7 @@ export class Architecture {
       while (s < 80 && this.terrain.heightAt(x + dx * (s + 6), z + dz * (s + 6)) > h0 - 8) s += 2;
       b.at(x + dx * s, h0 + 0.4, z + dz * s, yaw, (q) => cliffTiers(q, { w, tiers, step: 24, out: 10, detail: 0, seed }));
       this.quarters.push([x + dx * s, z + dz * s, w / 2 + 10]);
-      this.add(b);
+      this.farSolids.push(this.add(b).geometry);
     }
     // Smaller holds scattered over the outer mesas.
     const chosen = [];
@@ -297,10 +298,13 @@ export class Architecture {
     // strings of light. Each is a ring of columns round its spire, a little different from
     // the last, the Crown the grandest. ---
     out.outer = [];
-    for (const [id, sx, sz, h, style] of [['east', 578, -437, 24, 0], ['south3', 517, 437, 26, 1], ['aurel', 136, 546, 28, 2], ['south1', -405, 435, 26, 3], ['crown', -990, -104, 34, 4]]) {
+    for (const [id, sx, sz, h, style] of [['east', 578, -437, 24, 0], ['south3', 517, 437, 26, 1], ['aurel', 136, 546, 28, 2], ['south1', -405, 435, 26, 3], ['crown', -1005, -168, 34, 4]]) {
       const b = new MeshBuilder(), y = H(sx, sz) + 0.5, R = style === 4 ? 25 : 21;
       b.at(sx, y, sz, 0, (q) => {
         q.mat_(M.PAVING).lathe([[R, -9], [R, 0.12], [0, 0.12]], 44);
+        // A sloping apron all round, so the court can be walked onto from the grass wherever
+        // the ground happens to lie a little lower.
+        { const r0 = style === 4 ? R + 8 : R, y0 = style === 4 ? -0.25 : 0.12; q.mat_(M.ASHLAR).lathe([[r0 + 4.2, y0 - 2.3], [r0 - 0.05, y0 - 0.02]], 44); }
         q.mat_(M.GOLD).lathe([[R * 0.64, 0.13], [R * 0.62, 0.135]], 44);
         const cyl = tuningSpire(q, h);
         out.spires.push({ id, x: sx, y: y + cyl, z: sz, base: y, h });
@@ -317,7 +321,28 @@ export class Architecture {
           q.at(px, 0.12, pz, 0, (g) => { top = planter(g, 0.8); });
           out.planters.push([sx + px, y + 0.12 + top, sz + pz]);
         }
+        // What makes each court its own.
+        if (style === 2) {
+          // The Aurel Court: gold let into the floor, and two armillary spheres.
+          for (const rr of [0.3, 0.46]) q.mat_(M.GOLD).lathe([[R * rr + 0.22, 0.13], [R * rr, 0.135]], 44);
+          for (const a0 of [1.571, 4.712]) q.at(Math.cos(a0) * (R - 6), 0.12, Math.sin(a0) * (R - 6), a0, (g) => armillary(g, 1.2));
+        }
+        if (style === 3) for (let k = 0; k < 4; k++) { const a0 = k * 1.571 + 0.9; q.at(Math.cos(a0) * (R - 5.2), 0.12, Math.sin(a0) * (R - 5.2), -a0 + Math.PI / 2, (g) => bench(g, 2.4)); }
+        if (style === 4) {
+          // The Crown: a lower terrace round the court, and on it a broken ring of great arches.
+          q.mat_(M.PAVING).lathe([[R + 8, -9], [R + 8, -0.25], [R - 0.2, -0.25]], 48);
+          const n2 = 12, rr = R + 5.4;
+          for (let k = 0; k < n2; k++) {
+            if (k % 3 === 2) continue;
+            const a0 = (k / n2) * Math.PI * 2, a1 = ((k + 1) / n2) * Math.PI * 2, x0 = Math.cos(a0) * rr, z0 = Math.sin(a0) * rr, x1 = Math.cos(a1) * rr, z1 = Math.sin(a1) * rr, chord = Math.hypot(x1 - x0, z1 - z0);
+            q.at(x0, -0.25, z0, Math.atan2(-(z1 - z0), x1 - x0), (g) => arcade(g, chord, { bay: chord, colH: 8, t: 1.3, top: 2.4, detail: 1, colR: 0.6, grand: true }));
+          }
+        }
       });
+      // The Lantern Court keeps a second ring of lamps out on the grass; the Reed Court a
+      // pavilion beside the path to its pool.
+      if (style === 0) for (let k = 0; k < 10; k++) { const a0 = k * 0.6283 + 0.31, lx = sx + Math.cos(a0) * (R + 6.5), lz = sz + Math.sin(a0) * (R + 6.5); lamp(b, lx, H(lx, lz), lz); }
+      if (style === 1) { const a0 = 5.55, px = sx + Math.cos(a0) * (R + 10), pz = sz + Math.sin(a0) * (R + 10); b.at(px, H(px, pz) + 0.05, pz, 0, (q) => pavilion(q, { r: 4.2, colH: 4.8, n: 8, detail: 1 })); }
       for (const a0 of [0.6, 2.2, 3.8, 5.4]) { const lx = sx + Math.cos(a0) * (R + 1.6), lz = sz + Math.sin(a0) * (R + 1.6); lamp(b, lx, H(lx, lz), lz); }
       finish(b);
       out.outer.push({ id, x: sx, z: sz, y, r: R });

@@ -19,6 +19,16 @@
       "file": "music/triumph.ogg",
       "duration": 17.4,
       "loop": false
+    },
+    "explore2": {
+      "file": "music/explore2.ogg",
+      "duration": 200,
+      "loop": true
+    },
+    "boss": {
+      "file": "music/boss.ogg",
+      "duration": 207,
+      "loop": true
     }
   },
   "amb": {
@@ -207,6 +217,77 @@
     ],
     "ui_open": [
       "sfx/ui_open.ogg"
+    ],
+    "swim_stroke": [
+      "sfx/swim_stroke_1.ogg",
+      "sfx/swim_stroke_2.ogg",
+      "sfx/swim_stroke_3.ogg"
+    ],
+    "splash": [
+      "sfx/splash_1.ogg",
+      "sfx/splash_2.ogg"
+    ],
+    "roar": [
+      "sfx/roar_1.ogg",
+      "sfx/roar_2.ogg"
+    ],
+    "item": [
+      "sfx/item_1.ogg",
+      "sfx/item_2.ogg"
+    ],
+    "hound": [
+      "sfx/hound_1.ogg",
+      "sfx/hound_2.ogg"
+    ],
+    "blast": [
+      "sfx/blast_1.ogg",
+      "sfx/blast_2.ogg"
+    ],
+    "talk": [
+      "sfx/talk_1.ogg",
+      "sfx/talk_2.ogg"
+    ],
+    "ride_start": [
+      "sfx/ride_start.ogg"
+    ],
+    "ride_loop": [
+      "sfx/ride_loop.ogg"
+    ],
+    "ride_end": [
+      "sfx/ride_end.ogg"
+    ],
+    "wake": [
+      "sfx/wake.ogg"
+    ],
+    "quest_start": [
+      "sfx/quest_start.ogg"
+    ],
+    "quest_done": [
+      "sfx/quest_done.ogg"
+    ],
+    "trial_begin": [
+      "sfx/trial_begin.ogg"
+    ],
+    "trial_gate": [
+      "sfx/trial_gate.ogg"
+    ],
+    "trial_fail": [
+      "sfx/trial_fail.ogg"
+    ],
+    "upgrade": [
+      "sfx/upgrade.ogg"
+    ],
+    "echo": [
+      "sfx/echo.ogg"
+    ],
+    "summon": [
+      "sfx/summon.ogg"
+    ],
+    "blast_mark": [
+      "sfx/blast_mark.ogg"
+    ],
+    "map_open": [
+      "sfx/map_open.ogg"
     ]
   }
 }

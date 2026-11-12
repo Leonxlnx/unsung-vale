@@ -174,7 +174,34 @@ the opaque scene at the far plane with the depth test on, so it is only shaded w
   zones' duotone, so this light keeps its colour inside the silence. `game.flash` lifts the
   exposure for a breath on the big moments, and `uLattice` (architecture material) lets the
   great rings glow for every spire restored.
-- `settings.js`: quality presets and options. `ui/ui.js` + `ui/ui.css`: all interface.
+- `strings.js`: strings of light between pylons at the courts. A link is awake when the
+  spires it names are tuned; `route(from, to)` finds the hops over awake links and
+  `start(hops)` carries the hero along them (player state `ride`: the string moves him,
+  the hero hangs from the blade laid across it). `strings.goal` is the court the story
+  wants, so the pylon's prompt offers the whole way there.
+- `encounters.js`: who stands where. `WAVES` per outer court (the next wave rises when the
+  last is down and the hero is still there), elites as modifiers of a kind (`derive` in
+  `enemies.js`: scale, health, damage, an ember tint through the third instance channel),
+  packs in the wilds (`wildN` groups, remembered in `game.wildDone`). `cleared(id)` is what
+  lets a spire be tuned. Bosses with `phases` change at health thresholds: a roar that
+  summons others (event `summon`), then rings of blast marks (attack kind 3).
+  Constructs further than 240 m from the hero are neither updated nor drawn.
+- `people.js`: the people of the Vale, built from turned shapes and shaded with the hero's
+  material. Each has its own materials so it can go from stone to dyed cloth while waking
+  (`_dye`). `speak(n, lines, done)` runs a conversation: an over-the-shoulder camera, lines
+  advanced with E, events `dialogue` for the interface.
+- `quests.js`: side quests as data (`QUESTS`: gather things at spots, clear packs, find
+  notes), what each person says (`talkTo`), and the gathered things themselves.
+  `trials.js`: rings on the mesas that start a wave fight or a timed run through gates.
+  `game.tracker()` is the side goal the HUD shows; `game.grant({ up, xp })` gives a reward.
+- Growth: `SKILLS` in `game.js` maps each spire to an ability (`player.skills`),
+  `player.up` holds steps of life, breath and edge (`healthMax`, `staminaMax`, `power`),
+  `game.buy(kind)` is the luthier's bench (resonance, `game.xp`, earned from every construct).
+- `game.openMenu(name)` puts a screen over the game (state `menu`: map, journal, bench).
+- `settings.js`: quality presets and options. `ui/ui.js` + `ui/ui.css`: all interface: HUD
+  (compass, goal and tracker, markers, vitals as strings), conversation, the journey screens.
+  The map is drawn once from `terrain.heightAt` into a canvas (`_bakeMap`) and overlaid
+  every frame while open (`_drawMap`).
 - `main.js`: boot sequence with staged loading, the title camera drift, and `window.__dbg`.
 ## Hero, audio and film
 
@@ -227,8 +254,11 @@ looking for stuck spots, falls through the world and NaNs. `__dbg.bot()` plays t
 w, h)` (magnify canvas pixels), `strip({...})` (the hero filmed from the side as a strip of
 snapshots, for judging animation), `cine(t)` (jump the film to a time), `reel(times)` (a
 contact sheet of the film), `filmStill(t)` (one graded film frame with depth of field) and
-`gpuMs()`. `bot(seconds)` plays the whole game without drawing (walk the route, fight, tune
-every spire); call it until it reports `done` and check `ended`. Call `pipe.setRenderScale(1)` before judging detail: the Medium preset renders at
+`gpuMs()`. `bot(seconds)` plays the inner Vale in film mode without drawing. `botPlay(seconds,
+{ fresh: true })` plays the whole game under the real rules (it follows the story's goals,
+talks to people, does their quests, begins trials, rides the strings and strikes the notes
+of each spire); call it in chunks until it reports `ended`, and read `time`, `quests` and
+`log` in what it returns. A full run is about 38 simulated minutes. Call `pipe.setRenderScale(1)` before judging detail: the Medium preset renders at
 two thirds scale. `tools/profile.mjs` times a frame with parts of the scene switched off.
 `?perf=1` benchmarks the presets (`tools/perf.mjs`),
 `?capture=1...` is used by the film capture. Editing files under `src/` while a capture is

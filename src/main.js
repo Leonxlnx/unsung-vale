@@ -59,7 +59,7 @@ const routes = [
   [[72, -478], [85, -420], [96, -362], [98, -344]],
   [[-524, -48], [-536, -30]],
   // On the outer mesas: from each court to its pool.
-  [[569, -414], [562, -372]], [[538, 425], [572, 352]], [[124, 524], [92, 452]], [[-388, 416], [-348, 356]], [[-968, -86], [-898, 26]],
+  [[569, -414], [562, -372]], [[538, 425], [572, 352]], [[124, 524], [92, 452]], [[-388, 416], [-348, 356]], [[-978, -150], [-905, -98], [-878, 16]],
 ];
 terrain.bakePaths(routes, [
   // Paved courts and platforms, where no grass should push through the stone.
@@ -67,7 +67,7 @@ terrain.bakePaths(routes, [
   // The long stair between the Petal mesa and Cantor's Rise, and its upper landing.
   [-172, -459, -119, -459, 5.4], [-178.5, -459, -178.5, -459, 6.6],
   // The five courts beyond the water.
-  [578, -437, 578, -437, 20.7], [517, 437, 517, 437, 20.7], [136, 546, 136, 546, 20.7], [-405, 435, -405, 435, 20.7], [-990, -104, -990, -104, 24.7],
+  [578, -437, 578, -437, 23.6], [517, 437, 517, 437, 23.6], [136, 546, 136, 546, 23.6], [-405, 435, -405, 435, 23.6], [-1005, -168, -1005, -168, 35.6], [540, 416.4, 540, 416.4, 5.6],
 ]);
 await stage(0.3, 'Building the cities');
 const arch = new Architecture(pipe, terrain, buildMesas());
@@ -94,7 +94,7 @@ await stage(0.64, 'Growing the forest');
 const forest = new Forest(pipe, terrain);
 window.__forest = forest;
 // Keep trees off the paved sites and the routes between them.
-const clear = [...POOLS.map((p) => [p.x, p.z, p.r + 5]), [-512, -70, 34], [-540, -22, 9], [-372, -392, 24], [66, -498, 27], [96, -590, 34], [98, -336, 13], [150, -15, 44], [-146, -459, 34], [578, -437, 27], [517, 437, 27], [136, 546, 27], [-405, 435, 27], [-990, -104, 31]];
+const clear = [...POOLS.map((p) => [p.x, p.z, p.r + 5]), [-512, -70, 34], [-540, -22, 9], [-372, -392, 24], [66, -498, 27], [96, -590, 34], [98, -336, 13], [150, -15, 44], [-146, -459, 34], [578, -437, 27], [517, 437, 27], [136, 546, 27], [-405, 435, 27], [-1005, -168, 38], [540, 416.4, 9]];
 // ...and off the walking routes: a trunk in the middle of a path is in the way.
 const onRoute = (x, z) => routes.some((r) => r.some((a, i) => {
   if (i === 0) return false;
@@ -110,6 +110,8 @@ forest.populate((x, z) => onRoute(x, z) || clear.some(([cx, cz, r]) => (x - cx) 
   { x: 192, z: 22, species: 'blossom', scale: 1.8 }, { x: 100, z: -30, species: 'elder', scale: 1.7 },
   { x: 40, z: 600, species: 'elder', scale: 2.4 }, { x: -420, z: 360, species: 'blossom', scale: 2.6 }, { x: -330, z: 470, species: 'elder', scale: 2.3 },
   { x: 600, z: -400, species: 'elder', scale: 2.4 }, { x: 600, z: 470, species: 'blossom', scale: 2.6 }, { x: -900, z: -160, species: 'elder', scale: 2.6 },
+  // The Orchard Court stands in a ring of fruit trees.
+  ...Array.from({ length: 9 }, (_, k) => ({ x: -405 + Math.cos(k * 0.698 + 0.2) * (33 + (k % 2) * 5), z: 435 + Math.sin(k * 0.698 + 0.2) * (33 + (k % 2) * 5), species: k % 3 ? 'blossom' : 'ember', scale: 1.05 + 0.12 * (k % 3) })),
 ]);
 forest.addGreatTree(2750, terrain.heightAt(2750, 1480) - 6, 1480);
 pipe.scene.add(forest.group);
@@ -453,7 +455,7 @@ window.__dbg = {
         else if (T.active) { mode = 'tune'; if (T.phase === 'beats' && T.ring && Math.abs(T.bt - T.period) < 0.04) pu.pressed.add('interact'); }
         else if (p.state === 'ride') mode = 'ride';
         else if (foe) { mode = 'fight'; const hp = p.health, st = p.stamina; d.fight(dt); if (!cheat) { p.health = hp; p.stamina = st; } }
-        else if (g.prompt && (/^(Tune|Take|Open|Begin)/.test(g.prompt.text) || (who && /^Speak/.test(g.prompt.text)) || (g.marker?.ride && !near && /^Ride/.test(g.prompt.text)))) pu.pressed.add('interact');
+        else if (g.prompt && (/^(Tune|Take|Open)/.test(g.prompt.text) || (trial && /^Begin/.test(g.prompt.text)) || (who && /^Speak/.test(g.prompt.text)) || (g.marker?.ride && !near && /^Ride/.test(g.prompt.text)))) pu.pressed.add('interact');
         else if (who) { mode = 'side'; go(who.x, who.z, 2.3); }
         else if (near) { mode = 'side'; go(near.x, near.z, 0.6); }
         else if (trial) { mode = 'side'; go(trial.x, trial.z, 2.6); }

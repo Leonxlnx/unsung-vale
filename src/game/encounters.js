@@ -24,9 +24,9 @@ const WILD = [
   [-262, -440, [['hound', 2]]], [-20, -468, [['thrall', 2], ['lancer', 1]]],
   [640, -470, [['hound', 3]]], [520, -380, [['thrall', 2], ['warden', 1]]],
   [470, 470, [['lancer', 2], ['hound', 2]]], [575, 395, [['chorister', 1], ['thrall', 2]]],
-  [85, 585, [['hound', 3], ['thrall', 1, 'veteran']]], [190, 500, [['warden', 1], ['lancer', 1]]],
+  [85, 585, [['hound', 3], ['thrall', 1, 'veteran']]], [44, 474, [['warden', 1], ['lancer', 1]]],
   [-455, 470, [['thrall', 3]]], [-350, 400, [['hound', 2], ['chorister', 1]]],
-  [-1040, -60, [['thrall', 2, 'veteran'], ['lancer', 2]]], [-940, -160, [['hound', 4]]],
+  [-1080, -100, [['thrall', 2, 'veteran'], ['lancer', 2]]], [-900, -200, [['hound', 4]]],
 ];
 
 const ORDINAL = ['', 'Second wave', 'Last wave'];

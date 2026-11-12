@@ -11,7 +11,8 @@ export function connectAudio(audio, game, ui, falls) {
   const hasMusic = (name) => !!audio.manifest?.music?.[name];
   const SCALE = [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2, 5 / 3, 15 / 8, 2];
 
-  ui.onSound = (name) => audio.sfx(name, { volume: name === 'ui_hover' ? 0.25 : 0.5, spread: 0.02 });
+  const UI_VOL = { ui_hover: 0.25, talk: 0.16, quest_start: 0.45, quest_done: 0.55, map_open: 0.45, upgrade: 0.5 };
+  ui.onSound = (name) => audio.sfx(name, { volume: UI_VOL[name] ?? 0.5, spread: 0.02 });
 
   // When each strike's blade is at its fastest, so the whoosh sits on the cut, not the wind-up.
   const CUT = [0.1, 0.09, 0.2, 0.28];

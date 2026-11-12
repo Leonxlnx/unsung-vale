@@ -132,6 +132,7 @@ export class Game {
     this.pipe = pipe; this.terrain = terrain; this.sites = sites; this.arch = arch;
     this.world = new CollisionWorld(terrain);
     for (const g of sites.solids) this.world.addGeometry(g);
+    for (const g of arch.farSolids ?? []) this.world.addGeometry(g);
     // Trees and boulders are solid too: trunks as capsules, stones with their real shape.
     forest?.trunkColliders((a, b, r) => this.world.addCapsule(a, b, r));
     for (const c of rocks?.colliders() ?? []) this.world.addLazy(c.cx, c.cz, c.r, c.build);
@@ -189,7 +190,7 @@ export class Game {
     this.notes = new Notes(this, pipe, LEGS, { avoid: sites.spires.map((s) => [s.x, s.z, 26]), extra: [[sites.spawn.x + 10, sites.spawn.z + 1.5]], more });
     this._spawnEncounters();
     // The strings of light between the courts. A string wakes when the spires it needs sing.
-    this.strings = new Strings(this, pipe, { dawn: [-512, -81], petal: [-385, -392], cantor: [53, -490.5], choir: [171.2, -36.2], east: [568.8, -427.8], south3: [517, 424], aurel: [148.6, 542.6], south1: [-392.4, 438.4], crown: [-978.7, -92.7] },
+    this.strings = new Strings(this, pipe, { dawn: [-512, -81], petal: [-385, -392], cantor: [53, -490.5], choir: [171.2, -36.2], east: [568.8, -427.8], south3: [517, 424], aurel: [148.6, 542.6], south1: [-392.4, 438.4], crown: [-993.7, -156.7] },
       [['dawn', 'petal', ['petal']], ['petal', 'cantor', ['petal', 'cantor']], ['cantor', 'choir', ['cantor', 'choir']], ['choir', 'east', ['choir']], ['east', 'south3', ['east']], ['south3', 'aurel', ['south3']], ['aurel', 'south1', ['aurel']], ['south1', 'crown', ['south1']], ['crown', 'dawn', ['crown']]]);
     this.people = new People(this, pipe);
     this.quests = new Quests(this, pipe);
@@ -331,6 +332,8 @@ export class Game {
       Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0;
       this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? []; this.notesTaken = d.notes ?? [];
       if (this.spires[1].tuned) { this.bridgeOpen = true; this.bridgeProgress = 1; }
+      // A journey that ended when the Vale had three spires goes on now that it has eight.
+      this.ended = this.ended && this.spires.every((s) => s.tuned);
     } catch { /* ignore a corrupt save */ }
   }
   get hasSave() { return this.spires.some((s) => s.tuned); }
@@ -390,7 +393,7 @@ export class Game {
   update(realDt) {
     this.input.update();
     if (!this.cine && this.input.pressed.has('pause')) { if (this.state === 'playing') this.pause(); else if (this.state === 'paused') this.resume(); else if (this.state === 'menu') this.closeMenu(); }
-    if (!this.cine && this.input.pressed.has('map')) { if (this.state === 'playing' && !this.tuning.active && !this.people.talk) this.openMenu('map'); else if (this.menu === 'map') this.closeMenu(); }
+    if (!this.cine && this.input.pressed.has('map')) { if (this.state === 'playing' && !this.tuning.active && !this.people.talk) this.openMenu(this.hasMap ? 'map' : 'journal'); else if (this.menu === 'map' || (this.menu === 'journal' && !this.hasMap)) this.closeMenu(); }
     if (!this.cine && this.input.pressed.has('journal')) { if (this.state === 'playing' && !this.tuning.active && !this.people.talk) this.openMenu('journal'); else if (this.menu === 'journal') this.closeMenu(); }
     if (this.state !== 'playing' && this.state !== 'ending') {
       // The world keeps breathing behind the menus.

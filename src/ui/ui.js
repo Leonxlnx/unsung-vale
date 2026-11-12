@@ -171,7 +171,7 @@ export class UI {
     const el = this.el, g = this.game;
     if (type === 'state') {
       if (d.state === 'playing') this.show('hud'); else if (d.state === 'paused') this.show('pause'); else if (d.state === 'home') this.show('home'); else if (d.state === 'intro') this.show('none');
-      else if (d.state === 'menu') { this.show('journey'); this.bench = d.menu === 'bench'; this._journey(d.menu === 'map' ? 'map' : d.menu === 'journal' ? 'journal' : 'hero'); this.onSound?.(d.menu === 'map' ? 'map_open' : 'ui_open'); }
+      else if (d.state === 'menu') { this.show('journey'); this.atBench = d.menu === 'bench'; this.bench = this.atBench || !!g.metPeople?.includes('odo'); this._journey(d.menu === 'map' ? 'map' : d.menu === 'journal' ? 'journal' : 'hero'); this.onSound?.(d.menu === 'map' ? 'map_open' : 'ui_open'); }
       el.story.classList.toggle('cine', d.state === 'intro');
       // The keys are shown once, when play first begins.
       if (d.state === 'playing' && !this._hinted) { this._hinted = true; this._showHints(14000); }
@@ -340,6 +340,9 @@ export class UI {
 
   // --- the journey screens: map, journal, hero ---
   _journey(tab) {
+    // Until the mapmaker has handed one over there is no map to open.
+    const mapTab = this.root.querySelector('#journey [data-jtab="map"]'); mapTab.hidden = !this.game.hasMap;
+    if (tab === 'map' && !this.game.hasMap) tab = 'journal';
     this.jtab = tab;
     this.root.querySelectorAll('#journey .tabs button').forEach((b) => b.classList.toggle('on', b.dataset.jtab === tab));
     this.root.querySelectorAll('#journey .pane').forEach((n) => n.classList.toggle('on', n.classList.contains(tab)));
@@ -463,8 +466,11 @@ export class UI {
     const val = { health: p.healthMax, stamina: p.staminaMax, blade: `${Math.round(p.power * 100)}%` };
     const rows = Object.entries(UPS).map(([k, [name, what, step]]) => `<div class="up"><div><b>${name}</b><span>${what}</span></div><div class="pips">${Array.from({ length: 6 }, (_, i) => `<i class="${i < p.up[k] ? 'on' : ''}"></i>`).join('')}</div><em>${val[k]}</em>${this.bench ? `<button data-buy="${k}" ${g.xp < cost || p.up[k] >= 6 ? 'disabled' : ''}>${p.up[k] >= 6 ? 'Full' : `${step} for ${cost}`}</button>` : ''}</div>`).join('');
     const skills = g.spires.map((s) => { const k = SKILLS[s.id]; if (!k) return ''; return s.tuned ? `<div class="sk on"><i></i><div><b>${k.name}</b><span>${k.how}</span></div></div>` : `<div class="sk"><i></i><div><b>${cap(NAMES[s.id])} is silent</b><span>Its spire has something to teach.</span></div></div>`; }).join('');
-    this.el.hero.innerHTML = `<div class="col"><h3>${this.bench ? "The luthier's bench" : 'What you carry'}</h3>
-        <p class="lead">${this.bench ? 'Odo can work what the Mute were holding of the song into you and your blade. Each step costs more than the last.' : 'Gifts from the people of the Vale, trials won, and work done at the luthier\'s bench on the Dawn Terrace.'}</p>
+    const lead = this.atBench ? 'Odo can work what the Mute were holding of the song into you and your blade. Each step costs more than the last.'
+      : this.bench ? 'Odo showed you how to work resonance into yourself and your blade. It can be done anywhere; each step costs more than the last.'
+      : 'Gifts from the people of the Vale and trials won. The luthier on the Dawn Terrace can do more with the resonance you carry.';
+    this.el.hero.innerHTML = `<div class="col"><h3>${this.atBench ? "The luthier's bench" : 'What you carry'}</h3>
+        <p class="lead">${lead}</p>
         <div class="resline"><i></i><b>${g.xp}</b><span>resonance</span></div>${rows}</div>
       <div class="col"><h3>What the spires taught</h3>${skills}</div>`;
   }

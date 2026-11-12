@@ -163,7 +163,7 @@ export class Enemies {
   constructor(pipe, world, particles) {
     this.pipe = pipe; this.world = world; this.particles = particles;
     this.list = []; this.projectiles = []; this.events = []; this.blasts = [];
-    this.max = 960;
+    this.max = 1400;
     const geo = shardGeometry();
     this.glowAttr = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 3), 3);
     this.glowAttr.setUsage(THREE.DynamicDrawUsage);
@@ -237,6 +237,8 @@ export class Enemies {
       e.staggerK *= Math.exp(-5 * dt);
       const toP = _toP.copy(player.pos).sub(e.pos); toP.y = 0;
       const dist = toP.length(); if (dist > 1e-3) toP.multiplyScalar(1 / dist);
+      e.far = dist > 240 && e.state === 'dormant';
+      if (e.far) continue;
       const playerAlive = player.state !== 'dead';
 
       if (e.state === 'dormant') {
@@ -405,6 +407,7 @@ export class Enemies {
     const M = this.mesh, G = this.glowAttr.array;
     let n = 0;
     for (const e of this.list) {
+      if (e.far) continue;
       const d = e.def, cy = Math.cos(e.yaw), sy = Math.sin(e.yaw);
       const hover = d.hover + Math.sin(time * 1.7 + e.seed * 9) * 0.06, c0 = d.core0 ?? d.core, es = e.scale;
       const wind = e.state === 'windup' ? Math.min(1, e.t / d.windup) : 0;
