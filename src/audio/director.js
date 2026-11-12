@@ -25,6 +25,8 @@ export function connectAudio(audio, game, ui, falls) {
         audio.sfx(heavy ? 'swing_heavy' : 'swing', { volume: heavy ? 0.6 : 0.5, delay: CUT[d.index] ?? 0.1, pitch: d.index === 1 ? 1.06 : 1 });
         audio.sfx('gear', { volume: 0.16, spread: 0.2 });
       }
+      if (d.type === 'plungeStart') audio.sfx('swing_heavy', { volume: 0.6, delay: 0.12 });
+      if (d.type === 'plunge') { audio.sfx('hit_heavy', { volume: 0.7, wet: 0.35 }); audio.sfx('slam', { volume: 0.5, wet: 0.35 }); audio.sfx('land_heavy', { volume: 0.5 }); }
       if (d.type === 'slamHit') { audio.sfx('hit_heavy', { volume: 0.5, wet: 0.3 }); audio.sfx('land_heavy', { volume: 0.4 }); }
       if (d.type === 'roll') { audio.sfx('roll', { volume: 0.32 }); audio.sfx('gear', { volume: 0.2, delay: 0.12 }); }
       if (d.type === 'jump') { audio.sfx('jump', { volume: 0.3 }); audio.sfx('gear', { volume: 0.12 }); }

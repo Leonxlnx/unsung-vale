@@ -17,6 +17,8 @@ export const TUNE = {
   ],
   heavy: { t: 0.86, hit: [0.33, 0.46], dmg: 58, lunge: 5.2, cost: 26, arc: 1.3, reach: 3.2 },
   pulseCooldown: 9, pulseRadius: 8.5,
+  // Falling strike: a turn in the air, then straight down blade first.
+  plunge: { cost: 16, hang: 0.26, dive: 30, radius: 3.8, dmg: 34, recover: 0.5 },
   swim: 2.7, swimFast: 4.0, swimCost: 5, swimDepth: 1.18,      // he floats with the water this far up his body
 };
 
@@ -158,6 +160,13 @@ export class Player {
         this.rollDir = new THREE.Vector3(d.x, 0, d.z).normalize();
         this.yaw = Math.atan2(this.rollDir.x, this.rollDir.z);
         this.emit('roll');
+      } else if (input.pressed.has('attack') && !this.grounded && this.airTime > 0.08 && this.spend(T.plunge.cost)) {
+        this.setState('plunge'); this.plungeHit = false; this.plungeTop = this.pos.y;
+        // Lean the fall toward a foe below, if there is one.
+        const foe = this.lockTarget ?? this.aimAssist?.(this.facing.x, this.facing.z, 9) ?? null;
+        this.plungeAim = foe ? foe.pos.clone() : null;
+        if (foe) this.yaw = Math.atan2(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z);
+        this.emit('plungeStart');
       } else if (input.pressed.has('attack') && this.grounded) this.startAttack(T.combo[0], 0);
       else if (input.pressed.has('heavy') && this.grounded) this.startAttack(T.heavy, 3);
       else if (input.pressed.has('pulse') && this.pulseTimer <= 0 && this.grounded) { this.pulseTimer = T.pulseCooldown; this.emit('pulse'); }
@@ -180,6 +189,28 @@ export class Player {
       } else if (this.attackQueued && this.comboStep < 2 && this.comboStep >= 0 && this.stateTime > a.t * 0.62) {
         if (!this.startAttack(T.combo[this.comboStep + 1], this.comboStep + 1)) this.attackQueued = false;
       } else if (this.stateTime >= a.t) { this.attack = null; this.comboStep = -1; this.setState('move'); }
+    } else if (this.state === 'plunge') {
+      const P = T.plunge;
+      if (!this.plungeHit) {
+        if (this.stateTime < P.hang) {
+          // Hang for the turn: the fall is held back and forward speed bleeds off.
+          // (He rises a little more as he turns, and drifts toward the foe he means to land on.)
+          this.vel.y = Math.max(this.vel.y, 4.6 - this.stateTime * 16);
+          if (this.plungeAim) { const dx = this.plungeAim.x - this.pos.x, dz = this.plungeAim.z - this.pos.z, d = Math.hypot(dx, dz), sp = Math.min(11, d * 4); this.vel.x = d > 0.05 ? (dx / d) * sp : 0; this.vel.z = d > 0.05 ? (dz / d) * sp : 0; }
+          else { const k = Math.exp(-5 * dt); this.vel.x *= k; this.vel.z *= k; }
+        } else {
+          this.vel.y = -P.dive;
+          if (this.plungeAim) { const dx = this.plungeAim.x - this.pos.x, dz = this.plungeAim.z - this.pos.z, d = Math.hypot(dx, dz); const sp = Math.min(14, d * 6); this.vel.x = d > 0.05 ? (dx / d) * sp : 0; this.vel.z = d > 0.05 ? (dz / d) * sp : 0; }
+        }
+        this._integrate(dt);
+        if (this.state === 'plunge' && this.grounded) {
+          this.plungeHit = true; this.stateTime = 0; this.vel.x = this.vel.z = 0;
+          this.emit('plunge', { height: Math.max(0, this.plungeTop - this.pos.y) });
+        }
+        return;
+      }
+      const k = Math.exp(-12 * dt); this.vel.x *= k; this.vel.z *= k;
+      if (this.stateTime > P.recover) this.setState('move');
     } else if (this.state === 'hurt') {
       const drag = Math.exp(-6 * dt);
       this.vel.x *= drag; this.vel.z *= drag;
@@ -273,7 +304,7 @@ export class Player {
       if (!wasGrounded) {
         const fell = this.fallStart - this.pos.y;
         this.emit('land', { fell });
-        if (fell > 14 && this.state !== 'dead') this.damage(Math.min(70, (fell - 14) * 3.2));
+        if (fell > 14 && this.state !== 'dead' && this.state !== 'plunge') this.damage(Math.min(70, (fell - 14) * 3.2));
       }
       if (this.vel.y < 0) this.vel.y = 0;
       this.coyote = T.coyote; this.airTime = 0; this.fallStart = this.pos.y;

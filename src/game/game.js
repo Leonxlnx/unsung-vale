@@ -122,15 +122,15 @@ export class Game {
     this.rig = new CameraRig(pipe.camera, this.world);
     // Without a lock, a strike still finds the foe it was meant for: the nearest one within
     // reach of a step, roughly in the direction pushed (or faced).
-    this.player.aimAssist = (dx, dz) => {
+    this.player.aimAssist = (dx, dz, reach = 5.5) => {
       const p = this.player.pos;
       let best = null, bs = 1e9;
       for (const e of this.enemies.list) {
-        if (!e.alive || e.state === 'dormant' || Math.abs(e.pos.y - p.y) > 3) continue;
+        if (!e.alive || e.state === 'dormant' || Math.abs(e.pos.y - p.y) > (reach > 6 ? 30 : 3)) continue;
         const ex = e.pos.x - p.x, ez = e.pos.z - p.z, d = Math.hypot(ex, ez);
-        if (d > 5.5 + e.def.radius || d < 1e-3) continue;
+        if (d > reach + e.def.radius || d < 1e-3) continue;
         const dot = (ex * dx + ez * dz) / d;
-        if (dot < 0.2) continue;
+        if (dot < (reach > 6 ? -0.3 : 0.2)) continue;
         const s = d * (1.5 - dot);
         if (s < bs) { bs = s; best = e; }
       }
@@ -456,6 +456,19 @@ export class Game {
     if (e.type === 'land' && e.fell > 3) this.rig.addShake(Math.min(0.5, e.fell * 0.03));
     if (e.type === 'land' && e.fell > 1.5) this.vfx.wave(p.pos.x, p.pos.y + 0.06, p.pos.z, { r0: 0.2, r1: 1.2 + Math.min(3, e.fell * 0.3), life: 0.4, strength: 0.5, width: 0.16, color: [0.5, 0.42, 0.3] });
     if (e.type === 'land') this.hero?.onLand(e.fell ?? 0);
+    if (e.type === 'plunge') {
+      const P = TUNE.plunge, x = p.pos.x, y = p.pos.y + 0.08, z = p.pos.z, power = Math.min(1, 0.45 + e.height * 0.07);
+      for (const en of this.enemies.list) {
+        if (!en.alive || en.state === 'dormant' || Math.abs(en.pos.y - p.pos.y) > 3) continue;
+        const d = en.pos.distanceTo(p.pos) - en.def.radius;
+        if (d < P.radius) this.enemies.hit(en, Math.round((P.dmg + Math.min(40, e.height * 3)) * (1 - 0.5 * Math.max(0, d) / P.radius)), p.pos, true);
+      }
+      this.vfx.wave(x, y, z, { r0: 0.4, r1: P.radius * 1.5, life: 0.6, strength: 1.6 * power, width: 0.08, color: [3.2, 2.3, 1.0] });
+      this.vfx.wave(x, y, z, { r0: 0.4, r1: P.radius * 1.05, life: 0.7, strength: 1.0 * power, width: 0.1, color: [2.0, 1.5, 0.7], delay: 0.1 });
+      this.vfx.wave(x, y + 1.0, z, { kind: 1, r0: 0.4, r1: P.radius * 0.8, life: 0.35, strength: 1.2 * power, width: 0.12, color: [1.4, 1.1, 0.6] });
+      for (let k = 0; k < 44; k++) { const a = (k / 44) * 6.283 + Math.random() * 0.1, sp = 5 + Math.random() * 7; this.particles.spawn(x + Math.cos(a) * 0.5, y + 0.1, z + Math.sin(a) * 0.5, { vel: [Math.cos(a) * sp, 2 + Math.random() * 5, Math.sin(a) * sp], life: 0.6, size: 0.06, color: [4.2, 3.0, 1.3], gravity: 14, drag: 1.2, streak: 0.14 }); }
+      this.rig.addShake(0.5 + 0.4 * power); this.hitStop = 0.09; this.flash = Math.max(this.flash, 0.3 * power);
+    }
     if (e.type === 'splash' || e.type === 'stroke') {
       const y = (Number.isFinite(p.water) ? p.water : p.pos.y + 1.2) + 0.03, big = e.type === 'splash';
       this.vfx.wave(p.pos.x, y, p.pos.z, { r0: 0.3, r1: big ? 3.2 : 1.6, life: big ? 0.9 : 1.1, strength: big ? 0.9 : 0.35, width: 0.14, color: [0.5, 0.6, 0.62] });

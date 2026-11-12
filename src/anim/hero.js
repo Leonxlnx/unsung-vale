@@ -141,6 +141,8 @@ const SW = {
   air: { g: [-0.4, -0.06, 0.06], d: [-0.45, 0.35, -0.82] },
   tune: { g: [-0.1, 0.42, 0.24], d: [0.03, 1, 0.06] },
   plant: { g: [-0.03, -0.04, 0.34], d: [0.0, -1, 0.07] },
+  dive: { g: [-0.04, 0.16, 0.22], d: [0.0, -0.98, 0.2] },
+  coil: { g: [-0.08, 0.5, -0.06], d: [-0.05, 0.7, -0.7] },
 };
 // The scabbard hangs from the belt on the left hip, pointing down, back and a little out.
 const SCAB_DIR = new THREE.Vector3(0.22, -0.78, -0.58).normalize();
@@ -368,7 +370,10 @@ export class Hero {
     const swimming = p.state === 'swim';
     this.swimK += ((swimming ? 1 : 0) - this.swimK) * Math.min(1, 6 * dt);
     // Drawn while there is something to fight (and for a few breaths after), or a use for it.
-    if (threat || p.state === 'attack') this.drawnHold = 4;
+    const plunging = p.state === 'plunge';
+    this.plungeK = (this.plungeK ?? 0) + ((plunging ? 1 : 0) - (this.plungeK ?? 0)) * Math.min(1, 14 * dt);
+    this.impactK = (this.impactK ?? 0) + ((plunging && p.plungeHit ? 1 : 0) - (this.impactK ?? 0)) * Math.min(1, (plunging && p.plungeHit ? 30 : 7) * dt);
+    if (threat || p.state === 'attack' || plunging) this.drawnHold = 4;
     this.drawnHold = Math.max(0, this.drawnHold - dt);
     const wantDrawn = !swimming && (this.drawnHold > 0 || (this.kneel ?? 0) > 0.3 || tuning > 0);
     if (wantDrawn && this.sheathed && this.uInit) this._draw();
@@ -380,8 +385,9 @@ export class Hero {
     const acc = (speed - this.lastSpeed) / Math.max(dt, 1e-4); this.lastSpeed = speed;
     this.accLean += (Math.max(-1, Math.min(1, acc / 30)) * (moving ? 1 : 0) - this.accLean) * Math.min(1, 7 * dt);
     this.lean += (Math.max(-1, Math.min(1, this.yawVel / 6)) * this.gait - this.lean) * Math.min(1, 6 * dt);
-    const g = this.gait, sw = ease(clamp01(this.swimK)), ikW = ease(clamp01(1 - this.rollK * 1.2)) * (1 - this.deadK) * (1 - sw);
-    const kn = ease(clamp01(this.kneel ?? 0));
+    this.flipK = (this.flipK ?? 0) + ((plunging && !p.plungeHit ? 1 : 0) - (this.flipK ?? 0)) * Math.min(1, 20 * dt);
+    const g = this.gait, sw = ease(clamp01(this.swimK)), ikW = ease(clamp01(1 - this.rollK * 1.2)) * (1 - this.deadK) * (1 - sw) * (1 - this.flipK);
+    const kn = Math.max(ease(clamp01(this.kneel ?? 0)), this.impactK ?? 0);
 
     // --- attack channels ---
     const A = this.atk;
@@ -524,6 +530,14 @@ export class Hero {
 
     // --- whole-body actions that are posed directly ---
     let rollSpin = 0;
+    if (p.state === 'plunge' && !p.plungeHit) {
+      const k = clamp01(p.stateTime / (TUNE.plunge.hang + 0.06));
+      rollSpin = ease(k) * TAU;
+      const tuck = Math.sin(Math.PI * k);
+      R.rot('Spine', 0.35 * tuck); R.rot('Chest', 0.25 * tuck); R.rot('Head', 0.2 * tuck);
+      // Knees drawn up through the turn, then the legs trail the fall.
+      for (const s of ['L', 'R']) { R.rot(`UpperLeg.${s}`, -(1.2 * tuck + 0.15 * k)); R.rot(`LowerLeg.${s}`, 1.6 * tuck + 0.5 * k); R.rot(`Foot.${s}`, 0.5); }
+    }
     if (this.rollK > 0.01) {
       const k = clamp01(p.stateTime / TUNE.rollTime), w = p.state === 'roll' ? Math.sin(Math.PI * k) ** 0.6 : this.rollK * 0.3;
       if (p.state === 'roll') rollSpin = ease(k) * TAU;
@@ -654,6 +668,7 @@ export class Hero {
         if (air > 0.001) { tg.lerp(SW.air.gv, air * 0.8); tq.slerp(SW.air.q, air * 0.8); }
         if (this.tuneK > 0.001) { tg.lerp(SW.tune.gv, this.tuneK); tq.slerp(SW.tune.q, this.tuneK); }
         if (kn > 0.001) { tg.lerp(SW.plant.gv, kn); tq.slerp(SW.plant.q, kn); }
+        if (plunging && !p.plungeHit) { const pose = p.stateTime < TUNE.plunge.hang * 0.7 ? SW.coil : SW.dive; tg.copy(pose.gv); tq.copy(pose.q); }
         tg.z += armSwing * lerp(0.05, 0.1, runK); tg.y += 0.02 * Math.abs(armSwing) * runK + 0.004 * br;
         if (!wantDrawn && !this.sheathed) {
           // Putting it away: the point finds the scabbard's mouth and the blade slides home.
@@ -661,14 +676,14 @@ export class Hero {
           tg = _v0.copy(_v3); tq = _q0.copy(_q1);
           if (this.swG.distanceTo(tg) < 0.035 && this.swQ.angleTo(tq) < 0.2) this._sheathe();
         }
-        const k = Math.min(1, dt * (p.state === 'move' ? 11 : 16));
+        const k = Math.min(1, dt * (plunging ? 26 : p.state === 'move' ? 11 : 16));
         this.swG.lerp(tg, k); this.swQ.slerp(tq, k);
       }
       if (this.sheathed) this._scabbardInU(this.swG, this.swQ);       // the hand's target stays on the hilt while it lets go
       const armW = clamp01(1 - this.rollK * 1.5) * (1 - this.deadK) * (1 - this.armFree) * (1 - sw);
       this._placeSword(this.swG, this.swQ, this.uPos, this.uQ, armW);
       // Second hand on the grip for the heavy strike.
-      const two = Math.max(A.two, kn);
+      const two = Math.max(A.two, kn, this.plungeK ?? 0);
       if (two > 0.01) {
         const d = _v0.set(0, 1, 0).applyQuaternion(this.sword.getWorldQuaternion(_q0));
         const gp = this.sword.localToWorld(_v1.set(0, -0.11, 0));
@@ -691,11 +706,12 @@ export class Hero {
 
     // --- blade trail ---
     if (this.sword) {
-      const cutting = attacking && p.stateTime > p.attack.hit[0] - 0.035 && p.stateTime < p.attack.hit[1] + 0.03;
+      const diving = p.state === 'plunge' && !p.plungeHit && p.stateTime > TUNE.plunge.hang * 0.6;
+      const cutting = diving || (attacking && p.stateTime > p.attack.hit[0] - 0.035 && p.stateTime < p.attack.hit[1] + 0.03);
       const base = this.sword.localToWorld(new THREE.Vector3(0, 0.12, 0)), tip = this.sword.localToWorld(new THREE.Vector3(0, 0.985, 0));
       if (dt > 0) this.tipVel.subVectors(tip, this.tip).multiplyScalar(1 / dt);
       this.tip.copy(tip);
-      if (cutting && this._cutT !== undefined && dt > 0) {
+      if (cutting && !diving && this._cutT !== undefined && dt > 0) {
         // In-between positions of the blade for this frame, so the arc is smooth at any
         // frame rate: the designed cut at intermediate times, carried by the body's motion.
         const N = Math.max(1, Math.min(6, Math.round(dt * 240)));
