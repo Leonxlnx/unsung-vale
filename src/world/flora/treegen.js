@@ -28,17 +28,17 @@ function rotateAround(v, axis, ang) {
 // fraction t of the crown, which shapes the silhouette.
 export const SPECIES = {
   ember: {       // broad crimson maple
-    height: [11, 17], trunkR: 0.42, lean: 0.12, branchStart: 0.28, n1: [9, 12], n2: [4, 6], n3: [3, 4],
+    height: [11, 17], trunkR: 0.42, lean: 0.12, branchStart: 0.28, n1: [10, 13], n2: [6, 8], n3: [4, 5],
     spread: 0.62, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.92 + 0.08)), 0.55), tropism: 0.1, droop: 0.0,
     wiggle: 0.34, cardSize: [1.5, 2.3], cardsPerTwig: 4, leaf: 0,
   },
   blossom: {     // spreading pink cherry with drooping tips
-    height: [6.5, 10], trunkR: 0.3, lean: 0.22, branchStart: 0.3, n1: [7, 10], n2: [4, 6], n3: [3, 4],
+    height: [6.5, 10], trunkR: 0.3, lean: 0.22, branchStart: 0.3, n1: [9, 12], n2: [6, 8], n3: [4, 5],
     spread: 0.82, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.8 + 0.2)), 0.45), tropism: 0.02, droop: 0.42,
     wiggle: 0.42, cardSize: [1.2, 1.8], cardsPerTwig: 4, leaf: 1,
   },
   elder: {       // tall pale-lilac tree
-    height: [15, 23], trunkR: 0.55, lean: 0.08, branchStart: 0.36, n1: [10, 13], n2: [4, 6], n3: [3, 4],
+    height: [15, 23], trunkR: 0.55, lean: 0.08, branchStart: 0.36, n1: [12, 15], n2: [6, 8], n3: [4, 5],
     spread: 0.5, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.9 + 0.1)), 0.7), tropism: 0.16, droop: 0.12,
     wiggle: 0.3, cardSize: [1.7, 2.5], cardsPerTwig: 4, leaf: 2,
   },
@@ -53,7 +53,7 @@ export const SPECIES = {
     wiggle: 0.3, cardSize: [30, 48], cardsPerTwig: 5, leaf: 2,
   },
   green: {       // generic green broadleaf for forest mass
-    height: [10, 16], trunkR: 0.4, lean: 0.1, branchStart: 0.3, n1: [8, 11], n2: [4, 5], n3: [3, 4],
+    height: [10, 16], trunkR: 0.4, lean: 0.1, branchStart: 0.3, n1: [10, 13], n2: [6, 7], n3: [4, 5],
     spread: 0.56, crown: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.9 + 0.1)), 0.6), tropism: 0.12, droop: 0.05,
     wiggle: 0.34, cardSize: [1.5, 2.2], cardsPerTwig: 4, leaf: 4,
   },
