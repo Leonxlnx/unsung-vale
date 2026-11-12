@@ -55,6 +55,13 @@ if (want('menus')) {
   await ev(() => { document.querySelector('#settings [data-act="back"]').click(); }); await sleep(500);
   await ev(() => document.querySelector('#pause [data-act="resume"]').click()); await sleep(700); await page.mouse.click(W / 2, H / 2); await sleep(300);
 }
+if (want('heal')) {
+  // Hurt, then the refrain: the hero hums the note and is mended.
+  await ev(() => { const g = window.__game; window.__dbg.ui(true); window.__tour.tp(-512, 210.5, -66, 1.2, -0.12, 5); g.player.health = 34; g.player.invulnerable = 1e9; });
+  await sleep(1200); await shot('heal_before');
+  await page.keyboard.press('KeyR'); await sleep(640); await shot('heal');
+  await sleep(1500); await shot('heal_after');
+}
 if (want('stair')) {
   // The long stair from its head and from its foot, and the terrace with its people.
   await ev(() => { window.__dbg.ui(false); window.__tour.tp(-177, window.__game.world.floorBelow(-177, 190, -459, 30) + 0.1, -459, 1.5708, -0.42, 7); });
