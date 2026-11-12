@@ -2,7 +2,7 @@
 // link them, and (in sites added below) the hand-laid places the player walks through.
 import * as THREE from 'three';
 import { MeshBuilder } from './builder.js';
-import { citadel, viaduct, terrace, arcade, pavilion, lantern, tuningSpire, tower, hall, cliffTiers, planter, armillary, bench } from './kit.js';
+import { citadel, viaduct, terrace, arcade, pavilion, lantern, tuningSpire, tower, hall, cliffTiers, planter, armillary, bench, trough } from './kit.js';
 import { M, column, balustrade, stairs, archWall, archRise } from './builder.js';
 import { createArchMaterial } from './archMaterial.js';
 import { Shadows } from '../../engine/shadows.js';
@@ -110,9 +110,9 @@ export class Architecture {
   // Returns the gameplay anchors (spawn, spires, bridge ends) and the collision geometry.
   buildPlayable() {
     const T = this.terrain, H = (x, z) => T.heightAt(x, z);
-    const out = { spires: [], solids: [], lanterns: [], planters: [] };
+    const out = { spires: [], solids: [], lanterns: [], planters: [], beds: [], floors: [] };
     // Courts whose floors carry an inlaid rose: [x, z, radius, points].
-    out.plazas = [[-515, -70, 9.5, 16], [-499, -70, 6.6, 8], [-372, -392, 11.6, 12], [66, -498, 13.6, 12], [150, -15, 29.6, 14]];
+    out.plazas = [[-515, -70, 9.5, 16], [-499, -70, 6.6, 8], [-372, -392, 18.5, 12], [66, -498, 21.4, 12], [150, -15, 29.6, 14]];
     out.plazas.forEach((p, i) => this.material.uniforms.uPlazas.value[i].set(...p));
     const finish = (b) => { const m = this.add(b, { near: true }); out.solids.push(m.geometry); return m; };
     const lamp = (b, x, y, z) => { b.at(x, y, z, 0, (q) => lantern(q)); out.lanterns.push([x, y + 2.95, z]); };
@@ -150,6 +150,12 @@ export class Architecture {
           // Terrace frame: local +z is east, local +x is north (world -z).
           out.planters.push([cx + pz, y + top, cz - px]);
         }
+        // Flower beds in stone troughs along the balustrade, between the urns.
+        for (const sx of [-1, 1]) {
+          let top = 0;
+          q.at(sx * 14.3, 0, 11.95, 0, (g) => { top = trough(g, 8.4); });
+          for (let i = 0; i < 6; i++) out.beds.push([cx + 11.95, y + top, cz - sx * (10.8 + i * 1.4), i]);
+        }
         // Broad steps down to the meadow behind (the stair frame rises toward the terrace).
         const rise = y - H(cx - 13 - 7, cz) + 0.3, run = rise * 2.3;
         q.at(0, -rise, -13 - run, -Math.PI / 2, (g) => stairs(g, run, rise, 18));
@@ -161,6 +167,7 @@ export class Architecture {
       const px = -540, pz = -22;
       b.at(px, H(px, pz) + 0.05, pz, 0, (q) => pavilion(q, { r: 4.6, colH: 5.2, n: 8, detail: 1 }));
       finish(b);
+      out.floors.push({ x: cx, y, z: cz, w: 26, d: 42 }, { x: cx + 13, y, z: cz, r: 7.4, half: true });
       out.spawn = { x: cx - 7, y: y + 0.1, z: cz, yaw: Math.PI / 2 };
       out.vista = { x: cx + 14, y: y + 1.7, z: cz };
     }
@@ -184,6 +191,7 @@ export class Architecture {
         q.mat_(M.GOLD).lathe([[12.4, 0.13], [12.0, 0.135]], 36);
         const cyl = tuningSpire(q, 22);
         out.spires.push({ id: 'petal', x: sx, y: y + cyl, z: sz, base: y, h: 22 });
+        out.floors.push({ x: sx, y: y + 0.12, z: sz, r: 19 });
         for (let k = 0; k < 12; k++) {
           if (k === 3 || k === 8) continue;       // gaps where columns have fallen
           const a0 = (k / 12) * Math.PI * 2;
@@ -239,6 +247,7 @@ export class Architecture {
         q.mat_(M.GOLD).lathe([[14.4, 0.13], [14.0, 0.135]], 40);
         const cyl = tuningSpire(q, 24);
         out.spires.push({ id: 'cantor', x: sx, y: y + cyl, z: sz, base: y, h: 24 });
+        out.floors.push({ x: sx, y: y + 0.12, z: sz, r: 22 });
         for (let k = 0; k < 6; k++) {
           const a0 = (k / 6) * Math.PI * 2 + 0.26, px = Math.cos(a0) * 19.6, pz = Math.sin(a0) * 19.6;
           let top = 0;
@@ -281,6 +290,7 @@ export class Architecture {
         }
         const cyl = tuningSpire(q, 28);
         out.spires.push({ id: 'choir', x: cx, y: y + cyl, z: cz, base: y, h: 28 });
+        out.floors.push({ x: cx, y: y + 0.1, z: cz, r: 40 });
       });
       finish(b);
       out.arena = { x: cx, y, z: cz, r: 31 };

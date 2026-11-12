@@ -192,7 +192,7 @@ export class UI {
     if (this.tab === 'graphics') {
       html = row('Quality', seg('preset', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra']]), s.preset === 'custom' ? 'Custom' : '')
         + row('Render scale', slider('renderScale', 0.4, 1, 0.01), 'Lower is faster; the image is sharpened back up')
-        + row('Object shadows', toggle('shadows')) + row('Light shafts and mist', toggle('volumetrics'))
+        + row('Object shadows', toggle('shadows')) + row('Light shafts and mist', toggle('volumetrics')) + row('Floor reflections', toggle('reflections'))
         + row('Ground cover', slider('cover', 0.4, 1, 0.05), 'How far grass and flowers reach')
         + row('Field of view', slider('fov', 45, 80, 1)) + row('Show frame rate', toggle('showFps'));
     } else if (this.tab === 'controls') {

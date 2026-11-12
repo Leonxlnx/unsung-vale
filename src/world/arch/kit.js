@@ -277,6 +277,17 @@ export function bench(b, w = 2.3) {
   b.box(-w / 2 + 0.06, 0.445, -0.312, w - 0.12, 0.04, 0.012);
 }
 
+// A long stone trough for a bed of flowers, running along x and centred on the origin.
+// Returns the height of the soil.
+export function trough(b, len = 6, d = 0.62) {
+  b.mat_(M.MARBLE).box(-len / 2, 0, -d / 2, len, 0.1, d);
+  b.box(-len / 2 + 0.06, 0.1, -d / 2 + 0.06, len - 0.12, 0.34, d - 0.12);
+  b.box(-len / 2, 0.44, -d / 2, len, 0.1, d);
+  b.mat_(M.GOLD).box(-len / 2 + 0.05, 0.3, -d / 2 + 0.045, len - 0.1, 0.035, d - 0.09);
+  b.mat_(M.DARK).box(-len / 2 + 0.1, 0.5, -d / 2 + 0.1, len - 0.2, 0.03, d - 0.2);
+  return 0.5;
+}
+
 // A stone urn for a flowering shrub (the plant itself is added by the forest). Returns the
 // height of the soil.
 export function planter(b, r = 0.75) {
