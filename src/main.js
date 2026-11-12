@@ -56,6 +56,8 @@ const routes = [
 terrain.bakePaths(routes, [
   // Paved courts and platforms, where no grass should push through the stone.
   [-372, -392, -372, -392, 18.7], [66, -498, 66, -498, 21.7], [150, -15, 150, -15, 39.7], [94, -336, 102, -336, 4.9],
+  // The long stair between the Petal mesa and Cantor's Rise, and its upper landing.
+  [-172, -459, -119, -459, 5.4], [-178.5, -459, -178.5, -459, 6.6],
 ]);
 await stage(0.3, 'Building the cities');
 const arch = new Architecture(pipe, terrain, buildMesas());
