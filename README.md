@@ -62,6 +62,8 @@ are in Settings.
   reflections on the water and in the polished, inlaid floors of the courts.
 - Three sites to restore (the Petal Court, Cantor's Rise, the Choir), three kinds of enemy
   including a boss, a light bridge that forms once the second spire is tuned.
+- Effects built for the moments that matter: shockwaves that bend the picture, sparks off
+  every blow, strands of light climbing a spire as it is tuned, the great rings answering.
 - A title screen, HUD, pause menu and settings; progress is saved in the browser.
 
 ## How it is made

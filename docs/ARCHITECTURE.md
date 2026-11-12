@@ -144,6 +144,14 @@ idle machine only: other GPU work makes the numbers meaningless.
   shards moved toward formation slots; they lie dormant as rubble until approached.
 - Spires are tuned (hold E) once their guards are gone. Untuned spires project a "mute zone"
   (`pipe.fog.mute[i]`) that the fog pass renders as drained colour; tuning collapses it.
+- `particles.js`: pooled additive sparks, embers and glows, stretched along their velocity.
+  `vfx.js`: effects that need the finished frame or real geometry, drawn in `sceneT`:
+  `wave()` is a shockwave (a ring over the ground or a bubble seen from any side) that bends
+  the picture behind it by sampling `uOpaque`; `helix(spire)` is the strands of light that
+  climb a spire when it is tuned. The fog pass spares very bright pixels from the mute
+  zones' duotone, so this light keeps its colour inside the silence. `game.flash` lifts the
+  exposure for a breath on the big moments, and `uLattice` (architecture material) lets the
+  great rings glow for every spire restored.
 - `settings.js`: quality presets and options. `ui/ui.js` + `ui/ui.css`: all interface.
 - `main.js`: boot sequence with staged loading, the title camera drift, and `window.__dbg`.
 ## Hero, audio and film
