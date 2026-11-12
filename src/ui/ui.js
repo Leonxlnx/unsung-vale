@@ -26,7 +26,9 @@ export class UI {
         <div class="pulse"></div>
         <div class="prompt"><div class="key"><span></span></div><div class="text"></div></div>
         <div class="toast"></div>
+        <div class="tally"></div>
         <div class="hints"></div>
+        <div class="grab">Click to look around</div>
         <div class="fps"></div>
       </div>
       <div id="home" class="screen">
@@ -62,7 +64,7 @@ export class UI {
       settings: $('#settings'), credits: $('#credits'), ending: $('#ending'), fade: $('#fade'), story: $('#story'), caption: $('#story .caption'),
       health: $('.meter.health i'), stamina: $('.meter.stamina i'), objective: $('#hud .objective'), prompt: $('#hud .prompt'), promptKey: $('#hud .prompt .key'),
       promptKeyText: $('#hud .prompt .key span'), promptText: $('#hud .prompt .text'), boss: $('#hud .boss'), bossName: $('#hud .boss .name'), bossBar: $('#hud .boss .meter i'),
-      pulse: $('#hud .pulse'), marker: $('#hud .marker'), markerText: $('#hud .marker span'), reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), hints: $('#hud .hints'), fps: $('#hud .fps'),
+      pulse: $('#hud .pulse'), marker: $('#hud .marker'), markerText: $('#hud .marker span'), reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), hints: $('#hud .hints'), fps: $('#hud .fps'), grab: $('#hud .grab'), tally: $('#hud .tally'),
       tabBody: $('#settings .tabbody'), play: $('[data-act="play"]'), newGame: $('[data-act="new"]'),
     };
     this.el.hints.innerHTML = KEYS.slice(0, 8).map(([a, k]) => `<b>${k}</b><span>${a}</span>`).join('');
@@ -135,6 +137,7 @@ export class UI {
       else this.el.caption.classList.remove('on');
     }
     if (type === 'fade') this.el.fade.classList.toggle('on', !!d.on);
+    if (type === 'note') { this.el.tally.textContent = `Lost notes ${d.count} / ${d.total}`; this.el.tally.classList.add('on'); clearTimeout(this._tallyT); this._tallyT = setTimeout(() => this.el.tally.classList.remove('on'), 3200); }
     if (type === 'objective') this.el.objective.textContent = d.text;
     if (type === 'boss') { this.el.boss.classList.toggle('on', !!d.enemy); if (d.enemy) this.el.bossName.textContent = d.enemy.def.name; }
     if (type === 'tuned') this.toast({ petal: 'The Petal Court sings', cantor: "Cantor's Rise sings", choir: 'The Choir sings' }[d.spire.id]);
@@ -155,6 +158,8 @@ export class UI {
     el.stamina.style.transform = `scaleX(${p.stamina / TUNE.staminaMax})`;
     const pr = 1 - p.pulseTimer / TUNE.pulseCooldown;
     el.pulse.style.setProperty('--p', pr.toFixed(3)); el.pulse.classList.toggle('ready', pr >= 1);
+    // Without the pointer captured the mouse cannot turn the view: say how to get it back.
+    el.grab.classList.toggle('on', !g.input.locked && !g.input.usingPad && !g.cine);
     const lowHealth = p.health < 30 ? 0.55 * (1 - p.health / 30) : 0;
     if (!el.hurt.style.transition) el.hurt.style.opacity = String(lowHealth);
     if (g.prompt) {

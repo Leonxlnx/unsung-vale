@@ -5,7 +5,7 @@ import * as THREE from 'three';
 
 // The way from the terrace to each spire, as the paths run: breadcrumbs for the marker, so
 // the next goal is always a short walk ahead instead of a number half a kilometre away.
-const LEGS = {
+export const LEGS = {
   petal: [[-538, -70], [-551, -100], [-562, -138], [-573, -152], [-447, -290], [-427, -320], [-398, -358], [-380, -378]],
   cantor: [[-358, -402], [-300, -424], [-232, -449], [-180, -459], [-118, -459], [-60, -470], [8, -488], [46, -496]],
   choir: [[72, -478], [85, -420], [96, -362], [98, -344], [98, -330], [150, -84], [150, -40]],
@@ -107,7 +107,6 @@ export class Story {
     g.rig.snap(g.player); g.rig.yaw = g.sites.spawn.yaw ?? 0; g.rig.pitch = -0.2;
     this._goal();
     g.start();
-    this.say('first', 'Walk to the lookout.', 4);
   }
 
   // --- words ---------------------------------------------------------------------------
@@ -132,6 +131,11 @@ export class Story {
       this.leg = null; this._goal();
     }
     if (type === 'enemy' && d.type === 'death') this._goal();
+    if (type === 'note') {
+      if (d.count === 1) this.say('note', 'A lost note of the old song. There are more along the paths.', 6);
+      else if (d.line) { this.queue = (this.queue ?? []); this.queue.push([d.line, 7]); }
+      if (d.count === d.total) this.say('notes', 'Every note is home.', 6);
+    }
     if (type === 'respawn') { this.leg = null; this._goal(); }
   }
 

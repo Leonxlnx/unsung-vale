@@ -10,6 +10,8 @@ import { Vfx } from './vfx.js';
 import { Enemies } from './enemies.js';
 import { MeshBuilder, M } from '../world/arch/builder.js';
 import { spireRadius } from '../world/arch/kit.js';
+import { Notes } from './notes.js';
+import { LEGS } from './story.js';
 
 const SAVE_KEY = 'unsung-vale-save-v1';
 
@@ -141,6 +143,8 @@ export class Game {
     this._buildSpires();
     this._buildBridge();
     this.load();
+    // Lost notes along the paths, kept clear of the courts where the fighting is.
+    this.notes = new Notes(this, pipe, LEGS, { avoid: sites.spires.map((s) => [s.x, s.z, 26]), extra: [[sites.spawn.x + 10, sites.spawn.z + 1.5]] });
     this._spawnEncounters();
     this.respawnAtCheckpoint();
     this._refreshObjective();
@@ -244,7 +248,7 @@ export class Game {
 
   save() {
     if (this.cine) return;        // the film must never overwrite a player's progress
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [] })); } catch { /* storage may be unavailable */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [] })); } catch { /* storage may be unavailable */ }
   }
   load() {
     this.checkpoint = { ...this.sites.spawn };
@@ -253,7 +257,7 @@ export class Game {
       if (!d) return;
       for (const s of this.spires) if (d.tuned?.includes(s.id)) { s.tuned = true; s.power = 1; s.zoneR = 0; s.zone.w = 0; s.crystal.material.uniforms.uPower.value = 1; s.beam.material.uniforms.uPower.value = 1; }
       if (d.checkpoint) this.checkpoint = d.checkpoint;
-      this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? [];
+      this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? []; this.notesTaken = d.notes ?? [];
       if (this.spires[1].tuned) { this.bridgeOpen = true; this.bridgeProgress = 1; }
     } catch { /* ignore a corrupt save */ }
   }
@@ -316,6 +320,7 @@ export class Game {
     if (this.state !== 'playing' && this.state !== 'ending') {
       // The world keeps breathing behind the menus.
       this.particles.update(realDt); this.vfx.update(realDt);
+      this.notes.update(realDt, false);
       this._animateWorld(realDt);
       this.enemies.update(0, this.player, this.time);
       this.hero?.update(realDt, this.player, this);
@@ -338,6 +343,7 @@ export class Game {
     for (const e of p.events) this._onPlayerEvent(e);
     p.events.length = 0;
     this._spireLogic(dt);
+    this.notes.update(dt, !this.cine);
     this._animateWorld(dt);
     this.particles.update(dt); this.vfx.update(dt);
     // In a cinematic the director owns the camera; the rig only tracks yaw for movement.

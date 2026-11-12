@@ -45,7 +45,7 @@ export class CollisionWorld {
 
   // Adds a world-space geometry (identity transform) as solid, walkable collision.
   addGeometry(geometry) {
-    const bvh = new MeshBVH(geometry, { maxLeafTris: 8 });
+    const bvh = new MeshBVH(geometry, { targetLeafSize: 8 });
     if (!geometry.boundingBox) geometry.computeBoundingBox();
     this.solids.push({ bvh, box: geometry.boundingBox.clone().expandByScalar(2) });
   }

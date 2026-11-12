@@ -44,9 +44,9 @@ void main() {
   float fres = pow(1.0 - ndv, 3.0);
   float vein = smoothstep(0.7, 0.95, vnoise3(vLocal * vec3(9.0, 3.0, 9.0) + uTime * 0.2));
   vec3 violet = vec3(0.62, 0.24, 1.0);
-  col += violet * (fres * 1.7 + vein * 0.9) * (0.55 + vGlow.x * 2.2);
+  col += violet * (fres * 1.7 + vein * 0.9) * (0.55 + vGlow.x * 1.5);
   col += vec3(0.8, 0.85, 1.0) * pow(fres, 3.0) * 0.6;
-  col += vec3(1.0, 0.8, 1.0) * max(vGlow.x - 1.0, 0.0) * 3.0;
+  col += vec3(0.9, 0.7, 1.0) * max(vGlow.x - 1.0, 0.0) * 0.9;
   gl_FragColor = vec4(col, 1.0);
 }`;
 
@@ -153,7 +153,7 @@ export class Enemies {
   hit(e, dmg, from, heavy = false) {
     if (!e.alive || e.state === 'dormant') return false;
     e.hp -= dmg; e.poise -= dmg * (heavy ? 2.2 : 1);
-    e.glow = 2.2; e.staggerK = Math.min(1, e.staggerK + (heavy ? 1 : 0.55));
+    e.glow = 1.7; e.staggerK = Math.min(1, e.staggerK + (heavy ? 1 : 0.55));
     _v.copy(e.pos).sub(from).setY(0).normalize();
     if (!e.def.boss) e.vel.addScaledVector(_v, heavy ? 9 : 5);
     const c = e.center;
