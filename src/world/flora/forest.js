@@ -165,6 +165,9 @@ void main() {
   // Far crowns keep more of each card so they stay full instead of thinning into specks.
 #if defined(BAKE_ALBEDO) || defined(BAKE_NORMAL)
   if (t.a < 0.22) discard;
+#elif defined(FIXED_ALPHA)
+  // Hanging curtains keep their ragged outline at any distance instead of filling in.
+  if (t.a < 0.36) discard;
 #else
   if (t.a < mix(0.4, 0.2, saturate(vTreeDist / 110.0))) discard;
 #endif

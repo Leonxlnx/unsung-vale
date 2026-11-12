@@ -85,7 +85,7 @@ export class CliffVines {
       g.setAttribute('iTree', one([0, 0, 0, 1])); g.setAttribute('iParam', one([0, 0.45, layer, 0]));
       g.instanceCount = 1;
       // Two sprays across each card keep the leaves in scale on the broad cascades.
-      const m = new THREE.Mesh(g, forest._mkLeaf(layer, [0, 0], {}, 2));
+      const m = new THREE.Mesh(g, forest._mkLeaf(layer, [0, 0], { FIXED_ALPHA: 1 }, 2));
       m.frustumCulled = false; m.matrixAutoUpdate = false;
       this.group.add(m);
     }
