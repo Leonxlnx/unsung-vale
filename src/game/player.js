@@ -92,7 +92,7 @@ export class Player {
     const f = this.facing;
     // The lunge carries about lunge / 7.5 metres; with a foe ahead it ends at striking distance.
     let lunge = desc.lunge;
-    if (foe) { const gap = Math.hypot(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z) - (foe.def?.radius ?? 0.5) - desc.reach * 0.5; lunge = Math.max(0.6, Math.min(desc.lunge * 1.5, gap * 7.5)); }
+    if (foe) { const gap = Math.hypot(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z) - (foe.def?.radius ?? 0.5) - desc.reach * 0.5; lunge = Math.max(0.6, Math.min(desc.lunge * 2, gap * 7.5)); }
     this.vel.x = f.x * lunge; this.vel.z = f.z * lunge;
     this.emit('swing', { index });
     return true;

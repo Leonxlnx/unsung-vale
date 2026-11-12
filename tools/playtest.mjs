@@ -25,6 +25,7 @@ await page.screenshot({ path: shot.replace('.png', '_title.png') });
 
 const state = () => page.evaluate(() => { const g = window.__game, p = g.player; return { state: g.state, pos: p.pos.toArray().map((v) => +v.toFixed(1)), player: p.state, health: p.health, stamina: Math.round(p.stamina), locked: g.input.locked, objective: g.objective, audio: window.__audio?.ctx?.state, music: window.__audio?.musicName, hero: !!g.hero }; });
 const log = [];
+await page.bringToFront();                      // pointer lock is only granted to a focused window
 await page.click('button[data-act="play"]');
 await sleep(4200);
 log.push(['opening', await state()]);
