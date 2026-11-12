@@ -247,7 +247,7 @@ void main() {
 export function createArchMaterial(pipe, terrain) {
   const layers = new TextureForge(pipe.renderer).bake(ARCH_MATERIALS, 1024);
   const mat = new THREE.ShaderMaterial({
-    vertexShader: ARCH_VERT, fragmentShader: ARCH_FRAG, defines: pipe.depthDefines,
+    vertexShader: ARCH_VERT, fragmentShader: ARCH_FRAG, defines: { ...pipe.depthDefines, SOFT_SHADOWS: 1 },
     uniforms: {
       ...pipe.lit(), uArchA: { value: layers.a }, uArchB: { value: layers.b },
       uNoise: terrain.surfaceUniforms.uNoise, uGlow: { value: 3.2 },

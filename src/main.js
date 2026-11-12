@@ -233,6 +233,34 @@ window.__dbg = {
     [-120, 150, -60, -1.25, -0.12, 62],    // cliff and fall
     [-600, 212, -180, 0.75, 0.08, 60],     // meadow and trees
   ],
+  // Films the hero from the side while a scripted input plays, as a strip of snapshots:
+  // the quickest way to judge a walk cycle or an attack without watching it live.
+  strip({ n = 8, every = 4, moveY = 1, press = [], hold = [], dist = 4.4, side = 1, height = 1.1, tp = null, fov = 34 } = {}) {
+    this.ui(false);
+    freeCam = true; game.state = 'playing'; game.cine = true; game.input.enabled = true;
+    const inp = game.input, real = inp.update.bind(inp);
+    let first = press;
+    inp.update = () => { inp.pressed = new Set(first ?? []); first = null; inp.held = new Set(hold); inp.move.x = 0; inp.move.y = moveY; inp.look.x = 0; inp.look.y = 0; inp.zoom = 0; };
+    if (tp) { game.player.spawn(...tp); game.rig.yaw = tp[3] ?? 0; }
+    let c = document.getElementById('sheet');
+    if (!c) { c = document.createElement('canvas'); c.id = 'sheet'; c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:9'; document.body.appendChild(c); }
+    c.width = canvas.width; c.height = canvas.height;
+    const ctx = c.getContext('2d'), cols = Math.ceil(n / 2), w = c.width / cols, h = c.height / 2;
+    pipe.camera.fov = fov; pipe.camera.updateProjectionMatrix();
+    for (let i = 0; i < n; i++) {
+      for (let k = 0; k < every; k++) {
+        const p = game.player.pos, yaw = game.player.yaw, fx = Math.sin(yaw), fz = Math.cos(yaw);
+        pipe.camera.position.set(p.x + fz * dist * side, p.y + height, p.z - fx * dist * side);
+        pipe.camera.lookAt(p.x, p.y + 1.0, p.z);
+        tick(1 / 60);
+      }
+      // Keep the middle of the frame, where the hero is, at the cell's aspect ratio.
+      const sw = canvas.height * (w / h);
+      ctx.drawImage(canvas, (canvas.width - sw) / 2, 0, sw, canvas.height, (i % cols) * w, Math.floor(i / cols) * h, w, h);
+    }
+    inp.update = real; game.input.enabled = false;
+    return { state: game.player.state, pos: game.player.pos.toArray().map((v) => +v.toFixed(1)) };
+  },
   // Plays the game for n frames with a fixed stick input (x strafe, y forward).
   play(n = 60, moveY = 1, moveX = 0, opts = {}) {
     freeCam = false;

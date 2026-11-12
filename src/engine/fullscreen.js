@@ -48,10 +48,10 @@ export class FullscreenPass {
 
   // Renders only a rectangle of the target. Used to spread heavy bakes over many frames
   // so no single draw ever runs long enough to stall the GPU.
-  renderRegion(renderer, target, x, y, w, h) {
+  renderRegion(renderer, target, x, y, w, h, layer = 0) {
     target.scissor.set(x, y, w, h);
     target.scissorTest = true;
-    renderer.setRenderTarget(target);
+    renderer.setRenderTarget(target, layer);
     renderer.render(this.mesh, cam);
     target.scissorTest = false;
   }

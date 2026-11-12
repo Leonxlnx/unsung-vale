@@ -194,8 +194,7 @@ ${TERRAIN_SAMPLING}
 ${LIGHTING}
 uniform sampler2D uNCore;
 uniform sampler2D uNRegion;
-uniform sampler2D uAOCore;
-uniform sampler2D uAORegion;
+uniform sampler2DArray uAO;      // layer 0: core, layer 1: region (one sampler keeps us inside the unit limit)
 uniform sampler2DArray uTA;
 uniform sampler2DArray uTB;
 ${LAYER_DEFINES}
@@ -257,10 +256,10 @@ void main() {
   // Under paved courts the ground is cut away, so no bump of turf shows through the stone.
   if (cw > 0.0 && textureLod(uPathTex, xz / CORE_SIZE + 0.5, 0.0).g > 0.5) discard;
   vec4 nm = texture(uNRegion, xz / REGION_SIZE + 0.5);
-  float aoM = texture(uAORegion, xz / REGION_SIZE + 0.5).r;
+  float aoM = texture(uAO, vec3(xz / REGION_SIZE + 0.5, 1.0)).r;
   if (cw > 0.0) {
     nm = mix(nm, texture(uNCore, xz / CORE_SIZE + 0.5), cw);
-    aoM *= mix(1.0, texture(uAOCore, xz / CORE_SIZE + 0.5).r, cw);
+    aoM *= mix(1.0, texture(uAO, vec3(xz / CORE_SIZE + 0.5, 0.0)).r, cw);
   }
   vec2 nd = nm.rg * 2.0 - 1.0;
   vec3 N = normalize(vec3(nd.x, sqrt(max(1.0 - dot(nd, nd), 0.0)), nd.y));
@@ -383,8 +382,9 @@ export class Terrain {
     };
     this.nCore = mapTarget(this.coreRes, THREE.UnsignedByteType, THREE.RGBAFormat);
     this.nRegion = mapTarget(this.regionRes, THREE.UnsignedByteType, THREE.RGBAFormat);
-    this.aoCore = mapTarget(this.coreRes, THREE.UnsignedByteType, THREE.RedFormat);
-    this.aoRegion = mapTarget(this.regionRes, THREE.UnsignedByteType, THREE.RedFormat);
+    // Both occlusion maps share one array texture (the core and region maps are the same size).
+    this.ao = new THREE.WebGLArrayRenderTarget(this.coreRes, this.coreRes, 2, { depthBuffer: false });
+    Object.assign(this.ao.texture, { format: THREE.RedFormat, type: THREE.UnsignedByteType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, anisotropy: 8 });
     this.sCore = mapTarget(this.coreRes, THREE.HalfFloatType, THREE.RGFormat);
     this.sRegion = mapTarget(this.regionRes, THREE.HalfFloatType, THREE.RGFormat);
 
@@ -419,7 +419,7 @@ export class Terrain {
     };
     this.surfaceUniforms = {
       uNCore: { value: this.nCore.texture }, uNRegion: { value: this.nRegion.texture },
-      uAOCore: { value: this.aoCore.texture }, uAORegion: { value: this.aoRegion.texture },
+      uAO: { value: this.ao.texture },
       uTA: { value: this.layers.a }, uTB: { value: this.layers.b }, uNoise: { value: this.noise.texture },
       uPathTex: { value: null },
     };
@@ -452,16 +452,16 @@ export class Terrain {
     const T = 256;
     const tiles = (res, fn) => { for (let y = 0; y < res; y += T) for (let x = 0; x < res; x += T) this._queue.push(() => fn(x, y, T)); };
     const r = this.pipe.renderer;
-    const ao = (target, tex, size, radius) => (x, y, t) => {
+    const ao = (layer, tex, size, radius) => (x, y, t) => {
       const u = this.aoBake.uniforms; u.uH.value = tex; u.uSize.value = size; u.uRadius.value = radius;
-      this.aoBake.renderRegion(r, target, x, y, t, t);
+      this.aoBake.renderRegion(r, this.ao, x, y, t, t, layer);
     };
     const sh = (target, tex, size, res, steps) => (x, y, t) => {
       const u = this.shadowBake.uniforms; u.uH.value = tex; u.uSize.value = size; u.uTexel.value = size / res; u.uSteps.value = steps;
       this.shadowBake.renderRegion(r, target, x, y, t, t);
     };
-    tiles(this.regionRes, ao(this.aoRegion, this.texHRegion, this.regionSize, 640));
-    tiles(this.coreRes, ao(this.aoCore, this.texHCore, this.coreSize, 48));
+    tiles(this.regionRes, ao(1, this.texHRegion, this.regionSize, 640));
+    tiles(this.coreRes, ao(0, this.texHCore, this.coreSize, 48));
     tiles(this.regionRes, sh(this.sRegion, this.texHRegion, this.regionSize, this.regionRes, 150));
     tiles(this.coreRes, sh(this.sCore, this.texHCore, this.coreSize, this.coreRes, 230));
     this._queueTotal = this._queue.length;
@@ -537,7 +537,7 @@ export class Terrain {
     this.material = new THREE.ShaderMaterial({
       vertexShader: TERRAIN_VERT,
       fragmentShader: TERRAIN_FRAG,
-      defines: this.pipe.depthDefines,
+      defines: { ...this.pipe.depthDefines, SOFT_SHADOWS: 1 },
       uniforms: { ...this.pipe.lit(), ...this.surfaceUniforms, ...this.lodUniforms },
     });
     this.mesh = new THREE.Mesh(geo, this.material);
