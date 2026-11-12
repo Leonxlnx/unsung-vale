@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { MeshBuilder } from './builder.js';
 import { citadel, viaduct, terrace, arcade, pavilion, lantern, tuningSpire, tower, hall, cliffTiers, planter, armillary, bench, trough } from './kit.js';
-import { M, column, balustrade, stairs, archWall, archRise } from './builder.js';
+import { M, column, balustrade, stairs, archWall, archRise, archFrame } from './builder.js';
 import { createArchMaterial } from './archMaterial.js';
 import { Shadows } from '../../engine/shadows.js';
 import { valleyAxisZ, CORE_MESAS } from '../layout.js';
@@ -266,9 +266,21 @@ export class Architecture {
       b.at(gx, gy, gz, 0, (q) => {
         q.mat_(M.PAVING).box(-9, -8, -5, 18, 8.15, 10);
         q.mat_(M.ASHLAR); archWall(q, -8, 8, 0.15, 17, 2.4, 0, 8.6, 6.5, 1.0, 16);
+        // Dressed like a gate of ceremony: a moulded marble surround on both faces, corner
+        // piers, and a carved band under the gilded cornice.
+        q.mat_(M.MARBLE); archFrame(q, 0, 0.15, 1.2, 8.6, 6.5, 1.0, 0.75, 0.36, 16);
+        q.at(0, 0, 0, Math.PI, (g) => { g.mat_(M.MARBLE); archFrame(g, 0, 0.15, 1.2, 8.6, 6.5, 1.0, 0.75, 0.36, 16); });
+        for (const sx of [-1, 1]) {
+          q.mat_(M.MARBLE).box(sx * 8 - 0.7, 0.15, -1.55, 1.4, 16.9, 3.1);
+          q.mat_(M.GOLD).box(sx * 8 - 0.8, 5.2, -1.65, 1.6, 0.22, 3.3);
+          q.box(sx * 8 - 0.8, 11.2, -1.65, 1.6, 0.22, 3.3);
+        }
+        q.mat_(M.FRIEZE).box(-7.3, 15.7, -1.26, 14.6, 1.15, 2.52, '+y-y');
         q.mat_(M.GOLD).box(-8.4, 17, -1.4, 16.8, 0.5, 2.8);
         for (const s2 of [-1, 1]) q.at(s2 * 7, 17.5, 0, 0, (g) => tower(g, { r: 1.2, h: 4, sides: 6, stages: 1, top: 'spire', spireH: 7, detail: 0, foot: 0.2, glassEvery: 2 }));
       });
+      for (const sx of [-1, 1]) lamp(b, gx + sx * 6.2, H(gx + sx * 6.2, gz - 8), gz - 8);
+      out.gate = { x: gx, y: gy, z: gz };
       // The bridge lands well inside the Choir's rim, on level ground.
       out.bridge = { from: [gx, gy + 0.2, gz + 4.5], to: [150, H(150, -84) + 0.3, -84] };
       finish(b);

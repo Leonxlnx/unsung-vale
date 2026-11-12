@@ -130,6 +130,8 @@ for (const [z, face] of [[-87.5, 1], [-52.5, -1]]) {
   for (const off of [-0.6, 0.6]) dressing.vines([-523, 219.2, z + off], [-503, 219.2, z + off], { drop: 3.4, density: 1.5 });
   for (let i = 1; i <= 3; i++) dressing.banner(-523 + 5 * i, 215.4, z + face * 0.62, face > 0 ? 0 : Math.PI, 1.25, 3.8);
 }
+// Long banners down both faces of the Choir Gate.
+for (const sx of [-1, 1]) for (const [dz, yaw] of [[1.3, 0], [-1.3, Math.PI]]) dressing.banner(sites.gate.x + sx * 5.9, sites.gate.y + 14.6, sites.gate.z + dz, yaw, 1.5, 7.2);
 dressing.finish();
 pipe.scene.add(dressing.group);
 pipe.sceneT.add(dressing.groupT);
