@@ -38,12 +38,16 @@ void main() {
   vec2 uv2 = vec2(across * 1.9 - 1.3, along * 0.031 - tt * 1.5);
   vec2 uv3 = vec2(across * 4.7, along * 0.075 - tt * 2.4);
   float n = texture(uNoise, uv1).r * 0.5 + texture(uNoise, uv2).g * 0.32 + texture(uNoise, uv3).b * 0.28;
+  // Thin strands and beads that fall faster than the sheet they are part of.
+  float strands = texture(uNoise, vec2(across * 9.0 + 0.7, along * 0.02 - tt * 1.9 - fall * 0.02)).a;
+  float fine = texture(uNoise, vec2(across * 23.0, along * 0.055 - tt * 3.2)).r;
   // The sheet breaks up into veils toward the bottom and frays at its edges.
   float breakup = smoothstep(0.0, 1.0, along / max(total, 1.0));
   float edge = 1.0 - smoothstep(0.55, 1.0, abs(across) + (n - 0.5) * 0.5);
-  float body = smoothstep(0.34 + 0.2 * breakup, 0.62 + 0.14 * breakup, n) * edge;
+  float mass = n * 0.72 + strands * 0.4;
+  float body = smoothstep(0.3 + 0.22 * breakup, 0.56 + 0.16 * breakup, mass) * edge;
   float lip = 1.0 - smoothstep(0.0, 5.0, along);
-  float alpha = saturate(body * (0.9 - 0.25 * breakup) + lip * edge * 0.75);
+  float alpha = saturate(body * (0.97 - 0.28 * breakup) + lip * edge * 0.8);
   // Fade into whatever the water meets so there is no hard line at the cliff or the lake.
   float sceneZ = texture(uLinDepth, gl_FragCoord.xy / uResolution).r;
   float viewZ = -(viewMatrix * vec4(vWorld, 1.0)).z;
@@ -53,7 +57,8 @@ void main() {
   float vis = sunVisibility(vWorld + uSunDir * 1.5);
   float back = pow(saturate(dot(-V, uSunDir)), 3.0);
   vec3 light = uSunColor * 0.3183 * vis * (0.55 + 1.6 * back) + shIrradiance(vec3(0.0, 1.0, 0.0)) * 0.9;
-  vec3 col = mix(vec3(0.62, 0.74, 0.78), vec3(0.96), smoothstep(0.45, 0.85, n)) * light;
+  float white = smoothstep(0.42, 0.8, n * 0.55 + strands * 0.35 + fine * 0.3);
+  vec3 col = mix(vec3(0.5, 0.64, 0.7), vec3(1.0), white) * light;
   gl_FragColor = vec4(col, alpha);
 }`;
 
