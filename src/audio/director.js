@@ -65,6 +65,7 @@ export function connectAudio(audio, game, ui, falls) {
       if (d.phase === 'fail') audio.sfx(k('trial_fail', 'block'), { volume: 0.6, wet: 0.3 });
       if (d.phase === 'done') audio.sfx(k('quest_done', 'restore'), { volume: 0.7, wet: 0.3 });
     }
+    if (type === 'bell') { audio.sfx(k('trial_begin', 'spire_tune'), { volume: 0.75, pitch: d.pitch, spread: 0, wet: 0.5 }); audio.sfx(k('trial_gate', 'pickup'), { volume: 0.4, pitch: d.pitch * 0.5, spread: 0, wet: 0.5, delay: 0.05 }); if (d.done) audio.sfx(k('summon', 'enemy_wake'), { volume: 0.6, delay: 0.9, wet: 0.3 }); }
     if (type === 'wave') audio.sfx(k('summon', 'enemy_wake'), { volume: 0.6, wet: 0.3 });
     if (type === 'skill') audio.sfx(k('upgrade', 'restore'), { volume: 0.5, delay: 6.6, wet: 0.3 });
     if (type === 'hit') {

@@ -140,7 +140,8 @@ export class Story {
     }
     if (type === 'enemy' && d.type === 'death') this._goal();
     if (type === 'enemy' && d.type === 'phase') this.say(`phase${d.enemy.kind}${d.phase}`, d.phase > 1 ? 'It is breaking. So is its patience.' : 'It gathers itself, and calls the others to it.', 5);
-    if (type === 'wave') this._goal();
+    if (type === 'wave' || type === 'bell') this._goal();
+    if (type === 'bell' && d.done) this.say(`called${d.id}`, 'The court has heard. So have the Mute.', 5);
     if (type === 'note') {
       if (d.count === 1) this.say('note', 'A lost note of the old song. There are more along the paths.', 6);
       else if (d.line) { this.queue = (this.queue ?? []); this.queue.push([d.line, 7]); }
@@ -161,9 +162,16 @@ export class Story {
       const leg = LEGS[next.id] ?? [], alive = !g.encounters.cleared(next.id);
       if (this.leg !== next.id) { this.leg = next.id; this.wp = leg.length ? this._nearestWp(next.id) : 0; }
       const near = Math.hypot(g.player.pos.x - next.x, g.player.pos.z - next.z) < 60;
-      const pylon = !near && !leg.length ? g.strings?.nearest(g.player.pos.x, g.player.pos.z, next.id) : null;
+      const onMesa = Math.hypot(g.player.pos.x - next.x, g.player.pos.z - next.z) < 330;
+      const pylon = !near && !onMesa && !leg.length ? g.strings?.nearest(g.player.pos.x, g.player.pos.z, next.id) : null;
       if (g.strings) g.strings.goal = leg.length ? null : next.id;
-      if (pylon && pylon.id !== next.id) {
+      const bell = !leg.length && onMesa && g.bells && !g.bells.done(next.id) ? g.bells.nearest(next.id) : null;
+      if (bell) {
+        // The court will not stir until the three bells on its mesa have been rung.
+        this.say('bells', 'Each court out here kept three bells on its mesa. The Mute stand over them now. Ring all three and the court will hear.', 8);
+        text = `Ring the bells of ${NAMES[next.id]}`;
+        mark = { x: bell.x, y: bell.y + 3.8, z: bell.z, name: `Bell ${g.bells.count(next.id) + 1} of 3`, ride: true };
+      } else if (pylon) {
         // Beyond the inner Vale the way is over the strings of light.
         text = `Ride the strings to ${NAMES[next.id]}`;
         mark = { x: pylon.x, y: pylon.y + 8.5, z: pylon.z, name: 'String of light', ride: true };

@@ -106,6 +106,18 @@ if (want('swim')) {
   await ev(() => window.__tour.tp(-300, 174.5, -330, 0.6, -0.25, 6));
   await page.keyboard.down('KeyW'); await sleep(2600); await shot('swim'); await page.keyboard.up('KeyW');
 }
+if (want('bell')) {
+  await ev(() => { const g = window.__game, b = g.bells.list.find((q) => !q.rung) ?? g.bells.list[0]; b.rung = false; window.__tour.clear(b.group); window.__tour.tp(b.x + 2.6, b.y + 0.1, b.z + 2.0, Math.atan2(-2.6, -2.0), -0.02, 6.5); });
+  await sleep(1100); await shot('bell');
+  await page.keyboard.press('KeyE'); await sleep(1000); await shot('bell_rung');
+}
+if (want('brute')) {
+  await ev(() => { const g = window.__game, p = g.player.pos, e = g.enemies.spawn('brute', p.x + 7, p.z + 3, 'tour', null, p.y); e.state = 'rise'; e.t = 0; window.__brute = e; });
+  await sleep(2600);
+  await ev(() => window.__tour.face(window.__brute, 7.5, 0, 6));
+  await sleep(1500); await shot('brute');
+  await ev(() => window.__tour.clear('tour'));
+}
 if (want('tuning')) {
   await ev(() => { const g = window.__game, s = g.spires.find((q) => !q.tuned) ?? g.spires[7]; s.tuned = false; window.__tour.clear(s.id); g.encounters.wave[s.id] = 9; window.__tour.tp(s.x + 3.5, s.base + 0.2, s.z + 3.5, Math.PI + 0.78, -0.1, 6); });
   await sleep(1200); await page.keyboard.press('KeyE'); await sleep(2700); await shot('tuning');

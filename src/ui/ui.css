@@ -261,6 +261,7 @@ input[type='range']::-moz-range-thumb { width: 11px; height: 11px; background: v
 #journey .legend .d.on::before { background: var(--gold); box-shadow: none; }
 #journey .legend .l::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1.4px; background: var(--gold); }
 #journey .legend .o::before { content: ''; position: absolute; inset: 3px; border-radius: 50%; box-shadow: inset 0 0 0 1.3px var(--gold); }
+#journey .legend .b::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; box-shadow: inset 0 0 0 1.2px var(--ink-2); }
 #journey .legend .p::before { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: var(--ink); }
 #journey dl { display: grid; grid-template-columns: 1fr auto; gap: 9px 24px; margin: 0; font-size: 15px; }
 #journey dt { color: var(--ink-2); }

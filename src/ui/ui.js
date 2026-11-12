@@ -196,6 +196,7 @@ export class UI {
       if (d.phase === 'line') this.onSound?.('talk');
     }
     if (type === 'wave') this.toast(d.text);
+    if (type === 'bell') this.toast(d.done ? `${cap(NAMES[d.id])} answers` : 'A bell rings', `${d.count} of ${d.total}`);
     if (type === 'tuning') {
       if (d.phase === 'begin') { el.beat.classList.add('on'); el.beatPips.innerHTML = '<i></i>'.repeat(d.total); el.hud.classList.add('quiet'); }
       if (d.phase === 'beat') { el.beatRing.style.animation = 'none'; void el.beatRing.offsetWidth; el.beatRing.style.animation = `beat ${d.period}s linear forwards`; el.beatCue.classList.remove('good', 'miss'); }
@@ -415,6 +416,8 @@ export class UI {
     const diamond = (x, y, r, fill, stroke, w = 1.4) => { ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = w; ctx.stroke(); } };
     // Lost notes still out there, once the mapmaker's marks are all found.
     if (g.quests.state.vellum?.s === 'done') { ctx.fillStyle = 'rgba(231,194,125,0.6)'; for (const n of g.notes.list) if (!n.taken) { const [x, y] = this._xy(n.x, n.z); ctx.fillRect(x - 0.9, y - 0.9, 1.8, 1.8); } }
+    // The bells of the outer courts: hollow until rung.
+    for (const b of g.bells.list) { if (!b.rung && g.spires.find((s) => s.id === b.id)?.tuned) continue; const [x, y] = this._xy(b.x, b.z); ctx.fillStyle = b.rung ? gold : 'rgba(10,12,16,0.8)'; ctx.strokeStyle = b.rung ? 'rgba(10,12,16,0.6)' : 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 6.283); ctx.fill(); ctx.stroke(); }
     // Trials that have been seen.
     for (const tl of g.trials.list) { if (!(g.seenPlaces ?? []).includes(tl.def.id) && !tl.done) continue; const [x, y] = this._xy(tl.x, tl.z); ctx.strokeStyle = tl.done ? 'rgba(231,194,125,0.45)' : gold; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(x, y, 4, 0, 6.283); ctx.stroke(); }
     // People who are awake.
@@ -450,7 +453,7 @@ export class UI {
     const g = this.game, at = g.strings.at(), tuned = g.spires.filter((s) => s.tuned).length;
     this.el.legend.innerHTML = `<h3>${tuned} of ${g.spires.length} voices</h3>
       <p>${at ? 'You stand at a pylon. Choose a court the strings reach to ride there.' : 'Strings of light can be ridden from the pylon at each court.'}</p>
-      <ul><li><i class="d on"></i>A court that sings</li><li><i class="d"></i>A silent court</li><li><i class="l"></i>A string of light</li><li><i class="o"></i>A trial ring</li><li><i class="p"></i>Someone awake</li></ul>
+      <ul><li><i class="d on"></i>A court that sings</li><li><i class="d"></i>A silent court</li><li><i class="l"></i>A string of light</li><li><i class="o"></i>A trial ring</li><li><i class="b"></i>A bell</li><li><i class="p"></i>Someone awake</li></ul>
       <dl><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Quests done</dt><dd>${g.quests.doneCount} / ${QUESTS.length}</dd></dl>`;
   }
   _renderJournal() {

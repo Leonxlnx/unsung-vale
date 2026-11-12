@@ -111,6 +111,17 @@ const CHORISTER = [
   ...Array.from({ length: 10 }, (_, k) => { const a = (k / 10) * 6.283; return S(Math.cos(a) * 0.95, 3.45, Math.sin(a) * 0.95, Math.cos(a), 0.25, Math.sin(a), 0.5, 0.13, 'halo'); }),
 ];
 
+// Brute: a slab of a body on short legs, with two clubs of shard for arms. It brings both
+// down at once, and whoever stands under them is thrown off his feet.
+const BRUTE = [
+  S(0, 1.7, 0, 0, 1, 0.05, 1.5, 0.95), S(-0.36, 1.5, -0.1, -0.2, 1, 0, 1.1, 0.6), S(0.36, 1.5, -0.1, 0.2, 1, 0, 1.1, 0.6),
+  S(0, 2.62, 0.1, 0, 1, 0.3, 0.4, 0.34, 'head'),
+  S(-0.85, 2.2, 0, -1, 0.3, 0, 0.8, 0.44), S(0.85, 2.2, 0, 1, 0.3, 0, 0.8, 0.44),
+  S(-1.1, 1.55, 0.1, -0.25, -1, 0.15, 1.1, 0.42, 'armL'), S(1.1, 1.55, 0.1, 0.25, -1, 0.15, 1.1, 0.42, 'armR'),
+  S(-1.15, 0.85, 0.3, -0.05, -1, 0.3, 1.0, 0.55, 'bladeL'), S(1.15, 0.85, 0.3, 0.05, -1, 0.3, 1.0, 0.55, 'bladeR'),
+  S(0, 0.95, 0, 0, -1, 0, 0.7, 0.6), S(-0.3, 0.5, 0, -0.15, -1, 0, 0.9, 0.34, 'tail'), S(0.3, 0.5, 0, 0.15, -1, 0, 0.9, 0.34, 'tail'),
+  S(-0.3, 2.5, -0.5, -0.3, 1, -0.6, 0.6, 0.2, 'spine'), S(0.3, 2.5, -0.5, 0.3, 1, -0.6, 0.6, 0.2, 'spine'), S(0, 2.7, -0.45, 0, 1, -0.5, 0.75, 0.22, 'spine'),
+];
 const SOVEREIGN = [
   ...COLOSSUS.map((s) => S(s.p.x * 1.22, s.p.y * 1.22, s.p.z * 1.22, s.d.x, s.d.y, s.d.z, s.len * 1.22, s.th * 1.22, s.tag)),
   ...Array.from({ length: 14 }, (_, k) => { const a = (k / 14) * 6.283; return S(Math.cos(a) * 2.5, 7.6, Math.sin(a) * 2.5, Math.cos(a), 0.5, Math.sin(a), 1.25, 0.26, 'halo'); }),
@@ -126,6 +137,7 @@ function derive(base, m) {
 }
 
 export const KINDS = {
+  brute:     { slots: BRUTE, hp: 230, speed: 2.9, reach: 3.2, windup: 1.0, strike: 0.26, recover: 1.2, damage: 30, poise: 110, radius: 0.95, sight: 28, hover: 0.25, core: 1.7, slam: true, xp: 40, name: 'Mute Brute' },
   sovereign: { slots: SOVEREIGN, hp: 1100, speed: 2.9, reach: 6.2, windup: 0.9, strike: 0.25, recover: 1.0, damage: 30, poise: 200, radius: 1.8, sight: 70, hover: 0.6, core: 3.9, boss: true, phases: 3, xp: 400, name: 'The Stillness' },
   hound:     { slots: HOUND, hp: 36, speed: 6.4, reach: 2.4, windup: 0.42, strike: 0.26, recover: 0.7, damage: 11, poise: 16, radius: 0.5, sight: 30, hover: 0.12, core: 0.8, circle: true, lunge: 19, xp: 8, name: 'Mute Hound' },
   warden:    { slots: WARDEN, hp: 150, speed: 2.3, reach: 3.1, windup: 0.85, strike: 0.22, recover: 1.0, damage: 24, poise: 80, radius: 0.8, sight: 28, hover: 0.3, core: 1.95, shield: true, xp: 26, name: 'Mute Warden' },
@@ -319,14 +331,14 @@ export class Enemies {
             if (!d.boss) e.vel.copy(f).multiplyScalar((d.lunge ?? 11) * (1 - e.t / d.strike));
             if (!e.didHit && e.t > d.strike * 0.3) {
               const reach = d.reach + (d.boss ? 1.2 : 0.7), cone = d.boss && e.attackKind === 1 ? -0.2 : 0.35;
-              const slam = d.boss && e.attackKind === 0;
-              const hitPos = slam ? _v.copy(e.pos).addScaledVector(f, 3.4) : null;
-              const ok = slam ? hitPos.distanceTo(player.pos) < 4.6 : dist < reach && toP.dot(f) > cone;
+              const slam = (d.boss && e.attackKind === 0) || !!d.slam;
+              const hitPos = slam ? _v.copy(e.pos).addScaledVector(f, d.boss ? 3.4 : 2.1) : null;
+              const ok = slam ? hitPos.distanceTo(player.pos) < (d.boss ? 4.6 : 3.1) : dist < reach && toP.dot(f) > cone;
               if (ok && Math.abs(player.pos.y - e.pos.y) < 3) { e.didHit = true; this.events.push({ type: 'hitPlayer', enemy: e, damage: d.damage }); }
               if (slam && !e.slamFx) {
                 e.slamFx = true;
                 for (let k = 0; k < 40; k++) { const a = (k / 40) * 6.283; P.spawn(hitPos.x + Math.cos(a) * 1.5, hitPos.y + 0.3, hitPos.z + Math.sin(a) * 1.5, { vel: [Math.cos(a) * 9, 1.5, Math.sin(a) * 9], life: 0.5, size: 0.22, color: [3, 1.4, 6], drag: 3 }); }
-                this.events.push({ type: 'slam', enemy: e });
+                this.events.push({ type: 'slam', enemy: e, at: hitPos.clone() });
               }
             }
           }
@@ -433,10 +445,10 @@ export class Enemies {
           if (arm && !d.ranged) {
             const k = s.tag.startsWith('blade') ? 1 : 0.5, sc = d.boss ? 2.3 : 1;
             if (e.attackKind === 1 && d.boss) { t.x += (right ? 1 : -1) * 0.9 * sc * wind * k; t.z += (1.6 * strike - 0.4 * wind) * sc * k; }
-            else if (right || d.boss) { t.y += 0.95 * sc * wind * k - 0.7 * sc * strike * k; t.z += (-0.45 * wind + 1.5 * strike) * sc * k; dir.set(s.d.x, s.d.y + 1.6 * wind - 0.5 * strike, s.d.z + 1.4 * strike).normalize(); }
+            else if (right || d.boss || d.slam) { t.y += 0.95 * sc * wind * k - 0.7 * sc * strike * k; t.z += (-0.45 * wind + 1.5 * strike) * sc * k; dir.set(s.d.x, s.d.y + 1.6 * wind - 0.5 * strike, s.d.z + 1.4 * strike).normalize(); }
           }
           if (!d.ranged && e.attackKind < 2) t.z += (-0.24 * wind + 0.5 * strike) * (d.boss ? 2 : 1) * (s.tag === 'tail' ? 0.35 : 1);
-          if (strike > 0.5 && (s.tag === 'bladeR' || (d.boss && s.tag === 'bladeL'))) this.particles.spawn(sh.pos.x, sh.pos.y, sh.pos.z, { life: 0.16, size: 0.24 * (d.boss ? 2.2 : 1), color: [1.7, 0.75, 3.2], alpha: 0.6 });
+          if (strike > 0.5 && (s.tag === 'bladeR' || ((d.boss || d.slam) && s.tag === 'bladeL'))) this.particles.spawn(sh.pos.x, sh.pos.y, sh.pos.z, { life: 0.16, size: 0.24 * (d.boss ? 2.2 : 1), color: [1.7, 0.75, 3.2], alpha: 0.6 });
           if (e.staggerK > 0.01) t.addScaledVector(_s.copy(s.p).setY(s.p.y - c0).normalize(), e.staggerK * 0.55 * (d.boss ? 2 : 1));
           if (es !== 1) t.multiplyScalar(es);
           // Local to world.

@@ -18,6 +18,7 @@ import { Encounters } from './encounters.js';
 import { People } from './people.js';
 import { Quests } from './quests.js';
 import { Trials } from './trials.js';
+import { Bells } from './bells.js';
 import { POOLS } from '../world/layout.js';
 
 // What each spire teaches when it is tuned.
@@ -188,6 +189,7 @@ export class Game {
     for (const c of sites.outer ?? []) for (let k = 0; k < 7; k++) { const a = k * 0.8976 + c.x * 0.01, r = k % 2 ? 58 : 36, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r; if (level(x, z, c.y)) more.push([x, z]); }
     for (const pl of POOLS) for (let k = 0; k < 3; k++) { const a = k * 2.094 + pl.x * 0.013, x = pl.x + Math.cos(a) * (pl.r + 7), z = pl.z + Math.sin(a) * (pl.r + 7); if (level(x, z, pl.level + 1)) more.push([x, z]); }
     this.notes = new Notes(this, pipe, LEGS, { avoid: sites.spires.map((s) => [s.x, s.z, 26]), extra: [[sites.spawn.x + 10, sites.spawn.z + 1.5]], more });
+    this.bells = new Bells(this, pipe);
     this._spawnEncounters();
     // The strings of light between the courts. A string wakes when the spires it needs sing.
     this.strings = new Strings(this, pipe, { dawn: [-512, -81], petal: [-385, -392], cantor: [53, -490.5], choir: [171.2, -36.2], east: [568.8, -427.8], south3: [517, 424], aurel: [148.6, 542.6], south1: [-392.4, 438.4], crown: [-993.7, -156.7] },
@@ -319,7 +321,7 @@ export class Game {
 
   save() {
     if (this.cine) return;        // the film must never overwrite a player's progress
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
   }
   load() {
     this.checkpoint = { ...this.sites.spawn };
@@ -329,7 +331,7 @@ export class Game {
       for (const s of this.spires) if (d.tuned?.includes(s.id)) { s.tuned = true; s.power = 1; s.zoneR = 0; s.zone.w = 0; s.crystal.material.uniforms.uPower.value = 1; s.beam.material.uniforms.uPower.value = 1; }
       if (d.checkpoint) this.checkpoint = d.checkpoint;
       this.xp = d.xp ?? 0; this.wildDone = d.wild ?? []; this.bought = d.bought ?? 0;
-      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0;
+      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {};
       this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? []; this.notesTaken = d.notes ?? [];
       if (this.spires[1].tuned) { this.bridgeOpen = true; this.bridgeProgress = 1; }
       // A journey that ended when the Vale had three spires goes on now that it has eight.
@@ -400,7 +402,7 @@ export class Game {
       this.particles.update(realDt); this.vfx.update(realDt);
       this.notes.update(realDt, false);
       this.strings.update(realDt, false);
-      this.quests.update(realDt, false); this.people.update(realDt, false); this.trials.update(realDt, false);
+      this.quests.update(realDt, false); this.people.update(realDt, false); this.trials.update(realDt, false); this.bells.update(realDt, false);
       this._animateWorld(realDt);
       this.enemies.update(0, this.player, this.time);
       this.hero?.update(realDt, this.player, this);
@@ -431,6 +433,7 @@ export class Game {
     this.strings.update(dt, !this.cine && !busy);
     this.quests.update(dt, !this.cine && !busy);
     this.trials.update(dt, !this.cine && !busy);
+    this.bells.update(dt, !this.cine && !busy);
     this.notes.update(dt, !this.cine);
     this._animateWorld(dt);
     this.particles.update(dt); this.vfx.update(dt);
@@ -590,10 +593,11 @@ export class Game {
   _onEnemyEvent(e) {
     if (e.type === 'hitPlayer') { this.player.damage(e.damage, e.from ?? e.enemy.pos); }
     if (e.type === 'slam') {
-      this.rig.addShake(0.7);
-      const q = e.enemy?.pos ?? this.player.pos;
-      this.vfx.wave(q.x, q.y + 0.1, q.z, { r0: 1, r1: 11, life: 0.7, strength: 1.5, width: 0.08, color: [2.4, 1.15, 4.6] });
-      this.particles.burst(q.x, q.y + 0.3, q.z, 40, { speed: 9, life: 0.6, size: 0.07, color: [2.4, 1.15, 4.6], gravity: 8, drag: 1.5, streak: 0.1, up: 3 });
+      const big = e.enemy?.def.boss ? 1 : 0.5;
+      this.rig.addShake(0.7 * big + 0.1);
+      const q = e.at ?? e.enemy?.pos ?? this.player.pos;
+      this.vfx.wave(q.x, q.y + 0.1, q.z, { r0: 1, r1: 11 * big, life: 0.7, strength: 1.5, width: 0.08, color: [2.4, 1.15, 4.6] });
+      this.particles.burst(q.x, q.y + 0.3, q.z, 40, { speed: 9 * (0.5 + 0.5 * big), life: 0.6, size: 0.07, color: [2.4, 1.15, 4.6], gravity: 8, drag: 1.5, streak: 0.1, up: 3 });
     }
     if (e.type === 'blastMark') {
       const b = e.blast;

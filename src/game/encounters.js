@@ -13,9 +13,9 @@ const ELITE = {
 export const WAVES = {
   east: [[['thrall', 3], ['hound', 2]], [['lancer', 2], ['warden', 1], ['hound', 2]], [['thrall', 1, 'lantern'], ['thrall', 2]]],
   south3: [[['hound', 4]], [['chorister', 2], ['thrall', 2]], [['hound', 1, 'stalker'], ['hound', 3], ['lancer', 1]]],
-  aurel: [[['warden', 2], ['lancer', 2]], [['chorister', 1], ['thrall', 3], ['hound', 2]], [['warden', 1, 'gilded'], ['chorister', 1], ['thrall', 2, 'veteran']]],
-  south1: [[['hound', 3], ['lancer', 2]], [['warden', 2], ['chorister', 1], ['thrall', 2]], [['chorister', 1, 'cantor'], ['hound', 4], ['thrall', 2, 'veteran']]],
-  crown: [[['thrall', 3, 'veteran'], ['hound', 2], ['lancer', 1]], [['warden', 1], ['chorister', 2], ['hound', 3]], [['sovereign', 1]]],
+  aurel: [[['warden', 2], ['lancer', 2]], [['brute', 1], ['thrall', 3], ['hound', 2]], [['warden', 1, 'gilded'], ['chorister', 1], ['thrall', 2, 'veteran']]],
+  south1: [[['hound', 3], ['lancer', 2]], [['brute', 1], ['warden', 1], ['chorister', 1], ['thrall', 2]], [['chorister', 1, 'cantor'], ['hound', 4], ['thrall', 2, 'veteran']]],
+  crown: [[['thrall', 3, 'veteran'], ['hound', 2], ['lancer', 1]], [['brute', 1], ['warden', 1], ['chorister', 2], ['hound', 2]], [['sovereign', 1]]],
 };
 
 // Packs in the wilds: [x, z, [[kind, count, elite?], ...]]. They guard nothing but give
@@ -59,16 +59,27 @@ export class Encounters {
     if (g.cine) return;                                   // the film keeps to the inner Vale
     for (const [id, waves] of Object.entries(WAVES)) {
       if (tuned(id)) continue;
+      // A court stirs only once its three bells have been rung (see bells.js).
+      if (g.bells && !g.bells.done(id)) continue;
       const s = g.spires.find((q) => q.id === id);
       this.wave[id] = 0; this._ring(waves[0], s.x, s.z, 9, id, 0.5, s.base);
     }
+    g.bells?.spawnGuards();
     WILD.forEach(([x, z, list], i) => { if (g.wildDone?.includes(i)) return; this._ring(list, x, z, 3.5, `wild${i}`, i); });
   }
 
   // True once nothing is left to fight at a court.
-  cleared(id) { const w = WAVES[id]; return this.g.enemies.aliveIn(id) === 0 && (!w || (this.wave[id] ?? 0) >= w.length - 1); }
+  cleared(id) { const w = WAVES[id]; return this.g.enemies.aliveIn(id) === 0 && (!w || ((this.wave[id] ?? -1) >= w.length - 1 && (this.g.bells?.done(id) ?? true))); }
   // How the fight at a court stands, for the interface: [wave, of].
-  progress(id) { const w = WAVES[id]; return w ? [(this.wave[id] ?? 0) + 1, w.length] : null; }
+  progress(id) { const w = WAVES[id]; return w && this.wave[id] !== undefined ? [this.wave[id] + 1, w.length] : null; }
+
+  // The third bell has rung: the court's first guard comes up out of the paving.
+  callCourt(id) {
+    const g = this.g, s = g.spires.find((q) => q.id === id), waves = WAVES[id];
+    if (!waves || this.wave[id] !== undefined) return;
+    this.wave[id] = 0;
+    for (const e of this._ring(waves[0], s.x, s.z, 9, id, 0.5, s.base)) g.vfx.wave(e.pos.x, e.pos.y + 0.08, e.pos.z, { r0: 3.2, r1: 0.4, life: 0.9, strength: 0.9, width: 0.08, color: [2.4, 1.15, 4.6] });
+  }
 
   update(dt) {
     const g = this.g, p = g.player;

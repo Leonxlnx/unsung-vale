@@ -418,7 +418,7 @@ window.__dbg = {
         for (const sp of g.spires) { sp.tuned = false; sp.power = 0; sp.zoneR = sp.zoneR0; sp.zone.z = sp.zoneR; sp.zone.w = 1; }
         g.enemies.list.length = 0; g.wildDone = []; g.xp = 0; g.bought = 0; g.ended = false; g.hasMap = false; g.metPeople = [];
         Object.assign(p.up, { health: 0, stamina: 0, blade: 0 }); g._skills();
-        g.quests.state = {}; g.quests.items = []; g.trials.run = null; g.trials.list.forEach((t) => { t.done = false; }); g.trialsDone = []; g.notes.list.forEach((n) => { n.taken = false; n.k = 1; }); g.notes.count = 0;
+        g.quests.state = {}; g.quests.items = []; g.trials.run = null; g.trials.list.forEach((t) => { t.done = false; }); g.trialsDone = []; g.bellsRung = {}; g.bells.list.forEach((q) => { q.rung = false; }); g.notes.list.forEach((n) => { n.taken = false; n.k = 1; }); g.notes.count = 0;
         for (const n of g.people.list) { n.awake = !n.spire; n.k = n.awake ? 1 : 0; g.people._dye(n); }
         g._spawnEncounters(); g.story.said.add('lookout'); p.spawn(sites.spawn.x, sites.spawn.y, sites.spawn.z, sites.spawn.yaw); g.story.leg = null; g.story._goal();
       }
@@ -455,7 +455,7 @@ window.__dbg = {
         else if (T.active) { mode = 'tune'; if (T.phase === 'beats' && T.ring && Math.abs(T.bt - T.period) < 0.04) pu.pressed.add('interact'); }
         else if (p.state === 'ride') mode = 'ride';
         else if (foe) { mode = 'fight'; const hp = p.health, st = p.stamina; d.fight(dt); if (!cheat) { p.health = hp; p.stamina = st; } }
-        else if (g.prompt && (/^(Tune|Take|Open)/.test(g.prompt.text) || (trial && /^Begin/.test(g.prompt.text)) || (who && /^Speak/.test(g.prompt.text)) || (g.marker?.ride && !near && /^Ride/.test(g.prompt.text)))) pu.pressed.add('interact');
+        else if (g.prompt && (/^(Tune|Take|Open|Ring)/.test(g.prompt.text) || (trial && /^Begin/.test(g.prompt.text)) || (who && /^Speak/.test(g.prompt.text)) || (g.marker?.name === 'String of light' && !near && /^Ride/.test(g.prompt.text)))) pu.pressed.add('interact');
         else if (who) { mode = 'side'; go(who.x, who.z, 2.3); }
         else if (near) { mode = 'side'; go(near.x, near.z, 0.6); }
         else if (trial) { mode = 'side'; go(trial.x, trial.z, 2.6); }

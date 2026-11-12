@@ -186,6 +186,9 @@ the opaque scene at the far plane with the depth test on, so it is only shaded w
   lets a spire be tuned. Bosses with `phases` change at health thresholds: a roar that
   summons others (event `summon`), then rings of blast marks (attack kind 3).
   Constructs further than 240 m from the hero are neither updated nor drawn.
+- `bells.js`: three bells on each outer mesa, each with a guard (`bell:<court>:<i>` groups).
+  `bells.done(id)` gates the court: its waves are only called up (`encounters.callCourt`)
+  when the third has rung, and `cleared(id)` needs it too.
 - `people.js`: the people of the Vale, built from turned shapes and shaded with the hero's
   material. Each has its own materials so it can go from stone to dyed cloth while waking
   (`_dye`). `speak(n, lines, done)` runs a conversation: an over-the-shoulder camera, lines
@@ -258,7 +261,10 @@ contact sheet of the film), `filmStill(t)` (one graded film frame with depth of 
 { fresh: true })` plays the whole game under the real rules (it follows the story's goals,
 talks to people, does their quests, begins trials, rides the strings and strikes the notes
 of each spire); call it in chunks until it reports `ended`, and read `time`, `quests` and
-`log` in what it returns. A full run is about 38 simulated minutes. Call `pipe.setRenderScale(1)` before judging detail: the Medium preset renders at
+`log` in what it returns. A full run is about 43 simulated minutes. `node tools/tour.mjs`
+opens a real Chrome window, sets up one situation after another (talk, map, ride, waves,
+elite, boss, trial, bell, swimming, tuning) and saves a screenshot of each to
+`tools/out/tour/`: the quickest way to look at everything. Call `pipe.setRenderScale(1)` before judging detail: the Medium preset renders at
 two thirds scale. `tools/profile.mjs` times a frame with parts of the scene switched off.
 `?perf=1` benchmarks the presets (`tools/perf.mjs`),
 `?capture=1...` is used by the film capture. Editing files under `src/` while a capture is

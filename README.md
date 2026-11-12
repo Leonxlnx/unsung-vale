@@ -21,6 +21,14 @@ come from outside; they are credited in [CREDITS.md](CREDITS.md).
 
 Stills from the in-game cinematic (draft render).
 
+| | |
+| --- | --- |
+| ![Riding a string of light across the lake](docs/media/play-ride.jpg) | ![The map of the Vale](docs/media/play-map.jpg) |
+| ![Speaking with the Keeper of the Terrace](docs/media/play-talk.jpg) | ![The Stillness at the Crown](docs/media/play-boss.jpg) |
+| ![A wave fight in a silent court](docs/media/play-waves.jpg) | ![A spire opening as it is tuned](docs/media/play-finale.jpg) |
+
+Play, as captured by `tools/tour.mjs`.
+
 ## Run it
 
 ```bash
@@ -72,12 +80,14 @@ turns exactly as far as the hand moves, whatever the system's pointer settings.
   the caster's foot, warm light bounced into the shade, lantern light, screen-space
   reflections on the water and in the polished, inlaid floors of the courts.
 - Eight courts to restore. The inner three (the Petal Court, Cantor's Rise, the Choir) are
-  linked by paths, a long stair and a bridge of light. The outer five are fought for in
-  waves, each led by a named elite, and the Crown ends with a boss in three phases.
+  linked by paths, a long stair and a bridge of light. Each of the outer five first has its
+  three bells rung, out on its mesa and under guard, and is then fought for in waves led by
+  a named elite. The Crown ends with a boss in three phases.
 - Strings of light between the courts: hook the blade over one and ride it across the lake.
   From any pylon the map can send you along several strings to a court already restored.
-- Six kinds of construct (thrall, lancer, hound, shield-bearing warden, spell-casting
-  chorister, colossus), tougher veterans and elites of each, and packs that roam the mesas.
+- Seven kinds of construct (thrall, lancer, hound, shield-bearing warden, spell-casting
+  chorister, brute, colossus), tougher veterans and elites of each, and packs that roam the
+  mesas.
 - The people of the Vale: masked, robed figures who stand as grey statues until their spire
   is tuned, then wake and ask for something. Nine side quests, seven trials (wave rings and
   timed runs through gates of light), seventy lost notes.

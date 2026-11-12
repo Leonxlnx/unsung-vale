@@ -28,11 +28,11 @@ export const TRIALS = [
   { id: 'reeds', name: 'The Reed Run', kind: 'run', at: [650, 470], seconds: 40, reward: { up: 'stamina', xp: 110 },
     gates: [[-24, 14], [-52, 6], [-70, -22], [-52, -50], [-22, -58], [6, -40], [18, -14], [0, 0]] },
   { id: 'gilt', name: 'Trial of Gilt', kind: 'fight', at: [200, 600], reward: { up: 'blade', xp: 140 },
-    waves: [[['warden', 2]], [['chorister', 2], ['hound', 3]], [['thrall', 3, 'veteran'], ['lancer', 2]]] },
+    waves: [[['brute', 1], ['hound', 2]], [['chorister', 2], ['hound', 3]], [['thrall', 3, 'veteran'], ['lancer', 2]]] },
   { id: 'orchard', name: 'The Orchard Run', kind: 'run', at: [-300, 500], seconds: 44, reward: { up: 'health', xp: 140 },
     gates: [[-18, -22], [-44, -34], [-70, -18], [-84, 12], [-66, 40], [-36, 48], [-12, 28], [0, 0]] },
   { id: 'crown', name: 'Trial of the Crown', kind: 'fight', at: [-1100, -230], reward: { up: 'blade', xp: 200 },
-    waves: [[['thrall', 3, 'veteran'], ['hound', 2]], [['warden', 2], ['chorister', 2]], [['thrall', 1, 'champion'], ['hound', 4]]] },
+    waves: [[['thrall', 3, 'veteran'], ['hound', 2]], [['brute', 2], ['chorister', 1]], [['thrall', 1, 'champion'], ['hound', 4]]] },
 ];
 const ELITE = { veteran: { scale: 1.16, hp: 1.7, dmg: 1.2, tint: 0.6 }, champion: { scale: 1.5, hp: 4, dmg: 1.45, elite: true, name: 'The Crown Champion' } };
 
