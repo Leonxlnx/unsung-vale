@@ -35,7 +35,18 @@ try {
   Log "commit $head"
   if (Test-Path $snap) { cmd /c "rmdir `"$snap\node_modules`"" 2>$null | Out-Null; Remove-Item -Recurse -Force $snap -ErrorAction SilentlyContinue }
   New-Item -ItemType Directory -Force $snap | Out-Null
-  cmd /c "git -C `"$root`" archive HEAD | tar -x -C `"$snap`""
+  # Windows' own tar, by its full path: a GNU tar earlier on the PATH (Git's) reads "E:\..."
+  # as a host name and unpacks nothing.
+  $tar = Join-Path $env:SystemRoot "System32\tar.exe"
+  cmd /c "git -C `"$root`" archive HEAD | `"$tar`" -x -C `"$snap`""
+  if (-not (Test-Path (Join-Path $snap "index.html"))) {
+    Log "tar left no snapshot; unpacking a zip archive instead"
+    $zip = "$snap.zip"
+    git -C $root archive --format=zip -o $zip HEAD
+    Expand-Archive -Path $zip -DestinationPath $snap -Force
+    Remove-Item $zip -Force -ErrorAction SilentlyContinue
+  }
+  if (-not (Test-Path (Join-Path $snap "index.html"))) { Log "SNAPSHOT FAILED: no index.html in $snap"; exit 1 }
   cmd /c "mklink /J `"$snap\node_modules`" `"$root\node_modules`"" | Out-Null
   Log "building"
   $b = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npx vite build > `"$outDir\build.log`" 2>&1" -WorkingDirectory $snap -WindowStyle Hidden -Wait -PassThru
