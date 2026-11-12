@@ -4,7 +4,7 @@ import * as THREE from 'three';
 
 export const TUNE = {
   radius: 0.36, height: 1.82,
-  walk: 1.9, run: 5.2, sprint: 7.8, accel: 26, airAccel: 9, turn: 12,
+  walk: 1.7, run: 5.2, sprint: 7.8, accel: 26, airAccel: 9, turn: 12,
   gravity: 23, jump: 7.6, coyote: 0.12, buffer: 0.14,
   rollTime: 0.62, rollSpeed: 9.4, rollCost: 22, rollIFrames: [0.06, 0.44],
   staminaMax: 100, staminaRegen: 26, staminaDelay: 0.7, sprintCost: 9, jumpCost: 6,
@@ -195,6 +195,12 @@ export class Player {
       const g0 = W.groundHeight(this.pos.x, this.pos.z), g1 = W.groundHeight(nx, nz);
       const run = Math.hypot(nx - this.pos.x, nz - this.pos.z);
       const onTerrain = this.pos.y - g0 < 0.5;
+      if (wasGrounded && this.vel.y <= 0.01 && run > 1e-4) {
+        // Is there a low step right in front of the leading edge? Then stand on it already.
+        const ux = (nx - this.pos.x) / run, uz = (nz - this.pos.z) / run;
+        const ahead = W.floorBelow(nx + ux * T.radius * 0.8, this.pos.y + 0.56, nz + uz * T.radius * 0.8, 0.9);
+        if (ahead > this.pos.y + 0.04 && ahead <= this.pos.y + 0.5) this.pos.y = ahead;
+      }
       if (onTerrain && run > 1e-5 && (g1 - g0) / run > 1.25) { this.vel.x *= 0.2; this.vel.z *= 0.2; }
       else { this.pos.x = nx; this.pos.z = nz; }
       const px = this.pos.x - (onTerrain && run > 1e-5 && (g1 - g0) / run > 1.25 ? 0 : this.vel.x * h), pz = this.pos.z - (onTerrain && run > 1e-5 && (g1 - g0) / run > 1.25 ? 0 : this.vel.z * h), py = this.pos.y;
@@ -218,6 +224,10 @@ export class Player {
     if (!grounded && wasGrounded && this.vel.y <= 0) {
       const floor = W.floorBelow(this.pos.x, this.pos.y + 0.5, this.pos.z, 1.1);
       if (floor > this.pos.y - 0.42) { this.pos.y = floor; grounded = true; }
+    }
+    if (grounded && this.vel.y <= 0.01) {
+      const floor = W.floorBelow(this.pos.x, this.pos.y + 0.4, this.pos.z, 0.6);
+      if (Math.abs(floor - this.pos.y) < 0.07) this.pos.y = floor;
     }
     if (grounded) {
       if (!wasGrounded) {

@@ -121,10 +121,12 @@ function cycleTime(v) {
   return 0.5;
 }
 // Rest positions of the foot's joints in the character's space (x left, y up, z forward).
-const ANKLE = [0.112, 0.031, -0.012];
+// (The heights are read from the model when it loads.)
+const ANKLE = [0.112, 0.085, -0.012];
+let HIP_Y = 0.985;
 // How the ankle moves when the foot rolls: onto the ball (pitch > 0, heel up) or the heel.
 function footRoll(pitch) {
-  const py = pitch > 0 ? 0.031 : 0.031, pz = pitch > 0 ? -0.137 : 0.058, c = Math.cos(pitch), s = Math.sin(pitch);
+  const py = ANKLE[1], pz = pitch > 0 ? -0.137 : 0.058, c = Math.cos(pitch), s = Math.sin(pitch);
   return [py * c - pz * s - py, py * s + pz * c - pz];        // [dy, dz]
 }
 
@@ -264,6 +266,12 @@ export class Hero {
     this.bladeGlow = mats.blade?.uniforms.uSurf.value ?? null;
 
     this.rig = new Rig(scene);
+    // Where the ankle and the hip joint sit when he simply stands.
+    {
+      const v = new THREE.Vector3(), foot = this.rig.get('Foot.L'), leg = this.rig.get('UpperLeg.L');
+      scene.updateWorldMatrix(true, true);
+      if (foot && leg) { ANKLE[1] = foot.getWorldPosition(v).y - scene.position.y; HIP_Y = leg.getWorldPosition(v).y - scene.position.y; }
+    }
     const col = (c) => [1, 2, 3, 4, 5].map((i) => `Cape.${c}.${i}`);
     this.cloth = new SpringChains(this.rig, [col('L'), col('C'), col('R'), ['Tabard.F'], ['Tabard.B']], { drag: 0.2, stiffness: 1.2, gravity: 11 });
     this.sword = scene.getObjectByName('Sword');
@@ -331,6 +339,9 @@ export class Hero {
     this.flash.value = Math.max(0, this.flash.value - dt * 4);
     const cy = Math.cos(p.yaw), sy = Math.sin(p.yaw);
     const speed = p.speed, grounded = p.grounded;
+    if (this.visY === undefined || !grounded || Math.abs(p.pos.y - this.visY) > 0.6 || p.state === 'roll') this.visY = this.visY1 = p.pos.y;
+    else { this.visY1 = (this.visY1 ?? this.visY) + (p.pos.y - (this.visY1 ?? this.visY)) * Math.min(1, 24 * dt); this.visY += (this.visY1 - this.visY) * Math.min(1, 24 * dt); }
+    const PY = this.visY;
     const runK = sstep(2.9, 3.9, speed), sprK = sstep(5.9, 7.6, speed);
 
     // --- slow state: how much of each behaviour is in the pose ---
@@ -387,7 +398,11 @@ export class Hero {
     const spinYaw = attacking ? A.spin * TAU : 0;
 
     // --- gait: where each foot would be in the cycle ---
-    const T = cycleTime(speed);
+    // The stretch of ground a foot stays on is limited by the length of the leg; the cadence
+    // then follows from the speed, so the planted foot never has to slide.
+    const duty = lerp(0.62, 0.32, runK) - 0.06 * sprK;
+    const Lc = Math.min(speed * duty * cycleTime(speed), lerp(0.86, 1.12, runK));
+    const T = speed > 0.3 ? Lc / (speed * duty) : cycleTime(speed);
     if (grounded && speed > 0.25 && p.state === 'move') {
       const before = this.phase;
       this.phase = (this.phase + dt / T) % 1;
@@ -396,8 +411,7 @@ export class Hero {
     }
     const vlx = p.vel.x * cy - p.vel.z * sy, vlz = p.vel.x * sy + p.vel.z * cy;
     const vl = Math.hypot(vlx, vlz), dirx = vl > 0.2 ? vlx / vl : 0, dirz = vl > 0.2 ? vlz / vl : 1;
-    const duty = lerp(0.62, 0.32, runK) - 0.06 * sprK;
-    const Lc = Math.min(speed * duty * T, 1.12), fwd = lerp(0.5, 0.4, runK) * Lc;
+    const fwd = lerp(0.4, 0.36, runK) * Lc;
     const halfW = lerp(0.105, 0.06, runK) - 0.02 * sprK;
     const gaitFoot = (side) => {
       const phi = (this.phase + (side > 0 ? 0 : 0.5)) % 1;
@@ -425,7 +439,7 @@ export class Hero {
     // Walking sinks at each footfall and rises over the standing leg; running is the other
     // way round: lowest over the planted foot, highest in flight.
     const bobWalk = -0.022 * Math.cos(2 * ph - 0.4), bobRun = 0.045 * Math.cos(2 * (ph - TAU * (0.25 + duty * 0.5)));
-    let pelY = lerp(-0.012 - 0.004 * br, lerp(-0.03 + bobWalk, -0.065 - 0.02 * sprK + bobRun, runK), g);
+    let pelY = lerp(-0.004 - 0.002 * br, lerp(-0.03 + bobWalk, -0.034 - 0.02 * sprK + bobRun * 0.7, runK), g);
     let pelX = lerp(0.012 * sway, lerp(0.022, 0.01, runK) * Math.sin(ph), g), pelZ = 0;
     pelY -= 0.07 * fight * (1 - g);
     pelY -= 0.3 * this.landSquash * this.landSquash;
@@ -433,7 +447,7 @@ export class Hero {
     pelY -= 0.18 * this.hurtK; pelZ -= 0.06 * this.hurtK;
     pelY -= 0.46 * kn; pelZ += 0.03 * kn;
 
-    this.root.position.copy(p.pos);
+    this.root.position.set(p.pos.x, PY, p.pos.z);
     this.root.rotation.set(0, p.yaw + spinYaw, 0);
     R.reset();
     const fwdLean = (lerp(0.04, lerp(0.16, 0.3, sprK), runK)) * g + 0.12 * this.accLean;
@@ -492,7 +506,7 @@ export class Hero {
 
     // --- feet: stand targets, steps, ground ---
     const feet = this.feet, bodyYawW = p.yaw + spinYaw, cb = Math.cos(bodyYawW), sb = Math.sin(bodyYawW);
-    const toWorld = (x, y, z, out) => out.set(p.pos.x + x * cb + z * sb, p.pos.y + y, p.pos.z - x * sb + z * cb);
+    const toWorld = (x, y, z, out) => out.set(p.pos.x + x * cb + z * sb, PY + y, p.pos.z - x * sb + z * cb);
     const stand = (s) => { const a = STAND[s], b = FIGHT[s], c = A[s], k = KNEEL[s], w = A.w, f = fight * (1 - g); return [lerp(lerp(lerp(a[0], b[0], f), c[0], w), k[0], kn), lerp(lerp(lerp(a[1], b[1], f), c[1], w), k[1], kn), lerp(lerp(lerp(a[2], b[2], f), c[2], w), k[2], kn), c[3] * w]; };
     const air = this.airBlend, rising = clamp01(p.vel.y / 6), lockW = Math.max(A.lock, air, g > 0.5 ? 1 : 0);
     const order = ['L', 'R'];
@@ -518,11 +532,11 @@ export class Hero {
       }
       // Height of the ground under the foot, eased so a kerb is a step and not a jolt.
       const gx = lerp(f.pos.x, want.x, 0), gz = f.pos.z;
-      const floor = grounded ? W.floorBelow(g > 0.5 ? p.pos.x + (o.x * cb + o.z * sb) : gx, p.pos.y + 0.55, g > 0.5 ? p.pos.z + (-o.x * sb + o.z * cb) : gz, 1.2) - p.pos.y : 0;
+      const floor = grounded ? W.floorBelow(g > 0.5 ? p.pos.x + (o.x * cb + o.z * sb) : gx, p.pos.y + 0.55, g > 0.5 ? p.pos.z + (-o.x * sb + o.z * cb) : gz, 1.2) - PY : 0;
       this.gy[s] += (Math.max(-0.45, Math.min(0.45, floor)) - this.gy[s]) * Math.min(1, 18 * dt);
       // Blend: planted / stepping foot, the gait cycle, the air pose.
       const a = (ankles[s] = { pos: new THREE.Vector3(), yaw: f.yaw - bodyYawW, pitch: 0, abs: 1 });
-      a.pos.set(f.pos.x, p.pos.y + ANKLE[1] + f.lift + st[3] + this.gy[s], f.pos.z);
+      a.pos.set(f.pos.x, PY + ANKLE[1] + f.lift + st[3] + this.gy[s], f.pos.z);
       a.pitch = f.step >= 0 ? 0.25 * Math.sin(Math.PI * Math.min(1, f.step)) : 0;
       // Kneeling: the back foot is up on its toes.
       if (kn > 0.001 && s === 'R') { a.pitch += 1.05 * kn; a.pos.y += 0.1 * kn; }
@@ -543,9 +557,9 @@ export class Hero {
       let need = 0;
       for (const s of order) {
         const a = ankles[s], hx = p.pos.x + (feet[s].side * 0.095 + pelX) * cb + pelZ * sb, hz = p.pos.z - (feet[s].side * 0.095 + pelX) * sb + pelZ * cb;
-        const horiz = Math.hypot(a.pos.x - hx, a.pos.z - hz), reach = 0.888;
+        const horiz = Math.hypot(a.pos.x - hx, a.pos.z - hz), reach = 0.897;
         const top = a.pos.y + Math.sqrt(Math.max(0.04, reach * reach - horiz * horiz));
-        need = Math.max(need, p.pos.y + 0.931 + pelY - top);
+        need = Math.max(need, PY + HIP_Y + pelY - top);
       }
       need = Math.min(0.4, need) * (1 - g * 0.85) * (1 - air);
       this.pelDrop += (need - this.pelDrop) * Math.min(1, 20 * dt);
