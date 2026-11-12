@@ -128,7 +128,7 @@ export class Strings {
   reachable(from) { return Object.keys(this.nodes).filter((id) => id !== from && this.route(from, id)); }
 
   update(dt, playing) {
-    const g = this.game, p = g.player, show = !g.cine;
+    const g = this.game, p = g.player, show = !g.cine || !!g.cineAll;
     for (const l of this.links) { l.u.uPower.value += ((this.awake(l) ? 1 : 0) - l.u.uPower.value) * Math.min(1, dt * 1.2); l.mesh.visible = show && l.u.uPower.value > 0.01; }
     for (const n of Object.values(this.nodes)) { n.u.uPower.value += ((this.links.some((l) => (l.a === n.id || l.b === n.id) && this.awake(l)) ? 1 : 0) - n.u.uPower.value) * Math.min(1, dt * 2); n.mesh.visible = show; n.mesh.rotation.y += dt * 0.3 * n.u.uPower.value; n.mesh.updateMatrixWorld(); }
     if (!playing) return;

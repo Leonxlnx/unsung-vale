@@ -780,8 +780,10 @@ export class Game {
     const lat = this.arch?.material?.uniforms?.uLattice?.value;
     if (lat) { this.ringPulse = (this.ringPulse ?? 0) * Math.exp(-dt * 0.45); const lit = this.spires.filter((s) => s.tuned).length / this.spires.length; lat.w += (0.28 * lit + this.ringPulse - lat.w) * Math.min(1, dt * 1.5); }
     if (this.props) for (const m of this.props) m.visible = !this.cine;
-    // The island of colour the hero carries through a silence (not in the film).
-    { const p = this.player.pos; this.pipe.fog.hero.set(p.x, p.y + 1.0, p.z, this.cine || this.state === 'home' ? 0 : 3.2); }
+    // The island of colour the hero carries through a silence.
+    { const p = this.player.pos; this.pipe.fog.hero.set(p.x, p.y + 1.0, p.z, this.state === 'home' ? 0 : 3.2); }
+    // In the film the outer courts show their light only at the end, when the inner Vale sings.
+    this.cineAll = !!this.cine && this.spires[0].tuned && this.spires[1].tuned && this.spires[2].tuned;
     this.flash *= Math.exp(-dt * 3.2);
     this.pipe.exposure = this.baseExposure * (1 + 0.16 * this.flash);
     for (const s of this.spires) {
@@ -798,7 +800,7 @@ export class Game {
       s.strings.material.uniforms.uPower.value = s.power;
       s.strings.material.uniforms.uTune.value = s.tuning / 1.5;
       s.beam.material.uniforms.uPower.value = Math.max(0, (s.power - 0.3) / 0.7) * (s.tuned ? 1 : 0);
-      s.beam.visible = s.tuned && !(this.cine && s.index > 2);      // the film keeps to the inner three
+      s.beam.visible = s.tuned && !(this.cine && s.index > 2 && !this.cineAll);
       s.crystal.rotation.y = t * (0.25 + s.power * 0.8) + s.index;
       s.crystal.position.y = s.y + Math.sin(t * 1.3 + s.index) * 0.18 * (0.3 + s.power);
       s.crystal.updateMatrixWorld();

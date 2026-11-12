@@ -153,5 +153,9 @@ if (want('outro')) {
   for (const [t, name] of [[4000, 'outro_1'], [8500, 'outro_2'], [9000, 'outro_3'], [10000, 'outro_4']]) { await sleep(t); await shot(name); }
   await sleep(6500); await shot('ending');
 }
+if (want('film')) {
+  // Graded stills of the film itself (the last scene: it leaves the game in film mode).
+  for (const t of (arg('times', '22.5,43.5')).split(',').map(Number)) { await ev((t) => { window.__dbg.filmStill(t); const c = document.getElementById('sheet'); c.style.width = c.style.height = '100%'; }, t); await sleep(900); await shot('film_' + String(t).replace('.', '_')); }
+}
 console.log(errors.length ? `errors (${errors.length}):\n` + [...new Set(errors)].join('\n') : 'no console errors');
 await browser.close();
