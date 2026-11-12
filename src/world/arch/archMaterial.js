@@ -203,12 +203,14 @@ void main() {
     float above = vWorld.y - terrainHeight(vWorld.xz);
     vec4 n1 = texture(uNoise, vWorld.xz / 63.0 + vWorld.y * 0.013);
     vec4 n2 = texture(uNoise, vec2(dot(vWorld.xz, vec2(0.19, 0.23)), vWorld.y * 0.021));
-    float damp = (1.0 - smoothstep(0.0, 7.0, above)) * (0.45 + 0.55 * n1.r);
+    // Floors people walk on stay cleaner than the foot of a wall.
+    float floorK = 1.0 - 0.75 * smoothstep(0.5, 0.9, N.y);
+    float damp = (1.0 - smoothstep(0.0, 7.0, above)) * (0.45 + 0.55 * n1.r) * floorK;
     float streak = smoothstep(0.5, 0.78, n2.g) * (1.0 - abs(N.y)) * 0.3;
     alb *= mix(vec3(0.92, 0.9, 0.86), vec3(1.06, 1.04, 1.0), n1.a);
     alb *= 1.0 - streak;
     alb = mix(alb, alb * vec3(0.62, 0.6, 0.5), damp * 0.7);
-    float moss = smoothstep(0.55, 0.75, n1.g + damp * 0.4 + max(N.y, 0.0) * 0.12) * (1.0 - smoothstep(4.0, 26.0, above)) * 0.75;
+    float moss = smoothstep(0.58, 0.78, n1.g + damp * 0.4) * (1.0 - smoothstep(4.0, 26.0, above)) * 0.7 * floorK;
     alb = mix(alb, vec3(0.07, 0.11, 0.03) * (0.6 + n1.b), moss);
     rough = mix(rough, 0.95, moss);
     ao *= 1.0 - 0.35 * (1.0 - smoothstep(0.0, 2.5, above));

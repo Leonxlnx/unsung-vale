@@ -51,6 +51,14 @@ export class Input {
 
   // Call once per frame before game logic.
   update() {
+    if (this.puppet) {
+      // Scripted input (the cinematic director drives the hero through this).
+      const u = this.puppet;
+      this.pressed = new Set(u.pressed); u.pressed.clear();
+      this.held = new Set(u.held);
+      this.move.x = u.move.x; this.move.y = u.move.y; this.look.x = u.look.x; this.look.y = u.look.y; this.zoom = 0;
+      return;
+    }
     this.pressed = this._down; this._down = new Set();
     const k = (a) => DEFAULT_KEYS[a].some((c) => this.keys.has(c));
     this.held.clear();

@@ -57,6 +57,8 @@ ${FOG_GLSL}
 uniform sampler2D uColor;
 uniform sampler2D uDepth;
 uniform sampler2D uVol;
+uniform sampler2D uAo;
+uniform float uAoStrength;
 uniform vec3 uVolInfo;     // x: enabled, y: march distance, z: unused
 uniform vec4 uMute[3];     // xz centre, radius, strength: where the land has fallen silent
 uniform float uTimeF;
@@ -91,6 +93,12 @@ void main() {
   vec3 vp = viewPosFromDepth(vUv, sky ? 0.5 : d);
   float dist = sky ? 1.0e5 : length(vp);
   vec3 rd = normalize(worldFromView(vp) - uCamPos);
+  if (!sky && uAoStrength > 0.0) {
+    // Contact shadows from the half-resolution occlusion buffer; bright sunlit surfaces keep
+    // most of their light so only the ambient part is really darkened.
+    float ao = texture(uAo, vUv).r;
+    col *= mix(1.0, ao, uAoStrength * (1.0 - 0.45 * saturate(luma(col) * 0.6)));
+  }
   if (!sky) {
     // Silence drains the colour out of the world; a thin warm rim marks its edge.
     vec3 wp = uCamPos + rd * dist;
@@ -238,6 +246,69 @@ void main() {
   outColor = vec4(textureLod(uBase, vUv, 0.0).rgb + s / 16.0, 1.0);
 }`;
 
+// Scalable ambient obscurance (after McGuire et al.), at half resolution. Normals are
+// rebuilt from depth, samples follow a rotated spiral, and TAA averages the noise away.
+const AO_PASS = /* glsl */ `
+${COMMON}
+${DEPTH_GLSL}
+uniform sampler2D uDepth;
+uniform vec2 uTexel;
+uniform float uProjScale;
+uniform float uFrame;
+uniform float uRadius;
+const int N = 10;
+vec3 vpos(vec2 uv) { float d = textureLod(uDepth, uv, 0.0).r; return viewPosFromDepth(uv, isSky(d) ? 1e-6 : d); }
+void main() {
+  float d = textureLod(uDepth, vUv, 0.0).r;
+  if (isSky(d)) { outColor = vec4(1.0); return; }
+  vec3 P = viewPosFromDepth(vUv, d);
+  vec3 r = vpos(vUv + vec2(uTexel.x, 0.0)) - P, l = P - vpos(vUv - vec2(uTexel.x, 0.0));
+  vec3 u = vpos(vUv + vec2(0.0, uTexel.y)) - P, dn = P - vpos(vUv - vec2(0.0, uTexel.y));
+  vec3 dx = abs(r.z) < abs(l.z) ? r : l, dy = abs(u.z) < abs(dn.z) ? u : dn;
+  vec3 n = normalize(cross(dx, dy));
+  float dist = -P.z;
+  float R = uRadius * (1.0 + dist * 0.025);
+  float rpx = R * uProjScale / max(dist, 0.1);
+  if (rpx < 1.5) { outColor = vec4(1.0); return; }
+  rpx = min(rpx, 90.0);
+  float phi = ign(gl_FragCoord.xy + uFrame * 5.588) * 6.2831853;
+  float sum = 0.0, R2 = R * R;
+  for (int i = 0; i < N; i++) {
+    float a = (float(i) + 0.5) / float(N);
+    float ang = a * 43.98 + phi;
+    vec3 Q = vpos(vUv + vec2(cos(ang), sin(ang)) * a * rpx * uTexel);
+    vec3 v = Q - P;
+    float vv = dot(v, v), vn = dot(v, n);
+    float f = max(R2 - vv, 0.0);
+    sum += f * f * f * max((vn - 0.012 * dist - 0.02) / (0.01 + vv), 0.0);
+  }
+  float ao = max(0.0, 1.0 - sum * 5.0 / (R2 * R2 * R2 * float(N)) * 1.15);
+  outColor = vec4(ao);
+}`;
+
+export class AoPass {
+  constructor(pipe) {
+    this.pipe = pipe; this.enabled = true; this.radius = 1.3;
+    this.pass = new FullscreenPass({
+      fragment: AO_PASS, defines: pipe.depthDefines,
+      uniforms: { ...pipe.camUniforms, uDepth: { value: null }, uTexel: { value: new THREE.Vector2() }, uProjScale: { value: 1 }, uFrame: pipe.globals.uFrame, uRadius: { value: this.radius } },
+    });
+  }
+  setSize(rw, rh) {
+    this.target?.dispose();
+    this.target = makeTarget(Math.ceil(rw / 2), Math.ceil(rh / 2), { type: THREE.UnsignedByteType, format: THREE.RedFormat });
+    this.pass.uniforms.uTexel.value.set(1 / rw, 1 / rh);
+    this.rh = rh;
+  }
+  render(renderer, depth, camera) {
+    const u = this.pass.uniforms;
+    u.uDepth.value = depth; u.uRadius.value = this.radius;
+    u.uProjScale.value = 0.5 * this.rh * camera.projectionMatrix.elements[5];
+    this.pass.render(renderer, this.target);
+    return this.target.texture;
+  }
+}
+
 export class FogPass {
   constructor(pipe) {
     const g = pipe.globals;
@@ -250,13 +321,14 @@ export class FogPass {
       defines: pipe.depthDefines,
       uniforms: {
         uColor: { value: null }, uDepth: { value: null }, uVol: { value: null }, uVolInfo: { value: new THREE.Vector3() }, uVolSize: { value: new THREE.Vector2(1, 1) },
-        uMute: { value: this.mute }, uTimeF: g.uTime,
+        uMute: { value: this.mute }, uTimeF: g.uTime, uAo: { value: null }, uAoStrength: { value: 0 },
         ...pipe.camUniforms, ...pipe.sky.uniforms, ...this.uniforms, uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH,
       },
     });
   }
-  render(renderer, color, depth, target, vol = null, volMax = 0) {
+  render(renderer, color, depth, target, vol = null, volMax = 0, ao = null) {
     const u = this.pass.uniforms;
+    u.uAo.value = ao; u.uAoStrength.value = ao ? this.aoStrength ?? 0.9 : 0;
     u.uColor.value = color;
     u.uDepth.value = depth;
     u.uVol.value = vol;

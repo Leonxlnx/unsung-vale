@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { FullscreenPass, makeTarget } from './fullscreen.js';
 import { COMMON, SKYMAP } from './glsl.js';
 import { Sky, SKY_SAMPLE } from './sky.js';
-import { FogPass, TAAPass, BloomPass } from './post.js';
+import { FogPass, TAAPass, BloomPass, AoPass } from './post.js';
 import { Shadows } from './shadows.js';
 import { Volumetrics } from './volumetrics.js';
 
@@ -28,18 +28,11 @@ void main() {
   outColor = vec4(col, 1.0);
 }`;
 
-const TONEMAP = /* glsl */ `
-${COMMON}
-uniform sampler2D uColor;
-uniform sampler2D uBloom;
-uniform float uBloomStrength;
-uniform float uExposure;
+// AgX base curve (after Troy Sobotka's AgX, minimal fit) with a slightly punchier look.
+// Returns display-linear Rec.709 in 0..1. Needs uSaturation and uContrast uniforms.
+export const AGX_GLSL = /* glsl */ `
 uniform float uSaturation;
 uniform float uContrast;
-uniform float uVignette;
-uniform float uSharpen;
-uniform vec2 uTexel;
-// AgX base curve (after Troy Sobotka's AgX, minimal fit).
 vec3 agxDefaultContrastApprox(vec3 x) {
   vec3 x2 = x * x, x4 = x2 * x2;
   return 15.5 * x4 * x2 - 40.14 * x4 * x + 31.96 * x4 - 6.868 * x2 * x + 0.4298 * x2 + 0.1191 * x - 0.00232;
@@ -52,13 +45,23 @@ vec3 agx(vec3 c) {
   c = clamp(log2(max(c, 1e-10)), minEv, maxEv);
   c = (c - minEv) / (maxEv - minEv);
   c = agxDefaultContrastApprox(c);
-  // Look: a little more punch and saturation than the neutral base.
   float l = luma(c);
   c = pow(max(c, 0.0), vec3(uContrast));
   c = l + uSaturation * (c - l);
   c = outMat * c;
   return pow(max(c, 0.0), vec3(2.2));
-}
+}`;
+
+const TONEMAP = /* glsl */ `
+${COMMON}
+${AGX_GLSL}
+uniform sampler2D uColor;
+uniform sampler2D uBloom;
+uniform float uBloomStrength;
+uniform float uExposure;
+uniform float uVignette;
+uniform float uSharpen;
+uniform vec2 uTexel;
 void main() {
   vec3 c = textureLod(uColor, vUv, 0.0).rgb;
   if (uSharpen > 0.0) {
@@ -155,6 +158,7 @@ export class Pipeline {
     this.linDepthPass = new FullscreenPass({ fragment: LINDEPTH, defines: this.depthDefines, uniforms: { uDepth: { value: null }, uProjInv: this.camUniforms.uProjInv } });
     this.copyPass = new FullscreenPass({ fragment: COPY, uniforms: { uTex: { value: null } } });
     this.fog = new FogPass(this);
+    this.ao = new AoPass(this);
     this.taa = new TAAPass(this);
     this.bloom = new BloomPass();
     this.tonemap = new FullscreenPass({
@@ -166,6 +170,17 @@ export class Pipeline {
     });
     this._viewProj = new THREE.Matrix4();
     this.setSize(canvas.clientWidth || 1280, canvas.clientHeight || 720);
+  }
+
+  // Call after touching the GL context directly. three's own reset also switches the
+  // reversed depth buffer off, which would silently break every depth test, so restore it.
+  resetGL() {
+    this.renderer.resetState();
+    if (this.reversed) {
+      const depth = this.renderer.state.buffers.depth;
+      depth.setReversed(true);
+      depth.setClear(1);          // becomes 0 on the GL side while reversed
+    }
   }
 
   // Called once the terrain exists: passes that sample the terrain maps are created here.
@@ -197,6 +212,7 @@ export class Pipeline {
     this.rtScene.depthTexture.minFilter = this.rtScene.depthTexture.magFilter = THREE.NearestFilter;
     this.rtFog = makeTarget(rw, rh);
     this.volumetrics?.setSize(rw, rh);
+    this.ao.setSize(rw, rh);
     this.rtOpaque?.dispose();
     this.rtLinDepth?.dispose();
     this.rtOpaque = makeTarget(rw, rh);
@@ -213,7 +229,9 @@ export class Pipeline {
 
   setRenderScale(s) { this.renderScale = s; this.setSize(this.displayW, this.displayH); }
 
-  render(dt) {
+  // opts.toScreen = false stops after anti-aliasing and returns the HDR colour texture
+  // (used by the film output, which grades and encodes frames itself).
+  render(dt, opts = {}) {
     const r = this.renderer;
     this.time += dt;
     this.globals.uTime.value = this.time;
@@ -253,13 +271,15 @@ export class Pipeline {
     }
 
     const vol = this.volumetrics?.enabled ? this.volumetrics.render(r, this.rtScene.depthTexture) : null;
-    this.fog.render(r, this.rtScene.texture, this.rtScene.depthTexture, this.rtFog, vol, this.volumetrics?.maxDist ?? 0);
+    const ao = this.ao.enabled ? this.ao.render(r, this.rtScene.depthTexture, cam) : null;
+    this.fog.render(r, this.rtScene.texture, this.rtScene.depthTexture, this.rtFog, vol, this.volumetrics?.maxDist ?? 0, ao);
 
     let color = this.rtFog.texture;
     if (this.taa.enabled) {
       color = this.taa.render(r, this.rtFog.texture, this.rtScene.depthTexture, this.rw, this.rh);
       this.taa.prevViewProj.copy(this._viewProj);
     }
+    if (opts.toScreen === false) return color;
     const bloom = this.bloom.render(r, color);
 
     const u = this.tonemap.uniforms;

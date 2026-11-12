@@ -98,6 +98,9 @@ export class Game {
     this._refreshObjective();
   }
 
+  // Swaps the stand-in body for the real animated hero.
+  attachHero(hero) { this.hero = hero; this.standIn.visible = false; hero.update(0.016, this.player, this); }
+
   on(fn) { this.listeners.push(fn); }
   emit(type, data = {}) { for (const fn of this.listeners) fn(type, data); }
 
@@ -212,11 +215,13 @@ export class Game {
 
   update(realDt) {
     this.input.update();
-    if (this.input.pressed.has('pause')) { if (this.state === 'playing') this.pause(); else if (this.state === 'paused') this.resume(); }
+    if (!this.cine && this.input.pressed.has('pause')) { if (this.state === 'playing') this.pause(); else if (this.state === 'paused') this.resume(); }
     if (this.state !== 'playing' && this.state !== 'ending') {
       // The world keeps breathing behind the menus.
       this.particles.update(realDt);
       this._animateWorld(realDt);
+      this.enemies.update(0, this.player, this.time);
+      this.hero?.update(realDt, this.player, this);
       return;
     }
     // Hit-stop: a few frames of near-frozen time sell the weight of a blow.
@@ -236,7 +241,8 @@ export class Game {
     this._spireLogic(dt);
     this._animateWorld(dt);
     this.particles.update(dt);
-    this.rig.update(realDt, p, this.input);
+    // In a cinematic the director owns the camera; the rig only tracks yaw for movement.
+    if (!this.cine) this.rig.update(realDt, p, this.input);
 
     if (this.hero) this.hero.update(dt, p, this);
     else { this.standIn.position.copy(p.pos); this.standIn.rotation.y = p.yaw; this.standIn.updateMatrixWorld(); }
@@ -288,7 +294,8 @@ export class Game {
   _onPlayerEvent(e) {
     const p = this.player;
     if (e.type === 'land' && e.fell > 3) this.rig.addShake(Math.min(0.5, e.fell * 0.03));
-    if (e.type === 'hurt') this.rig.addShake(0.55);
+    if (e.type === 'land') this.hero?.onLand(e.fell ?? 0);
+    if (e.type === 'hurt') { this.rig.addShake(0.55); this.hero?.onHit(); }
     if (e.type === 'pulse') {
       // Resonance pulse: a ring of force that staggers everything nearby.
       for (let k = 0; k < 56; k++) { const a = (k / 56) * 6.283; this.particles.spawn(p.pos.x, p.pos.y + 1, p.pos.z, { vel: [Math.cos(a) * 15, 0.4, Math.sin(a) * 15], life: 0.55, size: 0.28, color: [4, 2.9, 1.4], drag: 2.5 }); }
