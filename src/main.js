@@ -2,70 +2,131 @@ import * as THREE from 'three';
 import { Pipeline } from './engine/pipeline.js';
 import { Terrain } from './world/terrain.js';
 import { Water } from './world/water.js';
-import { WORLD } from './world/layout.js';
+import { WORLD, buildMesas } from './world/layout.js';
 import { Forest } from './world/flora/forest.js';
 import { GroundCover } from './world/flora/grass.js';
 import { Architecture } from './world/arch/sites.js';
 import { Waterfalls } from './world/waterfalls.js';
 import { Lattice } from './world/landmarks.js';
-import { buildMesas } from './world/layout.js';
+import { Game } from './game/game.js';
+import { Settings, applySettings } from './game/settings.js';
+import { UI } from './ui/ui.js';
 
 const canvas = document.getElementById('view');
 const params = new URLSearchParams(location.search);
-const pipe = new Pipeline(canvas, { renderScale: Number(params.get('scale')) || 1, sky: { ...WORLD.sun } });
-window.__pipe = pipe;
-
-pipe.camera.position.set(-505, 232, -40);
-const look = { yaw: Number(params.get('yaw')) || 0.12, pitch: Number(params.get('pitch')) || -0.16 };
-
-function applyLook() {
-  const d = new THREE.Vector3(Math.cos(look.pitch) * Math.cos(look.yaw), Math.sin(look.pitch), Math.cos(look.pitch) * Math.sin(look.yaw));
-  pipe.camera.lookAt(pipe.camera.position.clone().add(d));
-}
-applyLook();
-
-canvas.addEventListener('mousemove', (e) => {
-  if (e.buttons & 1) { look.yaw += e.movementX * 0.004; look.pitch = Math.max(-1.4, Math.min(1.4, look.pitch - e.movementY * 0.004)); applyLook(); }
+const boot = document.getElementById('boot');
+// Lets the browser paint the progress bar between the heavy construction steps.
+const stage = (p, text) => new Promise((resolve) => {
+  boot.querySelector('i').style.transform = `scaleX(${p})`;
+  boot.querySelector('p').textContent = text;
+  // Normally the next animation frame; a short timer keeps loading moving in a background tab.
+  const t = setTimeout(resolve, 60);
+  requestAnimationFrame(() => { clearTimeout(t); setTimeout(resolve, 0); });
 });
 
+const pipe = new Pipeline(canvas, { renderScale: Number(params.get('scale')) || 1, sky: { ...WORLD.sun } });
+window.__pipe = pipe;
+const settings = new Settings(pipe.renderer);
+
+// --- world ---
+await stage(0.08, 'Raising the mesas');
 const terrain = await Terrain.load(pipe);
 window.__terrain = terrain;
 pipe.attachWorld();
 pipe.scene.add(terrain.mesh);
 const water = new Water(pipe, terrain);
 pipe.sceneT.add(water.group);
+
+await stage(0.3, 'Building the cities');
 const arch = new Architecture(pipe, terrain, buildMesas());
 window.__arch = arch;
-console.log('far holds:', arch.buildFarCities(), JSON.stringify(arch.stats));
+arch.buildFarCities();
+await stage(0.44, 'Laying the paths');
+const sites = arch.buildPlayable();
 pipe.scene.add(arch.group);
 const lattice = new Lattice(pipe, arch.material);
-window.__lattice = lattice;
 pipe.scene.add(lattice.group);
+
+await stage(0.56, 'Letting the water fall');
 const falls = new Waterfalls(pipe, terrain, arch.mesas);
 window.__falls = falls;
 pipe.sceneT.add(falls.group);
+
+await stage(0.64, 'Growing the forest');
 const forest = new Forest(pipe, terrain);
 window.__forest = forest;
-console.log('trees placed:', forest.populate());
+// Keep trees off the paved sites and the routes between them.
+const clear = [[-512, -70, 34], [-540, -22, 9], [-372, -392, 24], [66, -498, 27], [96, -590, 34], [98, -336, 13], [150, -15, 44], [-146, -459, 34]];
+forest.populate((x, z) => clear.some(([cx, cz, r]) => (x - cx) * (x - cx) + (z - cz) * (z - cz) < r * r));
 forest.addGreatTree(2750, terrain.heightAt(2750, 1480) - 6, 1480);
 pipe.scene.add(forest.group);
 const cover = new GroundCover(pipe, terrain, forest.leafAtlas, forest.wind);
-window.__cover = cover;
 pipe.scene.add(cover.group);
-pipe.onBeforeScene.push((cam) => { terrain.bakeStep(2); terrain.select(cam); forest.update(cam); cover.update(cam); lattice.update(1 / 60); });
+
+await stage(0.82, 'Waking the valley');
+const game = new Game({ pipe, terrain, arch, sites, canvas });
+window.__game = game;
+const apply = () => applySettings(settings, { pipe, game, cover, audio: window.__audio });
+const ui = new UI({ game, settings, apply });
+window.__ui = ui;
+if (params.get('scale')) settings.values.renderScale = Number(params.get('scale'));
+apply();
+
+pipe.onBeforeScene.push((cam) => { terrain.bakeStep(2); terrain.select(cam); forest.update(cam); cover.update(cam); });
 
 function resize() { pipe.setSize(window.innerWidth, window.innerHeight); }
 window.addEventListener('resize', resize);
 resize();
 
-// Debug hooks used while developing: step frames by hand, aim the camera, measure GPU time.
+// --- title-screen camera: a slow drift over the valley from the lookout ---
+const homeCam = { t: 0 };
+function updateHomeCamera(dt) {
+  homeCam.t += dt;
+  const v = sites.vista, t = homeCam.t;
+  pipe.camera.position.set(v.x - 6 + Math.sin(t * 0.05) * 3, v.y + 5.5 + Math.sin(t * 0.07) * 1.2, v.z - 9 + Math.cos(t * 0.04) * 5);
+  const yaw = 0.12 + Math.sin(t * 0.045) * 0.16;
+  pipe.camera.lookAt(pipe.camera.position.x + Math.cos(yaw), pipe.camera.position.y - 0.02 + Math.sin(t * 0.06) * 0.03, pipe.camera.position.z + Math.sin(yaw));
+  if (Math.abs(pipe.camera.fov - 58) > 0.01) { pipe.camera.fov = 58; pipe.camera.updateProjectionMatrix(); }
+}
+
+let freeCam = false;
+function tick(dt) {
+  lattice.update(dt);
+  game.update(dt);
+  if (game.state === 'home' && !freeCam) updateHomeCamera(dt);
+  ui.update(dt);
+  pipe.render(dt);
+}
+
+// Finish the load-time bakes behind the loading screen, a few tiles per frame.
+{
+  const total = terrain._queue.length;
+  while (terrain._queue.length) {
+    for (let i = 0; i < 6 && terrain._queue.length; i++) tick(1 / 60);
+    await stage(0.84 + 0.15 * (1 - terrain._queue.length / total), 'Casting the evening light');
+  }
+  for (let i = 0; i < 4; i++) tick(1 / 60);
+}
+boot.classList.add('gone');
+setTimeout(() => boot.remove(), 1200);
+ui.hideLoading();
+
+// --- development hooks: step frames by hand, aim a free camera, measure GPU time ---
+const look = { yaw: 0.2, pitch: -0.1 };
+function applyLook() {
+  const d = new THREE.Vector3(Math.cos(look.pitch) * Math.cos(look.yaw), Math.sin(look.pitch), Math.cos(look.pitch) * Math.sin(look.yaw));
+  pipe.camera.lookAt(pipe.camera.position.clone().add(d));
+}
 window.__dbg = {
-  look(yaw, pitch, fov) { look.yaw = yaw; look.pitch = pitch; if (fov) { pipe.camera.fov = fov; pipe.camera.updateProjectionMatrix(); } applyLook(); },
-  pos(x, y, z) { pipe.camera.position.set(x, y, z); applyLook(); },
-  step(n = 1, dt = 1 / 60) { for (let i = 0; i < n; i++) pipe.render(dt); },
+  look(yaw, pitch, fov) { freeCam = true; look.yaw = yaw; look.pitch = pitch; if (fov) { pipe.camera.fov = fov; pipe.camera.updateProjectionMatrix(); } applyLook(); },
+  pos(x, y, z) { freeCam = true; pipe.camera.position.set(x, y, z); applyLook(); },
+  step(n = 1, dt = 1 / 60) { for (let i = 0; i < n; i++) tick(dt); },
+  settle() { this.step(8); return 0; },
+  ui(on) { ui.root.style.display = on ? '' : 'none'; },
   // Renders several preset views into one 2x2 sheet drawn over the page, so a single
   // screenshot shows them all.
   sheet(views = this.views, frames = 10) {
+    this.ui(false);
     let c = document.getElementById('sheet');
     if (!c) { c = document.createElement('canvas'); c.id = 'sheet'; c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:9'; document.body.appendChild(c); }
     c.width = canvas.width; c.height = canvas.height;
@@ -79,11 +140,24 @@ window.__dbg = {
   },
   hideSheet() { document.getElementById('sheet')?.remove(); },
   views: [
-    [-505, 236, -40, 0.2, -0.1, 62],       // valley from the dawn terrace
+    [-505, 236, -40, 0.2, -0.1, 62],       // valley from above the dawn terrace
     [60, 215, 255, 0.95, -0.06, 55],       // Aurel citadel
     [-120, 150, -60, -1.25, -0.12, 62],    // cliff and fall
     [-600, 212, -180, 0.75, 0.08, 60],     // meadow and trees
   ],
+  // Plays the game for n frames with a fixed stick input (x strafe, y forward).
+  play(n = 60, moveY = 1, moveX = 0, opts = {}) {
+    freeCam = false;
+    game.state = 'playing'; game.input.enabled = true;
+    const inp = game.input, real = inp.update.bind(inp);
+    inp.update = () => { inp.pressed = new Set(opts.press ?? []); opts.press = null; inp.held = new Set(opts.hold ?? []); inp.move.x = moveX; inp.move.y = moveY; inp.look.x = opts.lookX ?? 0; inp.look.y = 0; inp.zoom = 0; };
+    if (opts.tp) { game.player.spawn(...opts.tp); game.rig.snap(game.player); if (opts.tp[3] !== undefined) game.rig.yaw = opts.tp[3]; }
+    for (let i = 0; i < n; i++) tick(1 / 60);
+    inp.update = real;
+    game.input.enabled = false;
+    const p = game.player;
+    return { pos: p.pos.toArray().map((v) => +v.toFixed(2)), grounded: p.grounded, state: p.state, stamina: Math.round(p.stamina), health: p.health, enemies: game.enemies.list.filter((e) => e.alive).length, objective: game.objective };
+  },
   gpuMs(n = 20) {
     const gl = pipe.renderer.getContext(), px = new Uint8Array(4);
     gl.finish();
@@ -95,14 +169,11 @@ window.__dbg = {
   },
 };
 
-let last = performance.now(), frames = 0, acc = 0;
-window.__stats = { fps: 0, ms: 0 };
+let last = performance.now();
 function frame(now) {
-  const dt = Math.min(0.1, (now - last) / 1000);
+  const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  pipe.render(dt);
-  frames++; acc += dt;
-  if (acc >= 1) { window.__stats.fps = frames / acc; window.__stats.ms = (acc / frames) * 1000; frames = 0; acc = 0; }
+  tick(dt);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

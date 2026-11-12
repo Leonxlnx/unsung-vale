@@ -16,14 +16,14 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
   float id = hash12(vec2(mod(bx, nb), row)), id2 = hash12(vec2(mod(bx, nb) + 9.0, row + 3.0));
   float dx = min(fx, 1.0 - fx) / nb, dy = min(fy, 1.0 - fy) / rows;
   float edge = min(dx, dy);
-  float joint = smoothstep(0.0, 0.007, edge);
+  float joint = smoothstep(0.0, 0.0045, edge);
   float face = pfbm(uv, vec2(24.0), 4, 3.0), fine = pfbm(uv, vec2(90.0), 3, 5.0);
   float chips = smoothstep(0.55, 0.8, pfbm(uv, vec2(38.0), 3, 11.0)) * (1.0 - smoothstep(0.0, 0.02, edge));
   h = joint * (0.55 + 0.22 * id + 0.14 * face + 0.05 * fine) * (0.86 + 0.14 * smoothstep(0.0, 0.03, edge)) * (1.0 - 0.5 * chips);
   vec3 base = mix(srgb(0.87, 0.84, 0.77), srgb(0.79, 0.75, 0.67), id);
   base = mix(base, srgb(0.92, 0.89, 0.83), id2 * 0.5) * (0.9 + 0.2 * face);
   base = mix(base, base * vec3(0.8, 0.77, 0.7), smoothstep(0.5, 0.8, pfbm(uv, vec2(5.0, 2.0), 4, 9.0)));
-  col = mix(srgb(0.46, 0.43, 0.37), base, joint);
+  col = mix(srgb(0.6, 0.57, 0.5), base, joint);
   rough = mix(0.95, 0.72 + 0.12 * face, joint);
 }`;
 
@@ -33,10 +33,10 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
   float veins = pridge(uv + 0.08 * warp, vec2(3.0), 4, 2.0);
   float fineVeins = pridge(uv + 0.05 * warp, vec2(9.0), 3, 5.0);
   float cloud = pfbm(uv, vec2(5.0), 4, 7.0), grain = pfbm(uv, vec2(120.0), 3, 9.0);
-  float v = smoothstep(0.72, 0.95, veins) * 0.8 + smoothstep(0.8, 0.97, fineVeins) * 0.35;
+  float v = smoothstep(0.86, 0.99, veins) * 0.55 + smoothstep(0.9, 0.99, fineVeins) * 0.3;
   h = 0.6 + 0.08 * cloud - 0.1 * v + 0.03 * grain;
   col = mix(srgb(0.93, 0.91, 0.86), srgb(0.86, 0.83, 0.77), cloud);
-  col = mix(col, srgb(0.62, 0.58, 0.5), v * 0.55) * (0.96 + 0.08 * grain);
+  col = mix(col, srgb(0.7, 0.66, 0.58), v * 0.5) * (0.96 + 0.08 * grain);
   rough = 0.34 + 0.2 * cloud + 0.2 * v;
 }`;
 
@@ -75,7 +75,7 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
   vec2 q = uv + 0.03 * (vec2(pfbm(uv, vec2(4.0), 2, 1.0), pfbm(uv, vec2(4.0), 2, 2.0)) - 0.5);
   vec4 w = pworley(q, vec2(5.0), 3.0);
   float edge = w.y - w.x;
-  float stone = smoothstep(0.03, 0.09, edge);
+  float stone = smoothstep(0.015, 0.05, edge);
   float face = pfbm(uv, vec2(30.0), 4, 4.0), fine = pfbm(uv, vec2(100.0), 3, 5.0);
   h = stone * (0.6 + 0.2 * w.z + 0.15 * face) + (1.0 - stone) * 0.15 * face;
   vec3 base = mix(srgb(0.78, 0.75, 0.69), srgb(0.66, 0.63, 0.58), w.z) * (0.88 + 0.24 * face) * (0.95 + 0.1 * fine);
@@ -126,7 +126,7 @@ void material(vec2 uv, out float h, out vec3 col, out float rough) {
 }`;
 
 export const ARCH_MATERIALS = [
-  { name: 'ashlar', code: ashlar, bump: 9 },
+  { name: 'ashlar', code: ashlar, bump: 5 },
   { name: 'marble', code: marble, bump: 3 },
   { name: 'gold', code: gold, bump: 4 },
   { name: 'roof', code: roof, bump: 10 },
@@ -157,7 +157,7 @@ uniform sampler2DArray uArchB;
 uniform sampler2D uNoise;
 uniform float uGlow;
 in vec3 vWorld; in vec3 vNormal; in float vMat;
-const float TILE[8] = float[8](4.2, 3.0, 1.3, 2.6, 5.0, 2.4, 1.7, 2.0);
+const float TILE[8] = float[8](4.2, 3.0, 1.3, 2.6, 3.4, 2.4, 1.7, 2.0);
 
 void main() {
   int m = int(vMat + 0.5);

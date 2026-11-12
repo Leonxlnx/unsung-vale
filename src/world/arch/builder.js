@@ -27,6 +27,8 @@ export class MeshBuilder {
   rotateX(a) { this.m.multiply(_t.makeRotationX(a)); return this; }
   rotateZ(a) { this.m.multiply(_t.makeRotationZ(a)); return this; }
   scale(x, y, z) { this.m.multiply(_t.makeScale(x, y, z)); return this; }
+  // Shear so that y rises by k for every unit of local x (used for sloping bridge decks).
+  shearYX(k) { this.m.multiply(_t.set(1, 0, 0, 0, k, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)); return this; }
   // Runs fn with a local frame at (x, y, z) rotated by yaw, then restores the transform.
   at(x, y, z, yaw, fn) { this.push().translate(x, y, z); if (yaw) this.rotateY(yaw); fn(this); return this.pop(); }
   mat_(id) { this.matId = id; return this; }

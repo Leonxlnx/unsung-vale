@@ -73,3 +73,19 @@ Conventions that matter:
 Developed on an AMD Radeon 780M (integrated). Budget is roughly 16 ms at 1080p with the
 render scale around 0.7 and TAA. Keep per-pixel texture fetches low, prefer vertex-side
 work for ground cover, and measure with `__dbg.gpuMs()` after the load-time bakes finish.
+
+## Game (`src/game`, `src/ui`)
+
+- `game.js`: rules and flow (`home`, `playing`, `paused`, `ending`). Owns `Player`, `CameraRig`,
+  `CollisionWorld`, `Particles`, `Enemies`, the three spires, the light bridge and saving
+  (`localStorage`). Emits events (`state`, `objective`, `boss`, `tuned`, `player`, `enemy`,
+  `hit`, `ending`) that the UI and audio subscribe to with `game.on(fn)`.
+- `player.js`: kinematic capsule; run, sprint, jump, roll, three-step combo, heavy strike,
+  resonance pulse. Facing convention: yaw 0 looks along +z, forward = (sin yaw, 0, cos yaw).
+- `collision.js`: terrain height field + three-mesh-bvh over the playable architecture.
+- `enemies.js`: the Mute (thrall, lancer, colossus). Each body is a set of instanced crystal
+  shards moved toward formation slots; they lie dormant as rubble until approached.
+- Spires are tuned (hold E) once their guards are gone. Untuned spires project a "mute zone"
+  (`pipe.fog.mute[i]`) that the fog pass renders as drained colour; tuning collapses it.
+- `settings.js`: quality presets and options. `ui/ui.js` + `ui/ui.css`: all interface.
+- `main.js`: boot sequence with staged loading, the title camera drift, and `window.__dbg`.

@@ -157,18 +157,19 @@ export function arcade(b, length, { bay = 4.4, colH = 4.8, t = 0.9, top = 1.5, d
 
 // Arched bridge from (ax, az) to (bx, bz) with its deck at deckY. Piers run down to the
 // terrain; very tall piers get a second tier of arches part-way up.
-export function viaduct(b, heightAt, ax, az, bx, bz, deckY, { width = 7, span = 24, detail = 1, parapet = true } = {}) {
+export function viaduct(b, heightAt, ax, az, bx, bz, deckY, { width = 7, span = 24, detail = 1, parapet = true, slope = 0 } = {}) {
   const L = Math.hypot(bx - ax, bz - az), yaw = Math.atan2(-(bz - az), bx - ax);
   const n = Math.max(1, Math.round(L / span)), bw = L / n, pw = Math.min(3.4, bw * 0.2);
   const open = bw - pw, sharp = 0.8, rise = archRise(open, sharp), spring = deckY - 1.5 - rise;
   const ux = (bx - ax) / L, uz = (bz - az) / L;
   b.push().translate(ax, 0, az).rotateY(yaw);
+  if (slope) b.shearYX(slope);        // the deck climbs or falls along its length
   const lows = [];
   for (let i = 0; i <= n; i++) {
     const px = ax + ux * i * bw, pz = az + uz * i * bw;
     let low = Infinity;
     for (const o of [-3, 0, 3]) low = Math.min(low, heightAt(px - uz * o, pz + ux * o));
-    low = Math.min(low - 3, spring - 2);
+    low = Math.min(low - 3, spring - 2) - Math.max(0, slope * i * bw);
     lows.push(low);
     const hgt = spring - low;
     b.mat_(M.ASHLAR).box(i * bw - pw / 2, low, -width / 2 - 0.3, pw, hgt, width + 0.6, '-y');
@@ -238,4 +239,41 @@ export function citadel(b, { seed = 1, scale = 1, detail = 1 } = {}) {
     const x = rr(-W * 0.48, W * 0.48), z = rr(-D * 0.1, D * 0.44), nh = rr(16, 34) * S;
     b.at(x, y0, z, 0, (q) => { q.mat_(M.MARBLE).prism(1.3 * S, 1.1 * S, 0, nh * 0.45, 6, { capTop: true }); q.at(0, nh * 0.45, 0, 0, (g) => spire(g, 1.05 * S, nh * 0.7, { sides: 6, mat: M.MARBLE })); });
   }
+}
+
+// Lamp post with a glowing lantern head.
+export function lantern(b, h = 3.2) {
+  b.mat_(M.MARBLE).cbox(0, 0, 0, 0.5, 0.35, 0.5);
+  b.mat_(M.DARK).lathe([[0.1, 0.35], [0.07, h * 0.5], [0.06, h - 0.55], [0.16, h - 0.5]], 6);
+  b.mat_(M.GLASS).prism(0.2, 0.26, h - 0.5, h - 0.05, 4);
+  b.mat_(M.GOLD).lathe([[0.3, h - 0.05], [0.2, h + 0.08], [0.04, h + 0.2], [0, h + 0.36]], 4, { smooth: false, phase: Math.PI / 4 });
+  b.lathe([[0.22, h - 0.56], [0.28, h - 0.5], [0.22, h - 0.46]], 4, { smooth: false, phase: Math.PI / 4 });
+}
+
+// A Tuning Spire: stepped dais, slender shaft, and four gilded prongs cradling a crystal
+// (the crystal itself is a separate glowing mesh owned by the game). Returns the crystal height.
+export function tuningSpire(b, h = 22) {
+  b.mat_(M.PAVING).lathe([[5.2, -4], [5.2, 0.25], [4.4, 0.25], [4.4, 0.5], [3.6, 0.5], [3.6, 0.75], [0, 0.75]], 24);
+  b.mat_(M.GOLD).lathe([[3.3, 0.76], [3.1, 0.77]], 24);
+  b.mat_(M.MARBLE).prism(1.5, 1.3, 0.75, 2.2, 8, { capTop: true });
+  b.mat_(M.FRIEZE).prism(1.32, 1.32, 1.2, 2.0, 8);
+  b.mat_(M.MARBLE).lathe([[1.05, 2.2], [0.9, h * 0.35], [0.72, h * 0.7]], 8, { smooth: false, phase: Math.PI / 8 });
+  b.mat_(M.GOLD);
+  for (const f of [0.3, 0.5, 0.7]) b.lathe([[1.0 - f * 0.36, h * f - 0.12], [1.12 - f * 0.36, h * f], [1.0 - f * 0.36, h * f + 0.12]], 8, { smooth: false, phase: Math.PI / 8 });
+  const cy = h * 0.86;
+  for (let k = 0; k < 4; k++) {
+    b.push().rotateY((k / 4) * Math.PI * 2 + Math.PI / 4);
+    // Each prong sweeps out and back in around the crystal.
+    const pts = [[0.55, h * 0.7], [1.5, h * 0.76], [1.75, h * 0.84], [1.3, h * 0.93], [0.5, h * 1.0]];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [r0, y0] = pts[i], [r1, y1] = pts[i + 1], w = 0.16 - i * 0.025;
+      b.quad([r0, y0, -w], [r1, y1, -w], [r1, y1, w], [r0, y0, w]);
+      b.quad([r0, y0, w], [r1, y1, w], [r1 - 0.2, y1, w], [r0 - 0.2, y0, w]);
+      b.quad([r0 - 0.2, y0, -w], [r1 - 0.2, y1, -w], [r1, y1, -w], [r0, y0, -w]);
+      b.quad([r0 - 0.2, y0, w], [r1 - 0.2, y1, w], [r1 - 0.2, y1, -w], [r0 - 0.2, y0, -w]);
+    }
+    b.pop();
+  }
+  b.mat_(M.MARBLE).lathe([[0.72, h * 0.7], [0.9, h * 0.72], [0.4, h * 0.76], [0, h * 0.77]], 8);
+  return cy;
 }

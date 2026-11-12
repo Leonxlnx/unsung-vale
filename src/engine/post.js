@@ -58,6 +58,8 @@ uniform sampler2D uColor;
 uniform sampler2D uDepth;
 uniform sampler2D uVol;
 uniform vec3 uVolInfo;     // x: enabled, y: march distance, z: unused
+uniform vec4 uMute[3];     // xz centre, radius, strength: where the land has fallen silent
+uniform float uTimeF;
 uniform vec2 uVolSize;
 uniform vec3 uSunDir;
 uniform vec3 uSunColor;
@@ -89,6 +91,19 @@ void main() {
   vec3 vp = viewPosFromDepth(vUv, sky ? 0.5 : d);
   float dist = sky ? 1.0e5 : length(vp);
   vec3 rd = normalize(worldFromView(vp) - uCamPos);
+  if (!sky) {
+    // Silence drains the colour out of the world; a thin warm rim marks its edge.
+    vec3 wp = uCamPos + rd * dist;
+    for (int i = 0; i < 3; i++) {
+      if (uMute[i].w <= 0.001) continue;
+      float d = distance(wp.xz, uMute[i].xy) + (vnoise(wp.xz * 0.21) - 0.5) * 7.0 + sin(uTimeF * 0.7 + wp.x * 0.05) * 0.8;
+      float m = (1.0 - smoothstep(uMute[i].z - 5.0, uMute[i].z, d)) * uMute[i].w;
+      float g = luma(col);
+      col = mix(col, vec3(g) * vec3(0.78, 0.82, 0.93) * 0.78, m * 0.9);
+      float rim = exp(-sq((d - uMute[i].z) / 1.6)) * uMute[i].w;
+      col += vec3(1.0, 0.72, 0.35) * rim * (0.05 + g * 0.5);
+    }
+  }
   if (uVolInfo.x > 0.5) {
     vec4 v = volumetric(dist);
     vec4 far = vec4(0.0, 0.0, 0.0, 1.0);
@@ -228,12 +243,14 @@ export class FogPass {
     const g = pipe.globals;
     this.haze = new THREE.Vector4(7.5e-5, 900, 0.06, 0);
     this.mist = new THREE.Vector4(3.2e-4, 45, 2, 0);
+    this.mute = [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()];
     this.uniforms = { uHaze: { value: this.haze }, uMist: { value: this.mist } };
     this.pass = new FullscreenPass({
       fragment: FOG_PASS,
       defines: pipe.depthDefines,
       uniforms: {
         uColor: { value: null }, uDepth: { value: null }, uVol: { value: null }, uVolInfo: { value: new THREE.Vector3() }, uVolSize: { value: new THREE.Vector2(1, 1) },
+        uMute: { value: this.mute }, uTimeF: g.uTime,
         ...pipe.camUniforms, ...pipe.sky.uniforms, ...this.uniforms, uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH,
       },
     });
