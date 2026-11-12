@@ -179,6 +179,26 @@ export class Architecture {
           const a0 = (k / 12) * Math.PI * 2;
           q.at(Math.cos(a0) * 16.5, 0.12, Math.sin(a0) * 16.5, 0, (g) => column(g, 0.42, k % 5 === 0 ? 3.2 : 6.4, { sides: 12 }));
         }
+        // What is left of the ring beam: two spans still rest on their columns.
+        for (const k of [1, 6]) {
+          const a0 = (k / 12) * Math.PI * 2, a1 = ((k + 1) / 12) * Math.PI * 2;
+          const x0 = Math.cos(a0) * 16.5, z0 = Math.sin(a0) * 16.5, x1 = Math.cos(a1) * 16.5, z1 = Math.sin(a1) * 16.5;
+          q.at(x0, 6.52, z0, Math.atan2(-(z1 - z0), x1 - x0), (g) => {
+            const len = Math.hypot(x1 - x0, z1 - z0);
+            g.mat_(M.MARBLE).box(-0.7, 0, -0.5, len + 1.4, 0.55, 1.0);
+            g.mat_(M.FRIEZE).box(-0.6, 0.55, -0.44, len + 1.2, 0.5, 0.88, '-y');
+            g.mat_(M.MARBLE).box(-0.8, 1.05, -0.58, len + 1.6, 0.22, 1.16);
+          });
+        }
+        // Where columns have fallen, their drums lie in the grass at the edge of the paving.
+        for (const [k, turn] of [[3, 0.5], [8, -0.35]]) {
+          const a0 = (k / 12) * Math.PI * 2, cx0 = Math.cos(a0) * 17.2, cz0 = Math.sin(a0) * 17.2;
+          for (let i = 0; i < 3; i++) {
+            q.push().translate(cx0 + Math.cos(a0 + 1.57) * (i * 1.9 - 1.6), 0.5, cz0 + Math.sin(a0 + 1.57) * (i * 1.9 - 1.6) + i * 0.4).rotateY(a0 + turn + i * 0.3).rotateZ(Math.PI / 2);
+            q.mat_(M.MARBLE).lathe([[0, -0.75], [0.42, -0.75], [0.42, 0.75], [0, 0.75]], 12);
+            q.pop();
+          }
+        }
       });
       for (const a0 of [0.6, 2.2, 3.8, 5.4]) lamp(b, sx + Math.cos(a0) * 20.5, H(sx + Math.cos(a0) * 20.5, sz + Math.sin(a0) * 20.5), sz + Math.sin(a0) * 20.5);
       finish(b);
@@ -209,6 +229,12 @@ export class Architecture {
         q.mat_(M.GOLD).lathe([[14.4, 0.13], [14.0, 0.135]], 40);
         const cyl = tuningSpire(q, 24);
         out.spires.push({ id: 'cantor', x: sx, y: y + cyl, z: sz, base: y, h: 24 });
+        for (let k = 0; k < 6; k++) {
+          const a0 = (k / 6) * Math.PI * 2 + 0.26, px = Math.cos(a0) * 19.6, pz = Math.sin(a0) * 19.6;
+          let top = 0;
+          q.at(px, 0.12, pz, 0, (g) => { top = planter(g, 0.8); });
+          out.planters.push([sx + px, y + 0.12 + top, sz + pz]);
+        }
       });
       const hx = 96, hz = -590;
       b.at(hx, H(hx, hz), hz, 0, (q) => hall(q, { w: 50, d: 19, h: 25, bays: 7, detail: 1, foot: 10 }));
