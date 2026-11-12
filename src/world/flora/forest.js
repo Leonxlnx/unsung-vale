@@ -454,7 +454,7 @@ export class Forest {
         const kind = fbm(x / 290, z / 290, 2, 777) * 0.5 + 0.5;
         let sp;
         if (r2 < 0.12) sp = 'cypress';
-        else if (low) sp = r3 < 0.72 ? 'green' : r3 < 0.88 ? 'ember' : 'elder';
+        else if (low) sp = r3 < 0.8 ? 'green' : r3 < 0.9 ? 'ember' : r3 < 0.96 ? 'elder' : 'blossom';
         else if (kind < 0.4) sp = r3 < 0.5 ? 'ember' : r3 < 0.88 ? 'green' : 'elder';
         else if (kind < 0.55) sp = r3 < 0.5 ? 'blossom' : r3 < 0.8 ? 'green' : 'ember';
         else sp = r3 < 0.68 ? 'green' : r3 < 0.86 ? 'elder' : 'blossom';

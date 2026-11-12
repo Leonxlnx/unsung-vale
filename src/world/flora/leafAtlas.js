@@ -97,8 +97,8 @@ void main() {
   vec3 mean = vec3(0.1);
   int count = 380; float sMin = 0.034, sMax = 0.056;
   if (uKind == 0) { mean = srgb(0.5, 0.09, 0.07); }
-  if (uKind == 1) { count = 420; sMin = 0.026; sMax = 0.044; mean = srgb(0.84, 0.54, 0.62); }
-  if (uKind == 2) { count = 460; sMin = 0.022; sMax = 0.036; mean = srgb(0.66, 0.57, 0.8); }
+  if (uKind == 1) { count = 420; sMin = 0.026; sMax = 0.044; mean = srgb(0.9, 0.68, 0.73); }
+  if (uKind == 2) { count = 460; sMin = 0.022; sMax = 0.036; mean = srgb(0.78, 0.72, 0.85); }
   if (uKind == 3) { count = 240; sMin = 0.08; sMax = 0.14; mean = srgb(0.1, 0.2, 0.09); }
   if (uKind == 4) { count = 380; sMin = 0.034; sMax = 0.056; mean = srgb(0.2, 0.36, 0.1); }
   for (int i = 0; i < 460; i++) {
@@ -120,8 +120,8 @@ void main() {
     if (dot(q, q) > 1.6) continue;
     vec4 l;
     if (uKind == 0) l = maple(q, id);
-    else if (uKind == 1) l = id < 0.8 ? flower(q, id, srgb(0.9, 0.56, 0.66), srgb(0.72, 0.22, 0.4), 5.0) : ovate(q, id, srgb(0.32, 0.4, 0.14), srgb(0.5, 0.36, 0.2), 0.3);
-    else if (uKind == 2) l = id < 0.86 ? flower(q, id, srgb(0.7, 0.6, 0.86), srgb(0.48, 0.36, 0.74), 4.0) : ovate(q, id, srgb(0.36, 0.5, 0.22), srgb(0.5, 0.58, 0.3), 0.3);
+    else if (uKind == 1) l = id < 0.8 ? flower(q, id, srgb(0.95, 0.73, 0.78), srgb(0.82, 0.42, 0.54), 5.0) : ovate(q, id, srgb(0.32, 0.4, 0.14), srgb(0.5, 0.36, 0.2), 0.3);
+    else if (uKind == 2) l = id < 0.86 ? flower(q, id, srgb(0.83, 0.77, 0.9), srgb(0.62, 0.53, 0.8), 4.0) : ovate(q, id, srgb(0.36, 0.5, 0.22), srgb(0.5, 0.58, 0.3), 0.3);
     else if (uKind == 3) l = ovate(q, id, srgb(0.07, 0.17, 0.08), srgb(0.16, 0.3, 0.12), 0.11);
     else l = ovate(q, id, srgb(0.16, 0.33, 0.08), srgb(0.36, 0.5, 0.13), 0.34);
     // Leaves drawn later sit on top and cast a soft darkening on those beneath.
