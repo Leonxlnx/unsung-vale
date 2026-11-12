@@ -107,7 +107,7 @@ void main() {
       float d = distance(wp.xz, uMute[i].xy) + (vnoise(wp.xz * 0.21) - 0.5) * 7.0 + sin(uTimeF * 0.7 + wp.x * 0.05) * 0.8;
       float m = (1.0 - smoothstep(uMute[i].z - 5.0, uMute[i].z, d)) * uMute[i].w;
       float g = luma(col);
-      col = mix(col, vec3(g) * vec3(0.78, 0.82, 0.93) * 0.78, m * 0.9);
+      col = mix(col, vec3(g) * vec3(0.86, 0.9, 1.0) * 0.94, m * 0.9);
       float rim = exp(-sq((d - uMute[i].z) / 1.6)) * uMute[i].w;
       col += vec3(1.0, 0.72, 0.35) * rim * (0.05 + g * 0.5);
     }

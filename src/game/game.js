@@ -32,7 +32,9 @@ void main() {
   vec3 base = modelMatrix[3].xyz;
   vec2 d = normalize(cameraPosition.xz - base.xz);
   vec3 right = vec3(d.y, 0.0, -d.x);
-  vWorld = base + right * position.x + vec3(0.0, position.y, 0.0);
+  // Widen with distance so the pillar of light still reads from across the valley.
+  float widen = 1.0 + distance(cameraPosition.xz, base.xz) * 0.012;
+  vWorld = base + right * position.x * widen + vec3(0.0, position.y, 0.0);
   vUv = uv;
   gl_Position = projectionMatrix * viewMatrix * vec4(vWorld, 1.0);
 }`;
@@ -41,7 +43,7 @@ uniform vec3 uColor; uniform float uPower; uniform float uTime;
 in vec2 vUv; in vec3 vWorld;
 void main() {
   float x = abs(vUv.x - 0.5) * 2.0;
-  float core = exp(-x * x * 60.0) * 2.0 + exp(-x * x * 5.0) * 0.35;
+  float core = exp(-x * x * 70.0) * 9.0 + exp(-x * x * 6.0) * 1.6;
   float rise = 0.75 + 0.25 * sin(vUv.y * 60.0 - uTime * 6.0);
   float fade = (1.0 - smoothstep(0.55, 1.0, vUv.y)) * smoothstep(0.0, 0.01, vUv.y);
   float a = core * rise * fade * uPower;

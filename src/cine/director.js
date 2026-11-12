@@ -97,8 +97,10 @@ export class Director {
         dur: 6.5,
         setup: (d) => d.game.cineSetup({ tuned: [], player: [terrace[0] + 15.5, terrace[1] + 0.05, terrace[2] - 1.5, Math.PI / 2] }),
         update: (d, t, k) => {
-          const p = along([[terrace[0] - 9, terrace[1] + 0.75, terrace[2] + 8], [terrace[0] + 1, terrace[1] + 1.25, terrace[2] + 5.5], [terrace[0] + 8.5, terrace[1] + 1.9, terrace[2] + 2.6]], k);
-          d.cam(p, [terrace[0] + 300, terrace[1] + 34 - 10 * k, terrace[2] + 40], lerp(33, 37, k));
+          // Drift up behind the Cantor so the rings rise over his shoulder.
+          const h = d.game.player.pos;
+          const p = along([[h.x - 15, h.y + 0.9, h.z - 5.5], [h.x - 9.5, h.y + 1.35, h.z - 3.6], [h.x - 5.2, h.y + 1.9, h.z - 2.0]], k);
+          d.cam(p, [h.x + 260, h.y + 38 - 8 * k, h.z + 70], lerp(34, 38, k));
         },
       },
       { // 2. Down the valley between the mesas.
@@ -116,10 +118,10 @@ export class Director {
         update: (d, t, k) => {
           const p = d.game.player.pos;
           d.walkTo(vc[0], vc[1], { sprint: true, stop: 6 });
-          // Long lens from out over the drop, on the shaded side, looking into the sun.
+          // A crane out over the drop on the shaded side: he runs past, the sun behind him.
           const side = [-vdir[1], vdir[0]];
-          const lead = 9 - 6 * k;
-          d.cam([p.x - side[0] * 15 + vdir[0] * lead, p.y + 1.1 + 1.4 * k, p.z - side[1] * 15 + vdir[1] * lead], [p.x + vdir[0] * 1.5, p.y + 1.25, p.z + vdir[1] * 1.5], 27);
+          const lead = 11 - 17 * k;
+          d.cam([p.x - side[0] * 8.5 + vdir[0] * lead, p.y + 3.6 - 1.2 * k, p.z - side[1] * 8.5 + vdir[1] * lead], [p.x + vdir[0] * 0.8, p.y + 1.15, p.z + vdir[1] * 0.8], 36);
         },
       },
       { // 4. The Petal Court lies silent; the Mute pull themselves together.
@@ -176,7 +178,8 @@ export class Director {
         update: (d, t, k) => {
           const p = d.game.player.pos;
           d.walkTo(lerp(br.from[0], br.to[0], 0.25), lerp(br.from[2], br.to[2], 0.25), { stop: 1 });
-          d.cam([br.from[0] - 7 + 3 * k, br.from[1] + 5.5 + 2.5 * k, br.from[2] - 15 + 3 * k], [lerp(p.x, br.to[0], 0.35), lerp(p.y, br.to[1], 0.35) + 1, lerp(p.z, br.to[2], 0.35)], 40);
+          // From beside the gate, just past it: the bridge runs away below toward the Choir.
+          d.cam([br.from[0] + 12 - 3 * k, br.from[1] + 4.2 + 2.2 * k, br.from[2] + 3 - 5 * k], [lerp(p.x, br.to[0], 0.3), lerp(p.y, br.to[1], 0.3) + 1, lerp(p.z, br.to[2], 0.3)], 42);
         },
       },
       { // 8. The valley at day's end.

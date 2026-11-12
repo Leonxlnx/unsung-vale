@@ -761,6 +761,15 @@ def build_legs(g):
           w='UpperLeg.L', ref=kc)
     g.end(mirror='both')
 
+    # small fan plate on the outer side of each knee
+    wc = KNEE + V(0.022, 0.012, 0.0)
+    g.begin('poleyn_wings')
+    shell(g, cap_patch(wc, V(1, 0, 0), V(0, 1, 0), UP, 0.050, 0.050, 0.056, radians(42), radians(44),
+                       pinch=0.8),
+          4, 4, thick=0.004, eu0='trim', eu1='trim', ev0='trim', ev1='trim', tw=0.006, th=0.0018,
+          w='UpperLeg.L', ref=wc)
+    g.end(mirror='both')
+
     def greave(u, v):
         ang = 2 * pi * u
         zt = 0.447 + 0.022 * cos(ang)
@@ -791,8 +800,6 @@ def build_legs(g):
                 (0.070, 0.033, 0.070, 0.004),
                 (0.079, 0.018, 0.032, 0.012)])
     lame_edges = [-0.196, -0.166, -0.136, -0.106, -0.076, -0.046]
-    ys = []
-    y = 0.079
     stations = [0.079, 0.070, 0.055, 0.035, 0.010, -0.015]
     for e in reversed(lame_edges):
         stations += [e + 0.0145, e + 0.002, e - 0.002]
@@ -987,7 +994,6 @@ HP_FIST = HandPath((radians(84), radians(96), radians(42)), FIST_YAW)
 
 def grip_frame_left():
     """Where a held sword sits, expressed for a LEFT fist (mirrored for the right hand)."""
-    pos, T, X, D = HP_FIST.frame(0.080)
     yw = FIST_YAW
     Xg = (AF * cos(yw) + AD * sin(yw)).normalized()        # grip axis, towards the thumb side
     Tg = (AD * cos(yw) - AF * sin(yw)).normalized()        # knuckle direction
@@ -1163,7 +1169,7 @@ def w_hood_line(p, u, v):
 
 def build_head(g):
     g.begin('mask')
-    shell(g, mask_pt, 12, 14, thick=0.004, mat='Mask', bev=0.0018, w='Head', sharp=40,
+    shell(g, mask_pt, 10, 12, thick=0.004, mat='Mask', bev=0.0018, w='Head', sharp=40,
           ref=V(0, 0, 1.68))
     g.end()
 
@@ -1174,7 +1180,7 @@ def build_head(g):
         return p + V(0, -0.0012, 0)
 
     g.begin('mask_line')
-    shell(g, line, 1, 14, thick=0.003, mat='Gold', bev=0.0007, w='Head', ref=V(0, 0, 1.68))
+    shell(g, line, 1, 12, thick=0.003, mat='Gold', bev=0.0007, w='Head', ref=V(0, 0, 1.68))
     g.end()
 
     g.begin('hood')
@@ -1196,8 +1202,25 @@ def build_head(g):
         return p + n * 0.0022
 
     g.begin('hood_line')
-    shell(g, back_line, 1, 40, thick=0.004, mat='Gold', bev=0.0008, w=w_hood_line, sharp=60,
+    shell(g, back_line, 1, 30, thick=0.004, mat='Gold', bev=0.0008, w=w_hood_line, sharp=60,
           ref=V(0, 0.0, 1.35))
+    g.end()
+
+    # faceted clasp where the mantle comes to a point on the chest
+    c = hood_surf(0.5, 0.975)
+    tv = (hood_surf(0.5, 0.95) - hood_surf(0.5, 1.0)).normalized()
+    nx = V(1, 0, 0)
+    nn = nx.cross(tv).normalized()
+    if nn.y > 0:
+        nn = -nn
+    c = c + nn * 0.004
+    wt = w_hood(c, 0.5, 0.975)
+    g.begin('mantle_clasp')
+    ids = [g.vert(p, wt) for p in (c + nn * 0.008, c - nn * 0.006, c + nx * 0.013, c + tv * 0.021,
+                                   c - nx * 0.013, c - tv * 0.021)]
+    for a, b in ((2, 3), (3, 4), (4, 5), (5, 2)):
+        g.face((ids[0], ids[a], ids[b]), 'Gold', 1.0)
+        g.face((ids[1], ids[b], ids[a]), 'Gold', 1.0)
     g.end()
 
 
@@ -1258,7 +1281,7 @@ def w_cape(p, u, v):
 def tabard_front(u, v):
     a = 2 * u - 1
     zb = 0.470 + 0.105 * abs(a) ** 1.15
-    z = lerp(0.962, zb, v)
+    z = lerp(0.952, zb, v)
     ph = lerp(0.50, 0.43, v)
     p = skirt_pt(a * ph, max(z, 0.84), lerp(0.031, 0.041, v))
     p.z = z
@@ -1269,7 +1292,7 @@ def tabard_front(u, v):
 def tabard_back(u, v):
     a = 2 * u - 1
     zb = 0.490 + 0.070 * abs(a) ** 1.3
-    z = lerp(0.962, zb, v)
+    z = lerp(0.952, zb, v)
     ph = lerp(0.62, 0.56, v)
     p = skirt_pt(pi + a * ph, max(z, 0.86), lerp(0.031, 0.036, v))
     p.z = z
@@ -1291,7 +1314,7 @@ SCAB_LEN = 0.94
 
 def build_cloth(g):
     g.begin('cape')
-    shell(g, cape_pt, 24, 16, thick=0.006, mat='Cape', ev1='trim', tw=0.013, th=0.0012, bev=0.0015,
+    shell(g, cape_pt, 30, 16, thick=0.006, mat='Cape', ev1='trim', tw=0.013, th=0.0012, bev=0.0015,
           w=w_cape, sharp=65, ref=V(0, 0, 0.9))
     g.end()
     g.begin('tabard_front')
@@ -1302,6 +1325,20 @@ def build_cloth(g):
     shell(g, tabard_back, 6, 10, thick=0.004, mat='Cloth', eu0='trim', eu1='trim', ev1='trim', tw=0.009,
           th=0.0012, bev=0.001, w=w_tab('Tabard.B'), sharp=60, ref=V(0, 0, 0.75))
     g.end()
+    # ... and the same single gilded line down the middle of both tabards
+    for nm, fn, bone, sy in (('tabard_front_line', tabard_front, 'Tabard.F', -1.0),
+                             ('tabard_back_line', tabard_back, 'Tabard.B', 1.0)):
+        def line(u, v, fn=fn, sy=sy):
+            p = fn(0.5 + (u - 0.5) * 0.046, lerp(0.06, 0.915, v))
+            p.y += sy * 0.0022
+            return p
+
+        def wl(p, u, v, bone=bone):
+            return w_tab(bone)(p, 0.5, lerp(0.06, 0.915, v))
+
+        g.begin(nm)
+        shell(g, line, 1, 10, thick=0.003, mat='Gold', bev=0.0008, w=wl, sharp=60, ref=V(0, 0, 0.75))
+        g.end()
 
     # scabbard on the left hip
     d = SCAB_DIR
