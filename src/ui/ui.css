@@ -65,6 +65,7 @@
 #hud .compass b { position: absolute; left: 50%; top: 11px; width: 20px; margin-left: -10px; text-align: center; font-family: var(--display); font-size: 14px; font-weight: 400; color: var(--ink); transition: opacity 0.2s; }
 #hud .compass b[data-c='N'] { color: var(--gold); }
 #hud .compass .pin { position: absolute; left: 50%; top: -3px; width: 8px; height: 8px; margin-left: -4px; background: var(--gold); transition: opacity 0.3s; box-shadow: 0 0 0 1.5px rgba(10, 12, 16, 0.6); }
+#hud .compass .pin.relic { background: rgba(10, 12, 16, 0.55); box-shadow: inset 0 0 0 1.6px var(--gold), 0 0 0 1px rgba(10, 12, 16, 0.5); width: 8px; height: 8px; margin-left: -4px; top: -3px; }
 #hud .compass .pin.side { background: var(--night); box-shadow: 0 0 0 1.5px var(--ink); width: 6px; height: 6px; margin-left: -3px; top: -2px; }
 #hud .compass .needle { position: absolute; left: 50%; top: 0; width: 1px; height: 11px; background: var(--ink); }
 

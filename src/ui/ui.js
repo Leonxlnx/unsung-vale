@@ -47,7 +47,7 @@ export class UI {
     this.root = h(`<div id="ui">
       <div id="hud" class="screen">
         <div class="hurt"></div>
-        <div class="compass"><div class="ticks"></div><b data-c="N">N</b><b data-c="E">E</b><b data-c="S">S</b><b data-c="W">W</b><i class="pin goal"></i><i class="pin side"></i><div class="needle"></div></div>
+        <div class="compass"><div class="ticks"></div><b data-c="N">N</b><b data-c="E">E</b><b data-c="S">S</b><b data-c="W">W</b><i class="pin goal"></i><i class="pin side"></i><i class="pin relic"></i><div class="needle"></div></div>
         <div class="goal"><div class="main"><i></i><span></span></div><div class="quest"><b></b><span></span><em></em></div></div>
         <div class="boss"><div class="name"></div><div class="meter"><i class="ghost"></i><i class="fill"></i><div class="notches"></div></div></div>
         <div class="reticle"></div>
@@ -122,7 +122,7 @@ export class UI {
       reticle: $('#hud .reticle'), hurt: $('#hud .hurt'), toast: $('#hud .toast'), toastBig: $('#hud .toast .big'), toastSmall: $('#hud .toast .small'), card: $('#hud .card'), cardTitle: $('#hud .card b'), cardText: $('#hud .card span'),
       hints: $('#hud .hints'), fps: $('#hud .fps'), grab: $('#hud .grab'), tally: $('#hud .tally'), beat: $('#hud .beat'), beatCue: $('#hud .beat .cue'), beatRing: $('#hud .beat .cue i'), beatPips: $('#hud .beat .pips'),
       foes: $$('#hud .foe'), bark: $('#hud .bark'), refrain: $('#hud .refrain'), cadence: $('#hud .cadence'),
-      compass: $('#hud .compass'), ticks: $('#hud .compass .ticks'), card4: $$('#hud .compass b'), pinGoal: $('#hud .compass .pin.goal'), pinSide: $('#hud .compass .pin.side'),
+      compass: $('#hud .compass'), ticks: $('#hud .compass .ticks'), card4: $$('#hud .compass b'), pinGoal: $('#hud .compass .pin.goal'), pinSide: $('#hud .compass .pin.side'), pinRelic: $('#hud .compass .pin.relic'),
       talk: $('#talk'), talkName: $('#talk .who b'), talkRole: $('#talk .who span'), talkText: $('#talk p'), talkNext: $('#talk .next'),
       tabBody: $('#settings .tabbody'), play: $('[data-act="play"]'), newGame: $('[data-act="new"]'),
       land: $('#journey .land'), over: $('#journey .over'), chart: $('#journey .chart'), tip: $('#journey .tip'), legend: $('#journey .legend'), journal: $('#journey .pane.journal'), hero: $('#journey .pane.hero'), stats: $('#ending .stats'),
@@ -419,6 +419,10 @@ export class UI {
       node.style.transform = `translateX(${x.toFixed(1)}px) rotate(45deg)`; node.style.opacity = '1';
     };
     pin(el.pinGoal, g.marker); pin(el.pinSide, this._tr?.mark ?? null);
+    // A reliquary he has been told of, when it is near: a small open square on the strip.
+    { const R = g.reliquaries; let rel = null, bd = 130; for (const r of R.list) { if (!R.known(r)) continue; const d = Math.hypot(r.x - p.x, r.z - p.z); if (d < bd) { bd = d; rel = r; } }
+      if (!rel) el.pinRelic.style.opacity = '0';
+      else { const d = wrap(Math.atan2(rel.x - p.x, rel.z - p.z) - yaw), x = Math.max(-112, Math.min(112, -d * COMPASS)); el.pinRelic.style.transform = `translateX(${x.toFixed(1)}px)`; el.pinRelic.style.opacity = '1'; } }
   }
 
   // --- the journey screens: map, journal, hero ---
