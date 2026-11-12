@@ -6,8 +6,11 @@ or image textures; only the audio comes from outside (see `CREDITS.md`).
 ## World
 
 - **Frame**: metres, +y up. The valley runs west to east (+x). Water level is y = 0. The sun
-  sits low in the east-south-east (`WORLD.sun` in `src/world/layout.js`), so looking down
-  the valley is looking into the light.
+  sits low in the east-south-east (`WORLD.sun` in `src/world/layout.js`, azimuth 33,
+  elevation 12): from the Dawn Terrace it stands just to the right of the great tree. It is
+  in the picture, with its glow and shafts, but off the valley's axis, so the light rakes
+  across cliffs, terraces and the rings instead of leaving everything backlit. The terrain
+  shadow maps are baked on the GPU at load, so the sun can be moved without `npm run world`.
 - **Layout** (`src/world/layout.js`): pure data and math shared by the Node builder and the
   browser. Hand-placed mesas for the playable core (`CORE_MESAS`: dawn, petal, cantor, east,
   choir, aurel, crown ...), procedural mesas for the surrounding region, mesa-top pools.
@@ -29,6 +32,11 @@ or image textures; only the audio comes from outside (see `CREDITS.md`).
   2048 on High/Ultra, 4096 for the film); `uCloudTint` warms the sunlight on the clouds.
   A small resolved copy with mips (`uSkyEnv`) serves fog colour and reflections; SH9
   ambient is computed on the CPU after each sweep. `SKY_SAMPLE`, `SH_GLSL` are the GLSL.
+  Two art-direction terms sit on top of the physics: `sky.sunBoost` lifts the direct beam
+  above what the baked sky implies (evening sun on level ground should be about twice the
+  skylight; the bake alone gives equal parts and reads flat), and the cloud field thins
+  inside a cone around the sun so the disc breaks through a gap. The sky pass adds an
+  aureole around the disc.
 - `lighting.js`: `shadeSurface()` (GGX + sky ambient + env reflection), `bounceLight()`
   (sunlight returned by lit cliffs, strength `uBounce`) and `sunVisibility(p)` = terrain
   shadow x object shadow x cloud shade.
@@ -40,7 +48,9 @@ or image textures; only the audio comes from outside (see `CREDITS.md`).
   receivers from shadowing themselves. Skinned casters copy their source's bind matrix in
   `_sync()`. `objectShadow()` has one exit on purpose: several returns inside its loop
   were miscompiled by the D3D backend.
-- `volumetrics.js`: quarter-resolution ray-march of haze and mist with light shafts.
+- `volumetrics.js`: quarter-resolution ray-march of haze and mist with light shafts. The
+  mist layer (`fog.mist`: density, scale height, base) fills the valley to well above the
+  lake so the shafts have something to show up in; `fog.haze` is the thin air everywhere.
 - `post.js`: fog composite (`FOG_GLSL`, `DEPTH_GLSL`), TAA, bloom.
 - `forge.js`: `TextureForge` bakes tileable PBR layers from GLSL `material()` functions into
   array textures A (albedo + height) and B (normal xy, roughness, AO).
@@ -76,9 +86,18 @@ Conventions that matter:
   `blocks()` builds fracture cells with a squared-off distance so joints run like real ones.
 - `water.js`: lake at y = 0 and pool discs; refraction, screen-space reflection, sun glitter.
 - `waterfalls.js`: ballistic ribbons hugging the cliffs plus soft spray particles.
-- `flora/treegen.js`: branching skeleton -> wood tubes + leaf cards per species.
-  `flora/leafAtlas.js`: leaf/blossom cluster textures. `flora/forest.js`: placement, three
-  levels of detail (near mesh, mid mesh, baked billboard) with dithered hand-over.
+- `flora/treegen.js`: branching skeleton -> wood tubes + leaf cards per species. Each main
+  bough carries one "lobe" of the crown; card normals are computed per corner from the crown
+  centre and the lobe centre, so flat cards shade as one soft, billowed canopy.
+  `flora/leafAtlas.js`: leaf/blossom cluster textures, two array textures: colour + coverage,
+  and per-leaf data (normal tilt, thinness) so each leaf catches light on its own and glows
+  when backlit. Layers: 0 maple, 1 pink blossom, 2 pale blossom, 3 conifer, 4 green leaf,
+  5-8 meadow flowers, 9 wisteria racemes. `flora/forest.js`: placement, three levels of
+  detail (near mesh, mid mesh, baked billboard) with dithered hand-over; `uLeafTile` repeats
+  the spray inside a card (the great tree uses 4 so its leaves stay in scale).
+  `flora/cliffVines.js`: ribbons of leaf sprays that start on the turf at a mesa rim and
+  hang down the rock, each row pushed out to where the face actually is; kept off buildings,
+  waterfalls and routes by an exclusion callback.
   `flora/grass.js`: vertex-lit grass and flowers in camera-following cells. `meadow.js` holds
   the meadow's palette and patches (lush, olive, golden, low clover) as GLSL shared by the
   blades and by the terrain under them, so gaps between blades read as more grass.
@@ -89,10 +108,16 @@ Conventions that matter:
 - `arch/builder.js`: `MeshBuilder` (boxes, lathes, arches) with per-vertex material ids.
   `arch/kit.js`: lancet, tower, hall, pavilion, terrace, arcade, viaduct, citadel, the
   tuning spire and the stepped cliff quarters.
-  `arch/archMaterial.js`: stone/gold/tile/glass layers and the triplanar shader.
+  `arch/archMaterial.js`: stone/gold/tile/glass layers and the triplanar shader. Floors
+  inside a court listed in `uPlazas` (`sites.plazas`: centre, radius, points) carry an
+  inlaid rose of polished marble and banded borders; all paving gets drifts of fallen petals.
+  `arch/floorGloss.js`: screen-space reflections for those floors, drawn as additive sheets
+  in `sceneT` (one jittered mirror ray per pixel, blended into a soft reflection by TAA;
+  setting `reflections`, on for High, Ultra and the film).
   `arch/sites.js`: where things are built.
 - `landmarks.js`: the Lattice rings. `dressing.js`: banners, wisteria, drifting petals,
-  butterflies over the meadows, birds.
+  butterflies over the meadows, birds, and dust motes that blaze when the sun is behind
+  them (additive, in `sceneT`).
 
 ## Performance targets
 
@@ -151,3 +176,8 @@ two thirds scale. `tools/profile.mjs` times a frame with parts of the scene swit
 `?perf=1` benchmarks the presets (`tools/perf.mjs`),
 `?capture=1...` is used by the film capture. Editing files under `src/` while a capture is
 running makes Vite reload the page and ruins the render.
+
+Setting `sessionStorage.uvHold = '1'` in a dev page stops it drawing on its own, so frames are
+only rendered when stepped through `__dbg`; useful when the GPU is needed elsewhere.
+To try a sun position without reloading: `pipe.sky.setSun(az, el); terrain.queueBakes();
+pipe.shadows._staticDirty = true`, then `terrain.bakeStep(8)` until it returns 0.
