@@ -139,6 +139,7 @@ export class Pipeline {
       uSunDir: { value: this.sky.sunDir },
       uSunColor: { value: this.sky.sunColor },
       uSH: { value: this.sky.sh },
+      uBounce: { value: 0.05 },          // sunlight returned by lit cliffs and ground, as a share of the sun
       ...this.sky.uniforms,
     };
     this.camUniforms = {
@@ -199,7 +200,7 @@ export class Pipeline {
     const g = this.globals;
     return {
       ...this.sky.uniforms, ...this.shadows.uniforms, ...this.terrainUniforms,
-      uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH, uTime: g.uTime, uFrame: g.uFrame,
+      uSunDir: g.uSunDir, uSunColor: g.uSunColor, uSH: g.uSH, uBounce: g.uBounce, uTime: g.uTime, uFrame: g.uFrame,
       uWeatherTex: { value: this.sky.weather.texture }, uCloudShadow: { value: this.cloudShadow },
     };
   }

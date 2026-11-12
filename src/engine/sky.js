@@ -177,6 +177,7 @@ uniform sampler3D uNoiseDetail;
 uniform sampler2D uWeather;
 uniform sampler2D uAtmo;
 uniform int uSteps;
+uniform vec3 uCloudTint;     // colour of the sunlight that reaches the clouds, relative to physical
 
 const float CLOUD_BOTTOM = 2300.0;
 const float CLOUD_TOP = 5200.0;
@@ -220,7 +221,7 @@ void main() {
   float phase = mix(phaseHG(mu, 0.78), phaseHG(mu, -0.25), 0.42) + 0.05 * phaseHG(mu, 0.97);
   // Sun colour at cloud altitude, evaluated once per pixel.
   vec3 pMid = ro + rd * (0.5 * (t0 + t1));
-  vec3 sunC = uSunE * sunTransmittance(vec3(0.0, RG + altOf(pMid), 0.0));
+  vec3 sunC = uSunE * sunTransmittance(vec3(0.0, RG + altOf(pMid), 0.0)) * uCloudTint;
 
   float T = 1.0, wsum = 0.0, dist = 0.0;
   vec3 L = vec3(0.0);
@@ -242,7 +243,7 @@ void main() {
         vec3 amb = mix(uAmbBottom, uAmbTop, sqrt(h));
         // Thick cloud is dominated by multiple scattering, which is close to isotropic, so
         // blend the single-scatter phase toward 1/(4 pi) and keep the forward peak on top.
-        float phaseEff = mix(phase, 0.0796, 0.62) + 0.35 * phase * tl;
+        float phaseEff = mix(phase, 0.0796, 0.56) + 0.4 * phase * tl;
         vec3 S = (sunC * tl * phaseEff * mix(1.0, powder, 0.5) * PI + amb) * d;
         float e = exp(-d * dt);
         L += T * (S - S * e) / max(d, 1e-6);
@@ -411,6 +412,7 @@ export class Sky {
         uDensity: { value: 0.045 },
         uSeed: { value: 0 },
         uSteps: { value: opts.cloudSteps ?? 44 },
+        uCloudTint: { value: new THREE.Vector3(1.12, 0.86, 0.62) },   // evening light: peach rather than white
         uAmbTop: { value: this.ambTop },
         uAmbBottom: { value: this.ambBottom },
         uNoiseBase: { value: this.noiseBase.texture },
