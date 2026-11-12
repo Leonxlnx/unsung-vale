@@ -70,9 +70,12 @@ export class Player {
     if (this.state === 'roll' && this.stateTime > TUNE.rollIFrames[0] && this.stateTime < TUNE.rollIFrames[1]) { this.emit('evade'); return false; }
     this.health = Math.max(0, this.health - amount);
     this.invulnerable = 0.55; this.sinceHurt = 0;
-    if (from) { _v.copy(this.pos).sub(from).setY(0).normalize(); this.vel.x = _v.x * 5.5; this.vel.z = _v.z * 5.5; }
+    const heavy = amount >= 22 && this.state !== 'swim';
+    if (from) { _v.copy(this.pos).sub(from).setY(0).normalize(); const sp = heavy ? 9 : 6.5; this.vel.x = _v.x * sp; this.vel.z = _v.z * sp; this.hurtDir = Math.atan2(_v.x, _v.z); }
     this.attack = null; this.comboStep = -1;
-    if (this.health <= 0) { this.setState('dead'); this.emit('death'); } else { this.setState('hurt'); this.emit('hurt', { amount }); }
+    if (this.health <= 0) { this.setState('dead'); this.emit('death'); }
+    else if (heavy) { this.setState('down'); this.vel.y = 4.4; this.grounded = false; this.invulnerable = 1.5; if (from) this.yaw = this.hurtDir + Math.PI; this.emit('hurt', { amount, heavy: true }); }
+    else { this.setState('hurt'); this.emit('hurt', { amount }); }
     return true;
   }
 
@@ -211,6 +214,12 @@ export class Player {
       }
       const k = Math.exp(-12 * dt); this.vel.x *= k; this.vel.z *= k;
       if (this.stateTime > P.recover) this.setState('move');
+    } else if (this.state === 'down') {
+      // On his back: slides to a stop, then gets up (a roll gets him up sooner).
+      if (this.grounded) { const k = Math.exp(-7 * dt); this.vel.x *= k; this.vel.z *= k; }
+      if (this.grounded && this.stateTime > 0.5 && input.pressed.has('dodge') && this.spend(T.rollCost * 0.5)) {
+        this.setState('roll'); const d = wishLen > 0.2 ? wish : this.facing; this.rollDir = new THREE.Vector3(d.x, 0, d.z).normalize(); this.yaw = Math.atan2(this.rollDir.x, this.rollDir.z); this.emit('roll');
+      } else if (this.stateTime > 1.15 && this.grounded) { this.setState('move'); this.invulnerable = Math.max(this.invulnerable, 0.35); }
     } else if (this.state === 'hurt') {
       const drag = Math.exp(-6 * dt);
       this.vel.x *= drag; this.vel.z *= drag;

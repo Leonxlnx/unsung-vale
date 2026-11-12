@@ -474,7 +474,14 @@ export class Game {
       this.vfx.wave(p.pos.x, y, p.pos.z, { r0: 0.3, r1: big ? 3.2 : 1.6, life: big ? 0.9 : 1.1, strength: big ? 0.9 : 0.35, width: 0.14, color: [0.5, 0.6, 0.62] });
       if (big) this.particles.burst(p.pos.x, y, p.pos.z, 26, { speed: 3 + Math.min(4, (e.speed ?? 3) * 0.3), life: 0.6, size: 0.05, color: [1.4, 1.6, 1.7], gravity: 12, drag: 0.6, up: 2.5 });
     }
-    if (e.type === 'hurt') { this.rig.addShake(0.4); this.hero?.onHit(); }
+    if (e.type === 'hurt') {
+      // The blow lands: time catches, sparks leave the armour, the view jolts.
+      this.rig.addShake(e.heavy ? 0.8 : 0.45); this.hero?.onHit(); this.hitStop = Math.max(this.hitStop, e.heavy ? 0.1 : 0.05);
+      const a = p.hurtDir ?? p.yaw + Math.PI;
+      this.particles.burst(p.pos.x, p.pos.y + 1.2, p.pos.z, e.heavy ? 34 : 16, { speed: e.heavy ? 9 : 6, life: 0.45, size: 0.05, color: [4.5, 3.2, 1.6], gravity: 14, drag: 1.4, streak: 0.14, dir: [Math.sin(a), 0.4, Math.cos(a)], bias: 4 });
+      this.vfx.wave(p.pos.x, p.pos.y + 1.1, p.pos.z, { kind: 1, r0: 0.2, r1: e.heavy ? 2.6 : 1.5, life: 0.25, strength: e.heavy ? 1.3 : 0.7, width: 0.16, color: [1.6, 0.7, 0.5] });
+      if (e.heavy) this.vfx.wave(p.pos.x, p.pos.y + 0.08, p.pos.z, { r0: 0.3, r1: 3.4, life: 0.5, strength: 0.8, width: 0.1, color: [1.2, 0.5, 0.4] });
+    }
     if (e.type === 'pulse') {
       // Resonance pulse: a ring of force that staggers everything nearby.
       for (let k = 0; k < 56; k++) { const a = (k / 56) * 6.283; this.particles.spawn(p.pos.x, p.pos.y + 1, p.pos.z, { vel: [Math.cos(a) * 15, 0.4, Math.sin(a) * 15], life: 0.55, size: 0.2, color: [3, 2.2, 1.1], drag: 2.5 }); }

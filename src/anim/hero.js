@@ -361,6 +361,7 @@ export class Hero {
     this.hurtK += ((p.state === 'hurt' ? 1 : 0) - this.hurtK) * Math.min(1, 14 * dt);
     this.rollK += ((p.state === 'roll' ? 1 : 0) - this.rollK) * Math.min(1, 15 * dt);
     this.deadK += ((p.state === 'dead' ? 1 : 0) - this.deadK) * Math.min(1, 9 * dt);
+    this.downK = (this.downK ?? 0) + ((p.state === 'down' ? 1 : 0) - (this.downK ?? 0)) * Math.min(1, (p.state === 'down' ? 11 : 5) * dt);
     const tuning = game.prompt && game.input.held.has('interact') ? clamp01((game.prompt.progress ?? 0) * 3 + 0.3) : 0;
     this.tuneK += (tuning - this.tuneK) * Math.min(1, 7 * dt);
     // Ready for a fight while something is awake nearby, and for a moment after a strike.
@@ -386,7 +387,7 @@ export class Hero {
     this.accLean += (Math.max(-1, Math.min(1, acc / 30)) * (moving ? 1 : 0) - this.accLean) * Math.min(1, 7 * dt);
     this.lean += (Math.max(-1, Math.min(1, this.yawVel / 6)) * this.gait - this.lean) * Math.min(1, 6 * dt);
     this.flipK = (this.flipK ?? 0) + ((plunging && !p.plungeHit ? 1 : 0) - (this.flipK ?? 0)) * Math.min(1, 20 * dt);
-    const g = this.gait, sw = ease(clamp01(this.swimK)), ikW = ease(clamp01(1 - this.rollK * 1.2)) * (1 - this.deadK) * (1 - sw) * (1 - this.flipK);
+    const g = this.gait, sw = ease(clamp01(this.swimK)), ikW = ease(clamp01(1 - this.rollK * 1.2)) * (1 - this.deadK) * (1 - sw) * (1 - this.flipK) * (1 - ease(clamp01(this.downK)));
     const kn = Math.max(ease(clamp01(this.kneel ?? 0)), this.impactK ?? 0);
 
     // --- attack channels ---
@@ -526,7 +527,12 @@ export class Hero {
       R.rot('Spine', 0.08 - 0.12 * falling, 0, 0, w);
     }
     if (this.landSquash > 0) { const k = this.landSquash * this.landSquash; R.rot('Spine', 0.3 * k); R.rot('Chest', 0.12 * k); }
-    if (this.hurtK > 0.01) { const w = this.hurtK; R.rot('Spine', -0.3 * w, 0.15 * w); R.rot('Chest', -0.25 * w); R.rot('Head', -0.3 * w); R.rot('UpperArm.L', -0.4 * w, 0, 0.3 * w); }
+if (this.hurtK > 0.01) {
+      const w = this.hurtK, side = Math.sin(wrap((p.hurtDir ?? p.yaw + Math.PI) - p.yaw)), back = -Math.cos(wrap((p.hurtDir ?? p.yaw + Math.PI) - p.yaw));
+      R.rot('Hips', -0.12 * back * w, 0, 0.2 * side * w); R.rot('Spine', -0.34 * back * w, 0.3 * side * w, 0.2 * side * w); R.rot('Chest', -0.28 * back * w, 0.25 * side * w);
+      R.rot('Neck', -0.2 * back * w, -0.3 * side * w); R.rot('Head', -0.3 * back * w, -0.35 * side * w);
+      R.rot('UpperArm.L', -0.5 * w, 0, 0.45 * w); R.rotAxis('LowerArm.L', -0.64, -0.77, 0, 0.5 * w);
+    }
 
     // --- whole-body actions that are posed directly ---
     let rollSpin = 0;
@@ -546,6 +552,14 @@ export class Hero {
       R.rot('UpperArm.L', -0.7 * w); R.rotAxis('LowerArm.L', -0.64, -0.77, 0, 1.2 * w);
       R.rot('UpperArm.R', -0.7 * w); R.rotAxis('LowerArm.R', -0.64, 0.77, 0, 1.2 * w);
       R.rot('Spine', 0.55 * w); R.rot('Chest', 0.45 * w); R.rot('Head', 0.45 * w);
+    }
+    if (this.downK > 0.01) {
+      const k = ease(clamp01(this.downK)), air = p.grounded ? 0 : 1;
+      pelY -= (0.78 - 0.25 * air) * k;
+      R.rot('Hips', -(1.3 - 0.4 * air) * k, 0, 0.12 * k); R.rot('Spine', -0.15 * k); R.rot('Chest', 0.1 * k); R.rot('Head', 0.35 * k);
+      R.rot('UpperLeg.L', (0.5 - 0.9 * air) * k, 0, 0.15 * k); R.rot('LowerLeg.L', (0.7 + 0.5 * air) * k);
+      R.rot('UpperLeg.R', (0.15 - 0.7 * air) * k, 0, -0.2 * k); R.rot('LowerLeg.R', (0.25 + 0.6 * air) * k);
+      R.rot('UpperArm.L', -0.6 * k, 0, 0.9 * k); R.rot('UpperArm.R', -0.5 * k, 0, -0.8 * k);
     }
     if (this.deadK > 0.01) {
       const k = ease(clamp01(p.stateTime / 0.9)) * this.deadK;
@@ -680,7 +694,7 @@ export class Hero {
         this.swG.lerp(tg, k); this.swQ.slerp(tq, k);
       }
       if (this.sheathed) this._scabbardInU(this.swG, this.swQ);       // the hand's target stays on the hilt while it lets go
-      const armW = clamp01(1 - this.rollK * 1.5) * (1 - this.deadK) * (1 - this.armFree) * (1 - sw);
+      const armW = clamp01(1 - this.rollK * 1.5) * (1 - this.deadK) * (1 - this.armFree) * (1 - sw) * (1 - 0.85 * ease(clamp01(this.downK)));
       this._placeSword(this.swG, this.swQ, this.uPos, this.uQ, armW);
       // Second hand on the grip for the heavy strike.
       const two = Math.max(A.two, kn, this.plungeK ?? 0);
