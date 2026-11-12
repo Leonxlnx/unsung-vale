@@ -26,6 +26,7 @@ const MUTE = [
   ['chorister', 'Chorister', 'Marks the ground under you and wards its own. Break it first.'],
   ['seeker', 'Seeker', 'Flies straight at you and bursts. Cut it down, or be elsewhere.'],
   ['brute', 'Brute', 'Slow, until it lowers its head. Step off the line it draws.'],
+  ['toller', 'Toller', 'Its toll runs out along the ground as a ring. Jump it, or roll through it.'],
   ['colossus', 'The Unsung', 'It kept the silence of the Choir. Its second song is harder than its first.'],
   ['sovereign', 'The Stillness', 'It sat in the Crown since the fall. Three songs, each worse.'],
 ];

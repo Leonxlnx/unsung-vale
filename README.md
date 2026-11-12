@@ -91,11 +91,12 @@ turns exactly as far as the hand moves, whatever the system's pointer settings.
   a named elite. The Crown ends with a boss in three phases.
 - Strings of light between the courts: hook the blade over one and ride it across the lake.
   From any pylon the map can send you along several strings to a court already restored.
-- Eight kinds of construct (thrall, lancer, hound, shield-bearing warden, spell-casting
-  chorister, brute, seeker, colossus), tougher veterans and elites of each, and packs that
+- Nine kinds of construct (thrall, lancer, hound, shield-bearing warden, spell-casting
+  chorister, brute, seeker, toller, colossus), tougher veterans and elites of each, and packs that
   roam the mesas. They work together: a chorister throws a ward of light over one of its
   own until the singer is broken, a brute that cannot reach you rushes along a line marked
-  on the ground, seekers fly at you and burst, thralls cut twice.
+  on the ground, seekers fly at you and burst, thralls cut twice, a toller's ring runs along the ground and
+  has to be jumped or rolled through.
 - A fight with some depth to it: a bolt met with the blade goes back at whoever is nearest,
   a heavy blow on a staggered construct rings it like a bell, and blows landed without one
   taken build cadence in four steps, each putting more weight in the blade, until every cut

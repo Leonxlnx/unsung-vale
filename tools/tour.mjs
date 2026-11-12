@@ -205,6 +205,20 @@ if (want('tuning')) {
   await sleep(3200); await shot('finale');
   await sleep(6500); await shot('woken');
 }
+if (want('toll')) {
+  // A Toller and the ring of its toll running out along the ground.
+  await ev(() => {
+    const g = window.__game, p = g.player; window.__dbg.ui(true); window.__tour.clear('toll');
+    window.__tour.tp(-512, 210.5, -66, 1.57, -0.22, 9);
+    const e = g.enemies.spawn('toller', p.pos.x + 9, p.pos.z + 0.5, 'toll', null, p.pos.y);
+    e.state = 'chase'; e.assembled = 1; e.t = 5; e.yaw = -1.57;
+  });
+  await sleep(500); await shot('toll_bell');
+  await sleep(1100); await shot('toll_ring_1');
+  await sleep(450); await shot('toll_ring_2');
+  await sleep(450); await shot('toll_ring_3');
+  await ev(() => window.__tour.clear('toll'));
+}
 if (want('finish')) {
   // The last note: a named Mute nearly spent, ended with one leaping stroke.
   await ev(() => {

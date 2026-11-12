@@ -453,7 +453,7 @@ export class Game {
     this.bridgeProgress = bridge ?? (this.bridgeOpen ? 1 : 0);
     this.bridge.visible = this.bridgeOpen;
     this.bridgeMat.uniforms.uProgress.value = this.bridgeProgress;
-    this.enemies.list.length = 0; this.enemies.projectiles.length = 0; this.enemies.blasts.length = 0;
+    this.enemies.list.length = 0; this.enemies.projectiles.length = 0; this.enemies.blasts.length = 0; this.enemies.rings.length = 0;
     this._spawnEncounters(true);
     this.boss = null; this.hitStop = 0;
     const p = this.player;
@@ -903,6 +903,14 @@ export class Game {
       this.flash = Math.max(this.flash, 0.6); this.rig.addShake(0.8); this.hitStop = Math.max(this.hitStop, 0.12);
       for (const [dl, r] of [[0, 16], [0.25, 24]]) this.vfx.wave(q.x, q.y + 0.1, q.z, { r0: 1, r1: r, life: 1.1, strength: 1.4, width: 0.07, color: [2.4, 1.15, 4.6], delay: dl });
       this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 1, r1: 12, life: 0.7, strength: 1.5, width: 0.1, color: [2.4, 1.15, 4.6] });
+    }
+    if (e.type === 'toll') {
+      const q = e.ring, life = (q.max - q.r) / q.speed;
+      this.vfx.wave(q.x, q.y + 0.07, q.z, { r0: q.r, r1: q.max, life, linear: true, rise: true, strength: 2.4, width: 0.045, color: [2.8, 1.4, 5.6] });
+      this.vfx.wave(q.x, q.y + 0.07, q.z, { r0: q.r, r1: q.max, life, linear: true, rise: true, strength: 0.5, width: 0.12, color: [2.4, 1.15, 4.6] });
+      const c = e.enemy.center; this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 0.4, r1: 2.6, life: 0.4, strength: 1.0, width: 0.1, color: [2.4, 1.15, 4.6] });
+      this.rig.addShake(0.12);
+      if (!this._tollHint && !this.cine) { this._tollHint = true; this.emit('hint', { title: 'The toll', text: 'A Toller sends a ring out along the ground. Jump it, or roll through it as it reaches you.' }); }
     }
     if (e.type === 'ward') {
       const a = e.ally.center, c = e.enemy.center;

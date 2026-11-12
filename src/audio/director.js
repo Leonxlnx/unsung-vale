@@ -102,6 +102,7 @@ export function connectAudio(audio, game, ui, falls) {
       if (d.type === 'charge' && e?.kind === 'hound') at('hound', e.pos, { volume: 0.5, range: 14 });
       if (d.type === 'phase' && e) { at(k('roar', 'enemy_wake'), e.pos, { volume: 1, range: 40, pitch: audio.manifest?.sfx?.roar ? 1 : 0.5 }); at('slam', e.pos, { volume: 0.7, range: 30 }); }
       if (d.type === 'summon' && e) at(k('summon', 'enemy_wake'), e.pos, { volume: 0.8, range: 30 });
+      if (d.type === 'toll' && e) { at(k('trial_begin', 'spire_tune'), e.pos, { volume: 0.6, range: 34, pitch: 0.5 }); at('slam', e.pos, { volume: 0.35, range: 26, pitch: 1.3 }); }
       if (d.type === 'ward' && e) at(k('summon', 'enemy_wake'), e.pos, { volume: 0.45, range: 26, pitch: 1.5 });
       if (d.type === 'warded' && e) at('block', e.pos, { volume: 0.5, range: 14, pitch: 1.25 });
       if (d.type === 'wardBreak' && e) at(k('trial_gate', 'crystal'), e.pos, { volume: 0.4, range: 18, pitch: 0.7 });

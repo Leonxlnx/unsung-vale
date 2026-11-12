@@ -124,6 +124,15 @@ const BRUTE = [
   S(0, 0.95, 0, 0, -1, 0, 0.7, 0.6), S(-0.3, 0.5, 0, -0.15, -1, 0, 0.9, 0.34, 'tail'), S(0.3, 0.5, 0, 0.15, -1, 0, 0.9, 0.34, 'tail'),
   S(-0.3, 2.5, -0.5, -0.3, 1, -0.6, 0.6, 0.2, 'spine'), S(0.3, 2.5, -0.5, 0.3, 1, -0.6, 0.6, 0.2, 'spine'), S(0, 2.7, -0.45, 0, 1, -0.5, 0.75, 0.22, 'spine'),
 ];
+// Toller: a bell of long shards hung mouth-down from a knot. It keeps its distance, and when
+// it tolls a ring runs out along the ground from under it: jump it, or roll through it.
+const TOLLER = [
+  S(0, 2.55, 0, 0, 1, 0, 0.55, 0.36, 'head'),
+  ...Array.from({ length: 9 }, (_, k) => { const a = (k / 9) * 6.283; return S(Math.cos(a) * 0.5, 1.8, Math.sin(a) * 0.5, Math.cos(a) * 0.45, -1, Math.sin(a) * 0.45, 1.25, 0.3); }),
+  ...Array.from({ length: 9 }, (_, k) => { const a = (k / 9) * 6.283 + 0.35; return S(Math.cos(a) * 0.84, 1.06, Math.sin(a) * 0.84, Math.cos(a) * 0.8, -0.6, Math.sin(a) * 0.8, 0.5, 0.16, 'tail'); }),
+  S(0, 1.25, 0, 0, -1, 0, 0.72, 0.17, 'bladeR'),
+  S(0.3, 2.95, 0, 0.3, 1, 0, 0.3, 0.1, 'mote'), S(-0.3, 2.9, 0.1, -0.3, 1, 0.2, 0.26, 0.1, 'mote'),
+];
 // Seeker: no body to speak of, a spinning knot of splinters round a core. It comes straight
 // at the hero and bursts where it arrives. Cut it down first, or be somewhere else.
 const SEEKER = [
@@ -146,6 +155,7 @@ function derive(base, m) {
 }
 
 export const KINDS = {
+  toller:    { slots: TOLLER, hp: 110, speed: 1.7, reach: 13, windup: 1.15, strike: 0.2, recover: 1.9, damage: 13, poise: 60, radius: 0.8, sight: 32, hover: 0.45, core: 1.9, ranged: true, toll: true, xp: 22, name: 'Mute Toller' },
   seeker:    { slots: SEEKER, hp: 20, speed: 7.6, reach: 1.7, windup: 0.5, strike: 0.1, recover: 0.4, damage: 20, poise: 8, radius: 0.4, sight: 34, hover: 0.25, core: 1.3, burst: true, xp: 7, name: 'Mute Seeker' },
   brute:     { slots: BRUTE, hp: 230, speed: 2.9, reach: 3.2, windup: 1.0, strike: 0.26, recover: 1.2, damage: 30, poise: 110, radius: 0.95, sight: 28, hover: 0.25, core: 1.7, slam: true, xp: 40, name: 'Mute Brute' },
   sovereign: { slots: SOVEREIGN, hp: 1100, speed: 2.9, reach: 6.2, windup: 0.9, strike: 0.25, recover: 1.0, damage: 30, poise: 200, radius: 1.8, sight: 70, hover: 0.6, core: 3.9, boss: true, phases: 3, xp: 400, name: 'The Stillness' },
@@ -184,7 +194,7 @@ class Enemy {
 export class Enemies {
   constructor(pipe, world, particles) {
     this.pipe = pipe; this.world = world; this.particles = particles;
-    this.list = []; this.projectiles = []; this.events = []; this.blasts = [];
+    this.list = []; this.projectiles = []; this.events = []; this.blasts = []; this.rings = [];
     this.crowd = 3; this.haste = 1;         // how many may strike at once, and how briskly (set by the challenge)
     this.max = 1400;
     const geo = shardGeometry();
@@ -309,7 +319,7 @@ export class Enemies {
               e.wardCd = best ? (e.affix === 'hymn' ? 3.5 : 10) : 2;
               if (best) { best.ward = e.affix === 'hymn' ? 7.5 : 5.5; best.warder = e; this.events.push({ type: 'ward', enemy: e, ally: best }); }
             }
-            if (dist < 22 && e.t > (1.4 + e.seed * 1.2) / this.haste) { e.state = 'windup'; e.t = 0; this.events.push({ type: 'charge', enemy: e }); }
+            if (dist < (d.toll ? 15 : 22) && e.t > (1.4 + e.seed * 1.2) / this.haste) { e.state = 'windup'; e.t = 0; this.events.push({ type: 'charge', enemy: e }); }
           } else if (d.circle && dist < 8.5) {
             // Round the hero at a few paces, then in.
             const s = (e.orbit ??= e.seed < 0.5 ? 1 : -1), inw = dist > 5.5 ? 0.7 : dist < 3.6 ? -0.5 : 0.05;
@@ -348,6 +358,9 @@ export class Enemies {
           if (d.burst) {
             // It goes off where it is: a mark that comes due almost at once, and no more seeker.
             if (!e.didHit) { e.didHit = true; const b = { x: e.pos.x, z: e.pos.z, y: e.pos.y, t: 0.02, r: 2.7, dmg: d.damage }; this.blasts.push(b); this.kill(e, f); }
+          } else if (d.toll) {
+            // The toll: a ring along the ground, as fast as a man runs, out to sixteen paces.
+            if (!e.didHit) { e.didHit = true; const q = { x: e.pos.x, y: W.floorBelow(e.pos.x, e.pos.y + 1, e.pos.z, 4), z: e.pos.z, r: 0.6, speed: 8.5, max: 16, dmg: d.damage, hit: false }; this.rings.push(q); this.events.push({ type: 'toll', enemy: e, ring: q }); }
           } else if (d.caster || e.attackKind === 3) {
             if (!e.didHit) {
               e.didHit = true;
@@ -485,6 +498,13 @@ export class Enemies {
       if (hitPlayer || hitGround || p.life <= 0) { P.burst(p.pos.x, p.pos.y, p.pos.z, 10, { speed: 4, life: 0.35, size: 0.07, color: [3, 1.5, 6], gravity: 6 }); this.events.push({ type: 'shotHit', pos: p.pos.clone() }); this.projectiles.splice(i, 1); }
     }
 
+    // Rings of a toll: whoever stands on the ground where one passes is struck by it.
+    for (let i = this.rings.length - 1; i >= 0; i--) {
+      const q = this.rings[i]; q.r += q.speed * dt;
+      const dd = Math.hypot(player.pos.x - q.x, player.pos.z - q.z);
+      if (!q.hit && Math.abs(dd - q.r) < 0.5 && player.grounded && Math.abs(player.pos.y - q.y) < 1.6) { q.hit = true; this.events.push({ type: 'hitPlayer', damage: q.dmg, from: new THREE.Vector3(q.x, q.y, q.z) }); }
+      if (q.r > q.max) this.rings.splice(i, 1);
+    }
     for (let i = this.blasts.length - 1; i >= 0; i--) {
       const b = this.blasts[i];
       b.t -= dt;
