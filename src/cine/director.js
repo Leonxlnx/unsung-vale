@@ -145,7 +145,7 @@ export class Director {
         },
       },
       { // 5. The duel.
-        dur: 8,
+        dur: 6.5,
         setup: (d) => {
           const g = d.game;
           g.cineSetup({ tuned: [], player: [petal.x - 3, petal.base + 0.2, petal.z + 14, Math.PI] });
@@ -192,8 +192,8 @@ export class Director {
             [lerp(br.from[0], br.to[0], 0.6), lerp(br.from[1], br.to[1], 0.6) + 6, lerp(br.from[2], br.to[2], 0.6)], 42);
         },
       },
-      { // 8. The valley at day's end.
-        dur: 3,
+      { // 8. The valley at day's end: the longest look at the whole of it.
+        dur: 4.5,
         setup: (d) => d.game.cineSetup({ tuned: ['petal', 'cantor', 'choir'], player: [terrace[0] + 15.5, terrace[1] + 0.05, terrace[2] - 1.5, Math.PI / 2] }),
         update: (d, t, k) => {
           // Rising back from above the lookout, clear of the trees, as the whole valley opens.

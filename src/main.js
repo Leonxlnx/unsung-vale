@@ -359,7 +359,7 @@ window.__dbg = {
     return res;
   },
   // A contact sheet of the film: one pass through the timeline, a still at each given time.
-  reel(times = [3, 9, 14.5, 19.5, 26, 34.5, 40.5, 44], cols = 4) {
+  reel(times = [3, 9, 14.5, 19.5, 25, 32, 38, 43.5], cols = 4) {
     freeCam = true; ui.root.style.display = 'none';
     let c = document.getElementById('sheet');
     if (!c) { c = document.createElement('canvas'); c.id = 'sheet'; c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:9'; document.body.appendChild(c); }
