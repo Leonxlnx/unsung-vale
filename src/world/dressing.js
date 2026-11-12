@@ -87,6 +87,49 @@ void main() {
   gl_FragColor = vec4(alb * vLight, 1.0);
 }`;
 
+// --- butterflies: a few dozen wandering low over the meadows around the camera ---
+const FLY_VERT = /* glsl */ `
+in vec4 iSeed;
+uniform float uTime; uniform vec3 uCenter; uniform float uBox;
+out vec2 vUv; out vec3 vLight; out float vKind;
+${COMMON.replace(/vec3 srgbToLinear[sS]*$/, '')}
+${SH_GLSL}
+${TERRAIN_SAMPLING}
+uniform vec3 uSunDir; uniform vec3 uSunColor;
+void main() {
+  float t = uTime, s = iSeed.w;
+  // Each one wanders a slow loop with a quicker flutter on top, wrapped around the camera.
+  float ang = t * (0.2 + 0.22 * s) + s * 40.0;
+  vec2 base = (iSeed.xz - 0.5) * uBox + vec2(sin(ang), cos(ang * 0.83 + s * 9.0)) * 3.4 + vec2(sin(t * 1.3 + s * 9.0), cos(t * 1.7 + s * 5.0)) * 0.45;
+  vec2 c = uCenter.xz + mod(base - uCenter.xz + uBox * 0.5, uBox) - uBox * 0.5;
+  float ground = terrainHeight(c);
+  float y = ground + 0.6 + 1.5 * iSeed.y + 0.3 * sin(t * 2.3 + s * 30.0);
+  // Only over the high meadows, and fading out toward the edge of their box.
+  float fade = (1.0 - smoothstep(0.4, 0.5, length(c - uCenter.xz) / uBox)) * step(60.0, ground);
+  vec2 fw = normalize(vec2(cos(ang), -0.83 * sin(ang * 0.83 + s * 9.0)) + 1e-3);
+  vec3 F = vec3(fw.x, 0.0, fw.y), R = vec3(-F.z, 0.0, F.x);
+  float flap = sin(t * (15.0 + 9.0 * s) + s * 50.0);
+  float size = (0.06 + 0.035 * fract(s * 3.1)) * fade;
+  // Wings hinge on the body: the tips swing up and in on every beat.
+  vec3 wing = R * position.x * (1.0 - 0.5 * abs(flap)) + vec3(0.0, abs(position.x) * flap * 0.8, 0.0) + F * position.y;
+  vec3 wp = vec3(c.x, y, c.y) + wing * size;
+  vUv = position.xy;
+  vKind = fract(s * 5.7);
+  vLight = uSunColor * 0.3183 * terrainSunVis(vec3(c.x, y, c.y)) * (0.75 + 0.25 * flap) + shIrradiance(vec3(0.0, 1.0, 0.0));
+  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
+}`;
+const FLY_FRAG = /* glsl */ `
+in vec2 vUv; in vec3 vLight; in float vKind;
+void main() {
+  // Two rounded wings with a darker margin.
+  vec2 p = vec2(abs(vUv.x), vUv.y);
+  float d = length((p - vec2(0.48, 0.08)) * vec2(1.0, 0.85));
+  if (d > 0.52 || p.x < 0.03) discard;
+  vec3 alb = vKind < 0.34 ? vec3(0.9, 0.9, 0.82) : vKind < 0.6 ? vec3(0.95, 0.72, 0.16) : vKind < 0.82 ? vec3(0.22, 0.4, 0.9) : vec3(0.9, 0.36, 0.1);
+  alb *= mix(1.0, 0.25, smoothstep(0.36, 0.5, d));
+  gl_FragColor = vec4(alb * vLight, 1.0);
+}`;
+
 // --- birds: small flocks wheeling far out over the valley ---
 const BIRD_VERT = /* glsl */ `
 in vec4 iBird;     // x: flock, y: place in flock, z: phase, w: size
@@ -142,6 +185,21 @@ export class Dressing {
     }));
     this.petals.frustumCulled = false;
     this.group.add(this.petals);
+
+    // Butterflies.
+    const fn = 56, fseeds = new Float32Array(fn * 4);
+    for (let i = 0; i < fn * 4; i++) fseeds[i] = r();
+    const fg = new THREE.InstancedBufferGeometry();
+    fg.setAttribute('position', new THREE.Float32BufferAttribute([-1, -0.5, 0, -1, 0.7, 0, 0, -0.3, 0, 0, 0.45, 0, 1, -0.5, 0, 1, 0.7, 0], 3));
+    fg.setIndex([0, 2, 1, 1, 2, 3, 2, 4, 3, 3, 4, 5]);
+    fg.setAttribute('iSeed', new THREE.InstancedBufferAttribute(fseeds, 4));
+    fg.instanceCount = fn;
+    this.butterflies = new THREE.Mesh(fg, new THREE.ShaderMaterial({
+      vertexShader: FLY_VERT, fragmentShader: FLY_FRAG, side: THREE.DoubleSide,
+      uniforms: { ...lit, uCenter: { value: this.petalCenter }, uBox: { value: 44 } },
+    }));
+    this.butterflies.frustumCulled = false;
+    this.group.add(this.butterflies);
 
     // Birds: three flocks of eleven.
     const bn = 33, bd = new Float32Array(bn * 4);
