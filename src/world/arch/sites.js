@@ -206,7 +206,8 @@ export class Architecture {
         q.mat_(M.GOLD).box(-8.4, 17, -1.4, 16.8, 0.5, 2.8);
         for (const s2 of [-1, 1]) q.at(s2 * 7, 17.5, 0, 0, (g) => tower(g, { r: 1.2, h: 4, sides: 6, stages: 1, top: 'spire', spireH: 7, detail: 0, foot: 0.2, glassEvery: 2 }));
       });
-      out.bridge = { from: [gx, gy + 0.2, gz + 4.5], to: [146, H(146, -104) + 0.2, -104] };
+      // The bridge lands well inside the Choir's rim, on level ground.
+      out.bridge = { from: [gx, gy + 0.2, gz + 4.5], to: [150, H(150, -84) + 0.3, -84] };
       finish(b);
     }
 

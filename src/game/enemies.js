@@ -135,7 +135,8 @@ export class Enemies {
   }
 
   spawn(kind, x, z, group = 'world') {
-    const y = this.world.floorBelow(x, this.world.groundHeight(x, z) + 30, z, 60);
+    // Start from just above the ground so nothing ends up on a roof or an arch.
+    const y = this.world.floorBelow(x, this.world.groundHeight(x, z) + 2.5, z, 6);
     const e = new Enemy(kind, x, y, z, Math.random(), group);
     this.list.push(e);
     return e;

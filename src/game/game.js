@@ -170,7 +170,7 @@ export class Game {
       E.spawn('thrall', -100, -455, 'stair'); E.spawn('thrall', -96, -465, 'stair'); E.spawn('lancer', -84, -459, 'stair');
       ring('thrall', 66, -498, 10, 3, 'cantor', 1.2); E.spawn('lancer', 92, -520, 'cantor'); E.spawn('lancer', 40, -476, 'cantor');
     }
-    if (!tuned('choir')) { E.spawn('colossus', 156, -4, 'choir'); E.spawn('lancer', 128, -34, 'choir'); E.spawn('lancer', 172, 10, 'choir'); }
+    if (!tuned('choir')) { E.spawn('colossus', 156, -4, 'choir'); E.spawn('lancer', 130, -32, 'choir'); E.spawn('lancer', 167, 6, 'choir'); }
   }
 
   // --- progress ------------------------------------------------------------------------
