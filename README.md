@@ -28,6 +28,8 @@ Stills from the in-game cinematic (draft render).
 | ![The Aurel Court and its archive](docs/media/play-aurel.jpg) | ![The Lantern Court among ember trees](docs/media/play-lantern.jpg) |
 | ![Speaking with the Keeper of the Terrace](docs/media/play-talk.jpg) | ![Inside a silence the hero keeps an island of colour](docs/media/play-island.jpg) |
 | ![The Stillness at the Crown](docs/media/play-boss.jpg) | ![A spire opening as it is tuned](docs/media/play-finale.jpg) |
+| ![A reliquary off the path](docs/media/play-reliquary.jpg) | ![Charms and what the spires taught](docs/media/play-charms.jpg) |
+| ![The Dawn Terrace in photo mode](docs/media/play-photo.jpg) | ![A thrall under a chorister's ward](docs/media/play-ward.jpg) |
 
 Play, as captured by `tools/tour.mjs`.
 
