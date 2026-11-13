@@ -41,7 +41,8 @@ export class CameraRig {
       // Ease the view around so both fighters stay in frame.
       const want = Math.atan2(target.pos.x - player.pos.x, target.pos.z - player.pos.z);
       let d = want - this.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
-      this.yaw += d * Math.min(1, 4.5 * dt);
+      // Right on top of each other there is no bearing worth turning the view to.
+      if (Math.hypot(target.pos.x - player.pos.x, target.pos.z - player.pos.z) > 0.6) this.yaw += d * Math.min(1, 4.5 * dt);
       this.pitch += (-0.2 - this.pitch) * Math.min(1, 2.5 * dt);
     }
 

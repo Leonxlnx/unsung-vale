@@ -54,7 +54,7 @@ export class Player {
     this.lockTarget = null;
     this.speed = 0;                 // horizontal speed, for animation
     this.moveDir = new THREE.Vector3(0, 0, 1);
-    this.airTime = 0; this.coyote = 0; this.jumpBuffer = 0;
+    this.airTime = 0; this.coyote = 0; this.jumpBuffer = 0; this.dodgeBuffer = 0;
     this.fallStart = 0;
     this.lastSafe = new THREE.Vector3();
     this.safeTimer = 0;
@@ -65,6 +65,7 @@ export class Player {
 
   spawn(x, y, z, yaw = 0) {
     this.pos.set(x, y, z); this.vel.set(0, 0, 0); this.yaw = yaw; this.viewY = this._viewY1 = y;
+    this.fallStart = y; this.airTime = 0;
     this.lastSafe.copy(this.pos);
     this.state = 'move'; this.health = this.healthMax; this.stamina = this.staminaMax; this.windUsed = false; this.refrains = this.refrainMax;
   }
@@ -89,6 +90,7 @@ export class Player {
     if (from) { _v.copy(this.pos).sub(from).setY(0).normalize(); const sp = heavy ? 9 : 6.5; this.vel.x = _v.x * sp; this.vel.z = _v.z * sp; this.hurtDir = Math.atan2(_v.x, _v.z); }
     this.attack = null; this.comboStep = -1;
     if (this.health <= 0) { this.setState('dead'); this.emit('death'); }
+    else if (this.state === 'swim') this.emit('hurt', { amount });
     else if (heavy) { this.setState('down'); this.vel.y = 4.4; this.grounded = false; this.invulnerable = 1.5; if (from) this.yaw = this.hurtDir + Math.PI; this.emit('hurt', { amount, heavy: true }); }
     else { this.setState('hurt'); this.emit('hurt', { amount }); }
     return true;
@@ -108,7 +110,7 @@ export class Player {
     // Turn toward the lock target or the stick before committing.
     const want = this._wish.lengthSq() > 0.04 ? this._wish : this.facing;
     const foe = this.lockTarget ?? this.aimAssist?.(want.x, want.z) ?? null;
-    if (foe) this.yaw = Math.atan2(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z);
+    if (foe && Math.hypot(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z) > 0.4) this.yaw = Math.atan2(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z);
     else if (this._wish.lengthSq() > 0.04) this.yaw = Math.atan2(this._wish.x, this._wish.z);
     const f = this.facing;
     // The lunge carries about lunge / 7.5 metres; with a foe ahead it ends at striking distance.
@@ -128,6 +130,7 @@ export class Player {
     this.invulnerable = Math.max(0, this.invulnerable - dt);
     this.pulseTimer = Math.max(0, this.pulseTimer - dt);
     this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
+    this.dodgeBuffer = Math.max(0, this.dodgeBuffer - dt);
     if (this.staminaWait > 0) this.staminaWait -= dt; else this.stamina = Math.min(this.staminaMax, this.stamina + T.staminaRegen * (this.charms.has('reed') ? 1.34 : 1) * dt);
 
     // Movement wish in world space, relative to the camera.
@@ -149,6 +152,7 @@ export class Player {
     }
     if (this.state === 'swim') { this._swim(dt, input, wish, wishLen, surface); return; }
     if (input.pressed.has('jump')) this.jumpBuffer = T.buffer;
+    if (input.pressed.has('dodge')) this.dodgeBuffer = this.film ? 1e-6 : T.buffer;
 
     if (input.pressed.has('walk')) this.walking = !this.walking;
     this.sinceHurt = (this.sinceHurt ?? 99) + dt;
@@ -164,7 +168,7 @@ export class Player {
       this.vel.x += (tx - this.vel.x) * k; this.vel.z += (tz - this.vel.z) * k;
       // Face the lock target, otherwise the direction of travel.
       let targetYaw = null;
-      if (this.lockTarget) targetYaw = Math.atan2(this.lockTarget.pos.x - this.pos.x, this.lockTarget.pos.z - this.pos.z);
+      if (this.lockTarget) { if (Math.hypot(this.lockTarget.pos.x - this.pos.x, this.lockTarget.pos.z - this.pos.z) > 0.4) targetYaw = Math.atan2(this.lockTarget.pos.x - this.pos.x, this.lockTarget.pos.z - this.pos.z); }
       else if (wishLen > 0.05) targetYaw = Math.atan2(wish.x, wish.z);
       if (targetYaw !== null) {
         let d = targetYaw - this.yaw;
@@ -174,8 +178,8 @@ export class Player {
       if (this.jumpBuffer > 0 && (this.grounded || this.coyote > 0) && this.spend(T.jumpCost)) {
         this.vel.y = T.jump; this.grounded = false; this.coyote = 0; this.jumpBuffer = 0; this.emit('jump');
       }
-      if (input.pressed.has('dodge') && this.grounded && this.spend(T.rollCost)) {
-        this.setState('roll');
+      if (this.dodgeBuffer > 0 && this.grounded && this.spend(T.rollCost)) {
+        this.dodgeBuffer = 0; this.setState('roll');
         const d = wishLen > 0.2 ? wish : this.facing;
         this.rollDir = new THREE.Vector3(d.x, 0, d.z).normalize();
         this.yaw = Math.atan2(this.rollDir.x, this.rollDir.z);
@@ -185,7 +189,7 @@ export class Player {
         // Lean the fall toward a foe below, if there is one.
         const foe = this.lockTarget ?? this.aimAssist?.(this.facing.x, this.facing.z, 9) ?? null;
         this.plungeAim = foe ? foe.pos.clone() : null;
-        if (foe) this.yaw = Math.atan2(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z);
+        if (foe && Math.hypot(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z) > 0.4) this.yaw = Math.atan2(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z);
         this.emit('plungeStart');
       } else if (input.pressed.has('attack') && this.grounded && this.sprinting && this.skills.has('dash')) { if (this.startAttack(T.dash, 2)) this.emit('dash'); }
       else if (input.pressed.has('attack') && this.grounded) this.startAttack(T.combo[0], 0);
@@ -202,8 +206,8 @@ export class Player {
       const drag = Math.exp(-7.5 * dt);
       this.vel.x *= drag; this.vel.z *= drag;
       if (input.pressed.has('attack')) this.attackQueued = true;
-      if (input.pressed.has('dodge') && this.stateTime > a.hit[1] && this.spend(T.rollCost)) {
-        this.setState('roll'); this.attack = null; this.comboStep = -1;
+      if (this.dodgeBuffer > 0 && this.stateTime > a.hit[1] && this.spend(T.rollCost)) {
+        this.dodgeBuffer = 0; this.setState('roll'); this.attack = null; this.comboStep = -1;
         const d = wishLen > 0.2 ? wish : this.facing;
         this.rollDir = new THREE.Vector3(d.x, 0, d.z).normalize();
         this.yaw = Math.atan2(this.rollDir.x, this.rollDir.z);
@@ -236,8 +240,8 @@ export class Player {
     } else if (this.state === 'down') {
       // On his back: slides to a stop, then gets up (a roll gets him up sooner).
       if (this.grounded) { const k = Math.exp(-7 * dt); this.vel.x *= k; this.vel.z *= k; }
-      if (this.grounded && this.stateTime > 0.5 && input.pressed.has('dodge') && this.spend(T.rollCost * 0.5)) {
-        this.setState('roll'); const d = wishLen > 0.2 ? wish : this.facing; this.rollDir = new THREE.Vector3(d.x, 0, d.z).normalize(); this.yaw = Math.atan2(this.rollDir.x, this.rollDir.z); this.emit('roll');
+      if (this.grounded && this.stateTime > 0.5 && this.dodgeBuffer > 0 && this.spend(T.rollCost * 0.5)) {
+        this.dodgeBuffer = 0; this.setState('roll'); const d = wishLen > 0.2 ? wish : this.facing; this.rollDir = new THREE.Vector3(d.x, 0, d.z).normalize(); this.yaw = Math.atan2(this.rollDir.x, this.rollDir.z); this.emit('roll');
       } else if (this.stateTime > 1.15 && this.grounded) { this.setState('move'); this.invulnerable = Math.max(this.invulnerable, 0.35); }
     } else if (this.state === 'heal') {
       const R = T.refrain, k = Math.exp(-10 * dt); this.vel.x *= k; this.vel.z *= k;

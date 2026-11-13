@@ -203,7 +203,9 @@ export class Strings {
     // The last moment sets him down beside the pylon.
     const tail = 1 - (r.dur - r.t) / 0.55;
     if (tail > 0) {
-      if (!r.land) { const node = r.to, ox = node.x + Math.sin(p.yaw) * 2.6, oz = node.z + Math.cos(p.yaw) * 2.6; g.world.stream(ox, oz, 6); r.land = new THREE.Vector3(ox, g.world.floorBelow(ox, node.y + 2.5, oz, 8) + 0.02, oz); }
+      if (!r.land) { const node = r.to, ox = node.x + Math.sin(p.yaw) * 2.6, oz = node.z + Math.cos(p.yaw) * 2.6; g.world.stream(ox, oz, 6); r.land = new THREE.Vector3(ox, g.world.floorBelow(ox, node.y + 2.5, oz, 8) + 0.02, oz);
+        if (Math.abs(r.land.y - node.y) > 3) { const bx = 2 * node.x - ox, bz = 2 * node.z - oz; g.world.stream(bx, bz, 6); r.land.set(bx, g.world.floorBelow(bx, node.y + 2.5, bz, 8) + 0.02, bz); }
+        if (Math.abs(r.land.y - node.y) > 3) r.land.set(node.x, g.world.floorBelow(node.x, node.y + 2.5, node.z, 8) + 0.02, node.z); }
       const k = Math.min(1, tail); p.pos.lerp(r.land, k * k * (3 - 2 * k));
     }
     p.vel.set(Math.sin(p.yaw) * v, 0, Math.cos(p.yaw) * v); p.speed = 0; p.grounded = false; p.airTime = 1;

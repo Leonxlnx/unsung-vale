@@ -435,6 +435,7 @@ export class Game {
   respawnAtCheckpoint() {
     const s = this.checkpoint;
     this.finisher = null; this.riposteT = 0; this._ripUntil = 0;
+    if (this.player.lockTarget) { this.player.lockTarget = null; this.emit('lock', { target: null }); }
     this.world.stream(s.x, s.z, 6);
     this.player.spawn(s.x, s.y, s.z, s.yaw ?? 0);
     this.rig.snap(this.player);
@@ -567,7 +568,7 @@ export class Game {
     // How hard the Mute press: more of them at once and brisker on Standard and Hard.
     // The film is fought on the numbers it was made with, whatever the player has chosen.
     const ch = this.cine ? 'gentle' : this.challenge;
-    this.enemies.film = !!this.cine;
+    this.enemies.film = this.player.film = !!this.cine;
     this.enemies.crowd = { gentle: 2, hard: 4 }[ch] ?? 3; this.enemies.haste = { gentle: 1, hard: 1.5 }[ch] ?? 1.3;
     p.inCombat = this.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.state !== 'return' && e.pos.distanceToSquared(p.pos) < 1600);
     p.refrainMax = TUNE.refrain.charges + (this.spires.filter((s) => s.tuned).length >= 3 ? 1 : 0) + (this.spires.filter((s) => s.tuned).length >= 6 ? 1 : 0);
@@ -662,7 +663,7 @@ export class Game {
 
   _lockOn() {
     const p = this.player;
-    if (p.lockTarget && (!p.lockTarget.alive || p.lockTarget.pos.distanceTo(p.pos) > 34)) { p.lockTarget = null; this.emit('lock', { target: null }); }
+    if (p.lockTarget && (!p.lockTarget.alive || !this.enemies.list.includes(p.lockTarget) || p.lockTarget.pos.distanceTo(p.pos) > 34)) { p.lockTarget = null; this.emit('lock', { target: null }); }
     if (!this.input.pressed.has('lock')) return;
     if (p.lockTarget) { p.lockTarget = null; this.emit('lock', { target: null }); return; }
     let best = null, bs = 1e9;

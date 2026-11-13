@@ -37,6 +37,13 @@ Fixed
 - A world that cannot be loaded says so. One failing frame no longer freezes the picture,
   and a reset of the graphics device keeps what was done and offers a reload.
 - Sounds asked for before the page may play are dropped, not played all at once later.
+- A dodge asked for a moment too early is kept and rolled as soon as it can be, the way
+  a jump already was.
+- A lock no longer stays on a construct that an ended echo took out of the world.
+- Returning to the last safe place in the middle of a fall no longer costs the fall on
+  arrival. A blow taken while swimming no longer sinks him.
+- A string sets him down on the level of its pylon even where the far side is the edge
+  of the mesa.
 - Gold let into a floor turned olive in shade, where it mirrored the blue of the sky, and
   looked like grass coming through the paving. Gilding keeps its own hue now.
 
