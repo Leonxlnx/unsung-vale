@@ -90,8 +90,9 @@ export class Input {
       if (ax || ay || rx || ry) this.usingPad = true;
       if (ax || ay) { mx = ax; my = -ay; }
       lx += rx * 0.045 * this.sensitivity; ly += ry * 0.032 * this.sensitivity * (this.invertY ? -1 : 1);
-      const map = { 0: 'jump', 1: 'dodge', 2: 'attack', 3: 'heavy', 4: 'pulse', 5: 'attack', 7: 'heavy', 9: 'pause', 10: 'sprint', 11: 'lock', 3.5: 'interact' };
-      map[14] = 'interact'; map[13] = 'interact'; map[8] = 'map'; map[15] = 'journal'; map[12] = 'heal';
+      const map = { 0: 'jump', 1: 'dodge', 2: 'attack', 3: 'interact', 4: 'pulse', 5: 'attack', 7: 'heavy', 9: 'pause', 10: 'sprint', 11: 'lock' };
+      map[14] = 'interact'; map[13] = 'interact'; map[8] = 'map'; map[12] = 'heal';
+      if (this.enabled) map[15] = 'journal';
       pad.buttons.forEach((b, i) => {
         const a = map[i];
         if (!a) return;

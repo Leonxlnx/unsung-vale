@@ -55,13 +55,14 @@ load takes a little while because the world is baked on your GPU.
 | Jump | Space | A |
 | Dodge roll | Ctrl or C | B |
 | Strike (three-step combo) | Left mouse | X or right bumper |
-| Heavy strike | Right mouse | Y or right trigger |
+| Heavy strike | Right mouse | Right trigger |
 | Falling strike | Strike while in the air | Same |
 | Resonance pulse (once learned) | F | Left bumper |
 | The refrain (mends you; a few to a journey) | R | D-pad up |
 | Lock on | Q | Right stick click |
-| Speak, tune a spire, ride a string, open a reliquary | E | D-pad down or left |
+| Speak, tune a spire, ride a string, open a reliquary | E | Y (or D-pad down) |
 | Map / journal | M / J | Back / D-pad right |
+| In a menu | Mouse | Stick or D-pad to move, A to press, B to close |
 | Zoom the camera | Mouse wheel | |
 | Photo mode (free camera; click saves a PNG) | H | |
 | Pause | Esc | Start |

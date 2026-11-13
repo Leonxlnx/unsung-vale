@@ -165,7 +165,7 @@ export function connectAudio(audio, game, ui, falls) {
     }
     audio.update(dt, { mute, fall: Math.min(1, fall * 1.15), lake: here.y < 8 ? 1 : 0 });
     // The tone of a spire being tuned, for as long as the key is held.
-    audio.hold('tune_hold', game.state === 'playing' && (game.tuning?.active ? game.tuning.phase === 'beats' : !!game.prompt && game.input.held.has('interact')), game.tuning?.active ? 0.22 : 0.42);
+    audio.hold('tune_hold', game.state === 'playing' && (game.tuning?.active ? game.tuning.phase === 'beats' : game.prompt?.progress !== undefined && game.input.held.has('interact')), game.tuning?.active ? 0.22 : 0.42);
 
     audio.hold('ride_loop', game.state === 'playing' && p.state === 'ride', 0.5);
 

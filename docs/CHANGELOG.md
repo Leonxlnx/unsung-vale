@@ -26,6 +26,12 @@ Fixed
   and again with a mended hero.
 - The champion of the Crown's trial no longer counts as one of Odo's four names.
 - Song-crystals keep their places whatever quests are under way. A fall is counted at once.
+- One press does one thing: ringing a bell beside a reliquary no longer opens it as well,
+  and a word with someone no longer begins the trial behind them.
+- On a gamepad the prompt named the button of the blade. Y is the hand now, and the menus
+  can be used with the stick or the cross: A presses, B closes.
+- No prompt is left on screen under the pause menu. Holding E beside something no longer
+  hums like a tuning. A button clicked with the mouse is not pressed again by Space.
 - Gold let into a floor turned olive in shade, where it mirrored the blue of the sky, and
   looked like grass coming through the paving. Gilding keeps its own hue now.
 

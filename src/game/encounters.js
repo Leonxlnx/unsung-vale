@@ -141,7 +141,7 @@ export class Encounters {
       if (g.enemies.list.some((q) => q.alive && q.state !== 'dormant' && q.pos.distanceTo(p.pos) < 30)) return;
       g.prompt = { key: 'E', text: (g.echoes ?? []).includes(s.id) ? 'Wake the echo again' : 'Wake an echo of the silence' };
       if (!this.hinted && !(g.echoes ?? []).length) { this.hinted = true; g.emit('hint', { title: 'Echoes', text: 'A court that sings still remembers its silence. Wake it and the Mute return for three waves, harder than they were, and pay in resonance.' }); }
-      if (g.input.pressed.has('interact')) { g.prompt = null; this.startEcho(s, g.placeName?.(s.id) ?? s.id); }
+      if (g.input.pressed.has('interact')) { g.input.pressed.delete('interact'); g.prompt = null; this.startEcho(s, g.placeName?.(s.id) ?? s.id); }
       return;
     }
   }

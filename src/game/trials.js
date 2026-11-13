@@ -148,7 +148,7 @@ export class Trials {
       const t = this.at();
       if (!t || g.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.pos.distanceTo(p.pos) < 30)) return;
       g.prompt = { key: 'E', text: `Begin ${/^The /.test(t.def.name) ? t.def.name : `the ${t.def.name}`}` };
-      if (g.input.pressed.has('interact')) { g.prompt = null; this.begin(t); }
+      if (g.input.pressed.has('interact')) { g.input.pressed.delete('interact'); g.prompt = null; this.begin(t); }
       return;
     }
     const t = r.t, d = t.def;

@@ -114,7 +114,7 @@ export class Bells {
       if (b.rung || Math.hypot(p.pos.x - b.x, p.pos.z - b.z) > 3.4 || Math.abs(p.pos.y - b.y) > 3) continue;
       if (g.enemies.aliveIn(b.group) > 0 || g.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.pos.distanceTo(p.pos) < 26)) return;
       g.prompt = { key: 'E', text: 'Ring the bell' };
-      if (g.input.pressed.has('interact')) { g.prompt = null; this.ring(b); }
+      if (g.input.pressed.has('interact')) { g.input.pressed.delete('interact'); g.prompt = null; this.ring(b); }
       return;
     }
   }

@@ -51,6 +51,11 @@
 #ui .menu button:hover, #ui .menu button:focus-visible { color: var(--ink); transform: translateX(22px); outline: none; }
 #ui .menu button:hover::before, #ui .menu button:focus-visible::before { transform: scaleX(1); }
 #ui .menu button:hover::after, #ui .menu button:focus-visible::after { transform: rotate(45deg) scale(1); }
+/* A gamepad moving through a screen: the control it rests on is marked. */
+#ui.pad button:focus, #ui.pad input:focus, #ui.pad select:focus { outline: 1px solid var(--gold); outline-offset: 4px; }
+#ui.pad .menu button:focus { outline: none; color: var(--ink); transform: translateX(22px); }
+#ui.pad .menu button:focus::before { transform: scaleX(1); }
+#ui.pad .menu button:focus::after { transform: rotate(45deg) scale(1); }
 #ui .menu button.primary { color: var(--ink); }
 #home .foot { position: absolute; right: clamp(28px, 4vw, 60px); bottom: 28px; font-size: 13px; color: var(--ink-3); }
 

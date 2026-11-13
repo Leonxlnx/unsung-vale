@@ -167,6 +167,7 @@ export class UI {
     this.root.addEventListener('click', (e) => {
       const b = e.target.closest('button');
       if (!b) return;
+      if (e.detail > 0) b.blur();
       this.onSound?.('ui_click');
       const act = b.dataset.act, tab = b.dataset.tab;
       if (tab) { this.tab = tab; this._renderSettings(); return; }
@@ -340,10 +341,47 @@ export class UI {
   }
 
   // Per-frame HUD refresh.
+  // A gamepad in the menus: the stick or the cross moves from one control to the next, A
+  // presses it, B closes a screen that lies over the game. Left and right move a slider.
+  _padMenu() {
+    const pad = navigator.getGamepads?.().find((q) => q && q.connected && q.mapping === 'standard');
+    if (!pad) return;
+    const B = pad.buttons, ax = pad.axes[0] ?? 0, ay = pad.axes[1] ?? 0, on = (i) => !!B[i]?.pressed;
+    const dir = on(12) || ay < -0.6 ? 'up' : on(13) || ay > 0.6 ? 'down' : on(14) || ax < -0.6 ? 'left' : on(15) || ax > 0.6 ? 'right' : null;
+    const now = { dir, a: on(0), b: on(1) }, was = this._padWas ?? {};
+    this._padWas = now;
+    if (!now.dir && !now.a && !now.b && this._padKeep == null) return;
+    const list = [...this.root.querySelectorAll('button, input, select')].filter((q) => q.offsetParent !== null && !q.disabled && q.closest('.screen')?.classList.contains('on') !== false);
+    if (!list.length) return;
+    let cur = list.includes(document.activeElement) ? document.activeElement : null;
+    // A press that redrew the screen took the control it was on with it: back to its place.
+    if (!cur && this._padKeep != null) { cur = list[Math.min(this._padKeep, list.length - 1)]; cur.focus(); }
+    this._padKeep = null;
+    if (now.dir && now.dir !== was.dir) {
+      this.root.classList.add('pad');
+      if (!cur) { list[0].focus(); return; }
+      const side = now.dir === 'left' || now.dir === 'right', step = now.dir === 'left' || now.dir === 'up' ? -1 : 1;
+      if (side && cur.type === 'range') { this._padKeep = list.indexOf(cur); if (step < 0) cur.stepDown(); else cur.stepUp(); cur.dispatchEvent(new Event('input', { bubbles: true })); return; }
+      const r = cur.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      let best = null, bd = 1e9;
+      for (const q of list) {
+        if (q === cur) continue;
+        const s = q.getBoundingClientRect(), dx = s.left + s.width / 2 - cx, dy = s.top + s.height / 2 - cy;
+        const along = (side ? dx : dy) * step, across = Math.abs(side ? dy : dx);
+        if (along < 4) continue;
+        const d = along + across * 2.5;
+        if (d < bd) { bd = d; best = q; }
+      }
+      best?.focus();
+    }
+    if (now.a && !was.a && cur) { this._padKeep = list.indexOf(cur); cur.click(); }
+    if (now.b && !was.b && this.game.state === 'menu') this.game.closeMenu();
+  }
+
   update(dt) {
     const g = this.game, p = g.player, el = this.el;
     if (g.state === 'menu' && this.jtab === 'map') this._drawMap();
-    if (g.state !== 'playing') return;
+    if (g.state !== 'playing') { el.prompt.classList.remove('on'); if (!g.cine) this._padMenu(); return; }
     g.playTime = (g.playTime ?? 0) + dt;
     // Life and breath: strings that grow longer with every gift.
     el.health.style.width = `${200 + (p.healthMax - TUNE.healthMax) * 1.5}px`; el.stamina.style.width = `${160 + (p.staminaMax - TUNE.staminaMax) * 1.5}px`;
@@ -362,7 +400,7 @@ export class UI {
     const lowHealth = hk < 0.3 ? 0.55 * (1 - hk / 0.3) : 0;
     if (!el.hurt.style.transition) el.hurt.style.opacity = String(lowHealth);
     if (g.prompt) {
-      el.prompt.classList.add('on'); el.promptKeyText.textContent = g.input.usingPad ? 'X' : g.prompt.key;
+      el.prompt.classList.add('on'); el.promptKeyText.textContent = g.input.usingPad ? 'Y' : g.prompt.key;
       if (el.promptText.textContent !== g.prompt.text) el.promptText.textContent = g.prompt.text;
     } else el.prompt.classList.remove('on');
     if (g.boss) { const k = Math.max(0, g.boss.hp / g.boss.def.hp); el.bossBar.style.transform = `scaleX(${k})`; el.bossGhost.style.transform = `scaleX(${k})`; }

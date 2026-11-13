@@ -1036,7 +1036,7 @@ export class Game {
       if (ready && near && p.state === 'move') {
         if (!this.cine) {
           // Played: a press begins the tuning proper (see tuning.js).
-          if (!this.tuning.active) { this.prompt = { key: 'E', text: 'Tune the spire' }; if (this.input.pressed.has('interact')) { this.prompt = null; this.tuning.begin(s); } }
+          if (!this.tuning.active) { this.prompt = { key: 'E', text: 'Tune the spire' }; if (this.input.pressed.has('interact')) { this.input.pressed.delete('interact'); this.prompt = null; this.tuning.begin(s); } }
           continue;
         }
         this.prompt = { key: 'E', text: 'Hold to tune the spire', progress: s.tuning / 1.5 };

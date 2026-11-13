@@ -332,7 +332,7 @@ export class Quests {
       const who = g.people.near();
       if (who && !g.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.pos.distanceTo(p.pos) < 30)) {
         g.prompt = { key: 'E', text: `Speak with ${who.def.name}` };
-        if (g.input.pressed.has('interact')) { g.prompt = null; this.talkTo(who); }
+        if (g.input.pressed.has('interact')) { g.input.pressed.delete('interact'); g.prompt = null; this.talkTo(who); }
       }
     }
   }

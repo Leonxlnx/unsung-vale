@@ -165,7 +165,7 @@ export class Reliquaries {
       if (r.open || Math.hypot(p.pos.x - r.x, p.pos.z - r.z) > 3.0 || Math.abs(p.pos.y - r.y) > 3) continue;
       if (g.enemies.aliveIn(r.group) > 0 || g.enemies.list.some((e) => e.alive && e.state !== 'dormant' && e.pos.distanceTo(p.pos) < 22)) return;
       g.prompt = { key: 'E', text: 'Open the reliquary' };
-      if (g.input.pressed.has('interact')) { g.prompt = null; this.open(r); }
+      if (g.input.pressed.has('interact')) { g.input.pressed.delete('interact'); g.prompt = null; this.open(r); }
       return;
     }
   }
