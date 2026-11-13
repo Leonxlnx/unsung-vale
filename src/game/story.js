@@ -251,7 +251,7 @@ export class Story {
     const g = this.game, p = g.player;
     if (g.state === 'intro') { if (this.mode === 'outro') this._outro(dt); else this._intro(dt); return; }
     // The last spire has been tuned and its opening watched to the end: the closing flight.
-    if (g.ended && !g.outroSeen && g.state === 'playing' && !g.tuning?.active && !this.line && !this.queue?.length) {
+    if (g.ended && !g.outroSeen && g.state === 'playing' && !g.tuning?.active && !g.people?.talk && !this.line && !this.queue?.length) {
       if ((this.endT = (this.endT ?? 0) + dt) > 2.5) { g.outroSeen = true; g.save(); this.outro(); return; }
     }
     if (g.state !== 'playing' || g.tuning?.active || g.people?.talk) return;

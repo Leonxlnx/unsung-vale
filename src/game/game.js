@@ -320,7 +320,7 @@ export class Game {
   }
 
   // A screen over the game (the map, the luthier's bench): the world waits behind it.
-  openMenu(name) { if (this.state !== 'playing') return; this.state = 'menu'; this.menu = name; this.input.enabled = false; this.input.unlockPointer(); this.emit('state', { state: 'menu', menu: name }); }
+  openMenu(name) { if (this.state !== 'playing' || this.player.state === 'dead' || this.finisher) return; this.state = 'menu'; this.menu = name; this.input.enabled = false; this.input.unlockPointer(); this.emit('state', { state: 'menu', menu: name }); }
   closeMenu() { if (this.state !== 'menu') return; this.menu = null; this.start(); }
 
   // Swaps the stand-in body for the real animated hero.
@@ -434,6 +434,7 @@ export class Game {
 
   respawnAtCheckpoint() {
     const s = this.checkpoint;
+    this.finisher = null; this.riposteT = 0; this._ripUntil = 0;
     this.world.stream(s.x, s.z, 6);
     this.player.spawn(s.x, s.y, s.z, s.yaw ?? 0);
     this.rig.snap(this.player);
@@ -482,7 +483,12 @@ export class Game {
   start() { this.state = 'playing'; this.input.enabled = true; this.input.lockPointer(); this.emit('state', { state: 'playing' }); }
   pause() { if (this.state !== 'playing') return; this.state = 'paused'; this.input.enabled = false; this.input.unlockPointer(); this.emit('state', { state: 'paused' }); }
   resume() { if (this.state !== 'paused') return; this.start(); }
-  toHome() { this.state = 'home'; this.input.enabled = false; this.input.unlockPointer(); this.emit('state', { state: 'home' }); }
+  _dropMoment() {
+    this.finisher = null; this.riposteT = 0; this._ripUntil = 0;
+    if (this._deadFade) { this._deadFade = false; this.emit('fade', { on: false }); }
+    if (this.people?.talk) { this.people.talk = null; this.player.invulnerable = 0; this.emit('dialogue', { phase: 'close' }); }
+  }
+  toHome() { this._dropMoment(); this.state = 'home'; this.input.enabled = false; this.input.unlockPointer(); this.emit('state', { state: 'home' }); }
 
   // --- photo mode: the world holds its breath and the view goes where it likes ---
   photo(on) {
@@ -796,7 +802,7 @@ export class Game {
     if (e.type === 'plunge' && this.finisher?.dived) {
       // It lands: whatever the thing had left goes at once, and the whole court knows.
       const q = this.finisher.e; this.finisher = null;
-      if (q.alive) {
+      if (q.alive && q.pos.distanceTo(p.pos) < 7) {
         const c = q.center.clone();
         q.ward = 0; q.shelled = false; q.hp = 1; this.enemies.hit(q, 9999, p.pos, true);
         for (const [dl, r, s] of [[0, 9, 1.8], [0.12, 14, 1.2], [0.28, 20, 0.8]]) this.vfx.wave(q.pos.x, q.pos.y + 0.1, q.pos.z, { r0: 0.5, r1: r, life: 0.9, strength: s, width: 0.06, color: [3.6, 2.7, 1.2], delay: dl });
@@ -1002,7 +1008,7 @@ export class Game {
         this.xp += gain; this.emit('xp', { amount: gain, total: this.xp });
         (this.slain ??= {})[en.kind] = (this.slain[en.kind] ?? 0) + 1;
         const m = /^wild(\d+)$/.exec(en.group ?? '');
-        if (m && this.enemies.aliveIn(en.group) === 0) { this.wildDone.push(+m[1]); this.emit('pack', { index: +m[1] }); }
+        if (m && this.enemies.aliveIn(en.group) === 0 && !this.wildDone.includes(+m[1])) { this.wildDone.push(+m[1]); this.emit('pack', { index: +m[1] }); }
         this.save();
       }
       this._refreshObjective();

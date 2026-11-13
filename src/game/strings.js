@@ -168,7 +168,7 @@ export class Strings {
   }
 
   // Ride to a court from the pylon the hero stands at (used by the map).
-  rideTo(id) { const n = this.at(), hops = n && this.route(n.id, id); if (!hops || this.ride) return false; this.start(hops); return true; }
+  rideTo(id) { const n = this.at(), hops = n && this.route(n.id, id), g = this.game; if (!hops || this.ride || g.player.state === 'dead' || g.finisher) return false; this.start(hops); return true; }
 
   start(hops) {
     const g = this.game, p = g.player;

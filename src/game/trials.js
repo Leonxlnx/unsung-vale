@@ -54,7 +54,7 @@ function flatNear(W, x, z, reach = 24) {
 export class Trials {
   constructor(game, pipe) {
     // A bolt struck back while the Trial of Answers is on counts toward it.
-    game.on((type, d) => { const r = this.run; if (type === 'enemy' && d.type === 'returned' && r?.t.def.kind === 'return') { r.count++; game.emit('trial', { phase: 'gate', name: r.t.def.name, index: r.count, total: r.t.def.need, pitch: [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2][Math.min(4, r.count - 1)] }); } });
+    game.on((type, d) => { const r = this.run; if (type === 'enemy' && d.type === 'returned' && r?.t.def.kind === 'return' && d.group === `trial:${r.t.def.id}`) { r.count++; game.emit('trial', { phase: 'gate', name: r.t.def.name, index: r.count, total: r.t.def.need, pitch: [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2][Math.min(4, r.count - 1)] }); } });
     this.g = game; this.pipe = pipe; this.run = null;
     const W = game.world, time = pipe.globals.uTime;
     const geo = new THREE.TorusGeometry(1.25, 0.075, 6, 28).translate(0, 1.85, 0);

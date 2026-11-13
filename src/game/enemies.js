@@ -402,7 +402,7 @@ export class Enemies {
                 const c = e.center, spread = (i - (n - 1) / 2) * 0.22;
                 const aim = new THREE.Vector3(player.pos.x - c.x, player.pos.y + 1.1 - c.y, player.pos.z - c.z).normalize();
                 aim.applyAxisAngle(_up, spread);
-                this.projectiles.push({ pos: c.clone().addScaledVector(aim, 1.2), vel: aim.multiplyScalar(d.boss ? 19 : 17), life: 3, damage: d.damage * (d.boss ? 0.6 : 1), spin: Math.random() * 6 });
+                this.projectiles.push({ pos: c.clone().addScaledVector(aim, 1.2), vel: aim.multiplyScalar(d.boss ? 19 : 17), life: 3, damage: d.damage * (d.boss ? 0.6 : 1), spin: Math.random() * 6, group: e.group });
               }
               this.events.push({ type: 'shot', enemy: e });
             }
@@ -505,7 +505,7 @@ export class Enemies {
         for (const e of this.list) { if (!e.alive || e.state === 'dormant') continue; const dd = e.pos.distanceTo(p.pos); if (dd < bd && dd < 40) { bd = dd; best = e; } }
         const aim = best ? best.center.sub(p.pos).normalize() : p.vel.clone().normalize().negate();
         p.vel.copy(aim).multiplyScalar(30); p.back = true; p.life = 2.5; p.damage = Math.round(p.damage * 3.2);
-        this.events.push({ type: 'returned', pos: p.pos.clone() });
+        this.events.push({ type: 'returned', pos: p.pos.clone(), group: p.group });
       }
       if (p.back) {
         P.spawn(p.pos.x, p.pos.y, p.pos.z, { life: 0.25, size: 0.26, color: [3.4, 2.6, 1.1], alpha: 0.8 });
