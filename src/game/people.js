@@ -233,7 +233,7 @@ export class People {
           else { n.x += (dx / dd) * Math.min(dd, sp); n.z += (dz / dd) * Math.min(dd, sp); n.walkYaw = Math.atan2(dx, dz); n.root.position.set(n.x, n.y, n.z); }
         } else if (!n.moving && !near && (n.wt -= dt) <= 0) { n.moving = true; n.to = n.to === n.b ? n.a : n.b; }
         // Nobody walks through anybody: he is eased out of the way of whoever he stands in.
-        if (dist < 0.62 && dist > 1e-3 && !talking) { p.pos.x += ((p.pos.x - n.x) / dist) * (0.62 - dist); p.pos.z += ((p.pos.z - n.z) / dist) * (0.62 - dist); }
+        if (dist < 0.62 && dist > 1e-3 && !talking) g.pushHero(((p.pos.x - n.x) / dist) * (0.62 - dist), ((p.pos.z - n.z) / dist) * (0.62 - dist));
         n.gait = (n.gait ?? 0) + ((n.moving && !near ? 1 : 0) - (n.gait ?? 0)) * Math.min(1, dt * 4);
       }
       n.yaw += wrap((close ? toP : n.moving ? n.walkYaw : n.home) - n.yaw) * Math.min(1, dt * (talking ? 5 : n.moving && !close ? 4 : 1.6)) * k;

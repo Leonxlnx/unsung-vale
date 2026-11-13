@@ -37,6 +37,8 @@ export const DYES = {
   violet: ['Echo violet', [0.13, 0.05, 0.26], 'Answer an echo at every court', (g) => (g.echoes ?? []).length >= g.spires.length],
 };
 
+const _pushO = new THREE.Vector3(), _pushD = new THREE.Vector3();
+
 export const SKILLS = {
   petal: { id: 'pulse', name: 'Resonance pulse', how: 'F sends a ring of the song through everything near you.' },
   cantor: { id: 'dash', name: 'Running cut', how: 'Strike at a sprint to carry the run into a full turn of the blade.' },
@@ -611,9 +613,23 @@ export class Game {
 
   // The hero and the constructs cannot stand inside one another: whoever overlaps is eased
   // apart (he can still roll through the small ones).
+  // Moves the hero aside without ever putting him through a wall. Whatever shoves him (a
+  // construct he overlaps, someone strolling into him) asks for the move here; it is kept
+  // short and cut off where stone stands in the way, so a hard shove beside a pier cannot
+  // leave him inside it.
+  pushHero(dx, dz) {
+    const p = this.player, L = Math.hypot(dx, dz);
+    if (L < 1e-5) return;
+    const ux = dx / L, uz = dz / L, want = Math.min(L, 0.3);
+    let free = want;
+    for (const h of [0.45, 1.3]) free = Math.min(free, this.world.raycast(_pushO.set(p.pos.x, p.pos.y + h, p.pos.z), _pushD.set(ux, 0, uz), want + TUNE.radius + 0.05) - TUNE.radius - 0.05);
+    if (free > 0) { p.pos.x += ux * free; p.pos.z += uz * free; }
+  }
+
   _bodies() {
     const p = this.player;
     if (p.state === 'dead') return;
+    let ax = 0, az = 0;
     for (const e of this.enemies.list) {
       if (!e.alive || e.state === 'dormant' || e.state === 'rise') continue;
       if (p.state === 'roll' && !e.def.boss) continue;
@@ -621,9 +637,10 @@ export class Game {
       const dx = p.pos.x - e.pos.x, dz = p.pos.z - e.pos.z, d = Math.hypot(dx, dz), min = TUNE.radius + e.def.radius * 0.85;
       if (d >= min || d < 1e-4) continue;
       const k = (min - d) / d;
-      p.pos.x += dx * k * 0.7; p.pos.z += dz * k * 0.7;
+      ax += dx * k * 0.7; az += dz * k * 0.7;
       if (!e.def.boss) { e.pos.x -= dx * k * 0.3; e.pos.z -= dz * k * 0.3; }
     }
+    this.pushHero(ax, az);
   }
 
   _lockOn() {
