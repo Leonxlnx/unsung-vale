@@ -32,6 +32,11 @@ Fixed
   can be used with the stick or the cross: A presses, B closes.
 - No prompt is left on screen under the pause menu. Holding E beside something no longer
   hums like a tuning. A button clicked with the mouse is not pressed again by Space.
+- The game waits when the mouse lets go of the view (Alt-Tab, the browser's Esc) or the tab
+  is hidden, instead of fighting on against a hero who cannot turn.
+- A world that cannot be loaded says so. One failing frame no longer freezes the picture,
+  and a reset of the graphics device keeps what was done and offers a reload.
+- Sounds asked for before the page may play are dropped, not played all at once later.
 - Gold let into a floor turned olive in shade, where it mirrored the blue of the sky, and
   looked like grass coming through the paving. Gilding keeps its own hue now.
 

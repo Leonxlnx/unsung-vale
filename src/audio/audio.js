@@ -95,7 +95,7 @@ export class AudioManager {
   // One-shot effect. opts: volume, pitch (playback rate), pan (-1..1), spread (random pitch),
   // delay (seconds from now), wet (how much of the space's reverb, 0..1).
   sfx(name, opts = {}) {
-    if (!this.ready) return;
+    if (!this.ready || this.ctx.state !== 'running') return;
     const list = this.manifest.sfx?.[name];
     if (!list) return;
     let file = list;

@@ -14,6 +14,7 @@ import { WORLD } from './layout.js';
 
 async function loadHeights(url, meta) {
   const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url} answered ${res.status}`);
   const stream = res.body.pipeThrough(new DecompressionStream('gzip'));
   const buf = await new Response(stream).arrayBuffer();
   const q = new Uint16Array(buf);

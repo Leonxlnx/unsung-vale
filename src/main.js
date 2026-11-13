@@ -28,6 +28,10 @@ import { Governor } from './engine/governor.js';
 const canvas = document.getElementById('view');
 const params = new URLSearchParams(location.search);
 const boot = document.getElementById('boot');
+// Site data may be blocked, and then even reading it throws: that must not stop the page.
+const held = () => { try { return sessionStorage.getItem('uvHold') === '1'; } catch { return false; } };
+// Somebody is at the controls (not a script driving the page, not the film).
+const manned = () => !game.cine && !game.input.puppet && !navigator.webdriver && !params.get('capture');
 // Lets the browser paint the progress bar between the heavy construction steps.
 const TIPS = ['A bolt met with the blade goes back where it came from.', 'Blows landed without one taken build cadence. One hit and it is lost.', 'R hums the refrain and mends you. It comes back at spires, bells and pylons.', 'A blow slipped at the last instant opens a riposte.', 'A chorister\'s ward goes when the singer is broken.', 'There is a reliquary on every mesa, off the paths.', 'Light blows ring off a warden\'s wall of shards. A heavy one cracks it.', 'H holds the world still for a picture.'];
 let tipN = Math.floor(Math.random() * TIPS.length);
@@ -218,7 +222,7 @@ function tick(dt) {
   if (!game.cine) story.update(dt);
   ui.update(dt);
   updateAudio(dt);
-  const live = governor && game.state !== 'home' && sessionStorage.getItem('uvHold') !== '1';
+  const live = governor && game.state !== 'home' && !held();
   if (live) governor.begin();
   pipe.render(dt);
   if (live) governor.end(dt);
@@ -236,6 +240,32 @@ function tick(dt) {
 boot.classList.add('gone');
 setTimeout(() => boot.remove(), 1200);
 ui.hideLoading();
+
+// The mouse let go of the view (Alt-Tab, the browser's own Esc) after having held it for a
+// while: the Vale waits, rather than fighting on against a hero who cannot turn.
+{
+  let lockedAt = 0;
+  document.addEventListener('pointerlockchange', () => {
+    if (document.pointerLockElement) { lockedAt = performance.now(); return; }
+    if (game.state === 'playing' && manned() && performance.now() - lockedAt > 1000) { game.input._down.delete('pause'); game.pause(); }
+  });
+  // A tab nobody is looking at: the game waits and falls silent.
+  document.addEventListener('visibilitychange', () => {
+    if (!manned()) return;
+    if (document.hidden) { game.pause(); audio.ctx?.suspend?.()?.catch?.(() => {}); }
+    else audio.ctx?.resume?.()?.catch?.(() => {});
+  });
+  // The graphics device was reset (it happens under memory pressure): nothing baked at load
+  // survives that, so keep what was done and offer the way back.
+  canvas.addEventListener('webglcontextlost', () => {
+    if (!manned()) return;
+    game.pause(); game.save();
+    boot.classList.remove('gone'); if (!boot.isConnected) document.body.appendChild(boot);
+    boot.querySelector('p').textContent = 'The graphics device was reset. Click to reload; what you have done is kept.';
+    const tip = boot.querySelector('.tip'); if (tip) tip.textContent = '';
+    boot.onclick = () => location.reload();
+  });
+}
 
 // --- film capture: ?capture=1&w=3840&h=2160&fps=60&seconds=45&server=http://localhost:5199 ---
 const director = new Director({ pipe, game, sites, terrain });
@@ -713,12 +743,14 @@ async function runPerf() {
 if (params.get('perf')) { await runPerf(); }
 
 let last = performance.now();
+let frameErrors = 0;
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000);
+  requestAnimationFrame(frame);          // first of all: a frame that fails must not be the last
+  const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
   last = now;
   // Development: sessionStorage.uvHold = '1' stops the page drawing on its own, so frames are
   // only rendered when stepped through __dbg (keeps the GPU free while other work runs).
-  if (sessionStorage.getItem('uvHold') !== '1') tick(dt);
-  requestAnimationFrame(frame);
+  if (held()) return;
+  try { tick(dt); } catch (e) { if (++frameErrors <= 5) console.error(e); }
 }
 requestAnimationFrame(frame);

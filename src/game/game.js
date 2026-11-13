@@ -327,7 +327,7 @@ export class Game {
   attachHero(hero) { this.hero = hero; this.standIn.visible = false; this.player.autoSteps = false; hero.update(0.016, this.player, this); }
 
   on(fn) { this.listeners.push(fn); }
-  emit(type, data = {}) { for (const fn of this.listeners) fn(type, data); }
+  emit(type, data = {}) { for (const fn of this.listeners) { try { fn(type, data); } catch (e) { if ((this._emitErrors = (this._emitErrors ?? 0) + 1) <= 5) console.error(e); } } }
 
   // --- world objects -------------------------------------------------------------------
 
