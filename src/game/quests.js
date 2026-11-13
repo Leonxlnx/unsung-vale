@@ -33,8 +33,17 @@ const SHAPES = {
 
 // kind: gather (spots, taken by touch) | slay (packs of the wilds) | notes (lost notes found)
 // | elites (named Mute brought down) | trials (trials won) | relics (reliquaries opened)
-// | bells (bells rung) | echoes (echoes answered). after: offered once that one is done.
+// | bells (bells rung) | echoes (echoes answered) | chimes (sets rung right) | crystals
+// (song-crystals broken). after: offered once that one is done.
 export const QUESTS = [
+  { id: 'scales', giver: 'wen', title: 'Low, Middle, High', kind: 'chimes', verb: 'Set chimes right on the mesas', need: 4, reward: { up: 'stamina', xp: 120 },
+    offer: ['Do you know about the chimes? There are three bells and you have to hit them low, middle, high. I can do it. I did it once.', 'There is a set on every mesa nearly. If you do four I will tell you a secret.'],
+    wait: ['Four sets of chimes. Low, middle, high. The big one is the low one.'],
+    done: ['Four! Even Bram has only done two and he is old.', 'The secret is you breathe out when you run, not in. Maren told me. Now you know it too.'] },
+  { id: 'amber', giver: 'bram', title: 'Amber for the Mason', kind: 'crystals', verb: 'Break song-crystals open in the meadows', need: 12, reward: { up: 'health', xp: 130 },
+    offer: ['You have seen the amber growing in the grass? Song gone solid. My father ground it into the mortar; that is why the old walls hum.', 'I cannot leave the terrace, not with this knee. Break a dozen open out there and what comes loose will find its way back into the stone. And into you.'],
+    wait: ['A dozen clusters of the amber. They stand in the meadows on every mesa and spark a little.'],
+    done: ['A dozen. Put your hand on the balustrade. Feel that? It has not done that since I was a boy.', 'A mason\'s trick for you: stand like a wall and a blow has to go round you.'] },
   { id: 'kept', giver: 'quill', title: 'What the Singers Kept', kind: 'relics', verb: 'Open reliquaries on the mesas', need: 4, reward: { up: 'stamina', xp: 150 },
     offer: ['The archive lists them. A reliquary on every mesa, each with one keepsake in it. A whistle, a bead, a splinter of something.', 'Nobody has opened one since the quiet. I should like to cross four off the list before the ink dries on today.'],
     wait: ['Four reliquaries. They stand off the paths; the map marks the ones people have told you of.'],
@@ -204,6 +213,8 @@ export class Quests {
     if (q.kind === 'relics') return [Math.min(q.need, g.reliquaries?.openCount ?? 0), q.need];
     if (q.kind === 'bells') return [Math.min(q.need, g.bells?.list.filter((b) => b.rung).length ?? 0), q.need];
     if (q.kind === 'echoes') return [Math.min(q.need, (g.echoes ?? []).length), q.need];
+    if (q.kind === 'chimes') return [Math.min(q.need, g.chimes?.doneCount ?? 0), q.need];
+    if (q.kind === 'crystals') return [Math.min(q.need, g.geodes?.brokenCount ?? 0), q.need];
     return [Math.min(q.need, g.notes.count), q.need];
   }
 

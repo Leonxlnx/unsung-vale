@@ -223,6 +223,11 @@ export class Game {
     this._refreshObjective();
   }
 
+  get completion() {
+    const parts = [[this.spires.filter((s) => s.tuned).length, this.spires.length, 3], [this.quests.doneCount, this.quests.total, 2], [this.trials.doneCount, this.trials.list.length, 1.5], [this.notes.count, this.notes.total, 1.5], [this.reliquaries.openCount, this.reliquaries.list.length, 1], [this.chimes.doneCount, this.chimes.list.length, 0.7], [this.geodes.brokenCount, this.geodes.list.length, 0.5], [(this.echoes ?? []).length, this.spires.length, 0.8]];
+    let a = 0, b = 0; for (const [n, of, w] of parts) { a += w * Math.min(1, n / Math.max(1, of)); b += w; }
+    return Math.floor((100 * a) / b);
+  }
   dyeOpen(id) { return !!DYES[id] && DYES[id][3](this); }
   setDye(id) { if (!this.dyeOpen(id)) return false; this.cape = id; this.save(); return true; }
 

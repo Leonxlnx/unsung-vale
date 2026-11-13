@@ -104,7 +104,7 @@ turns exactly as far as the hand moves, whatever the system's pointer settings.
   a named Mute or a giant that is nearly spent can be ended with one leaping stroke. Wounds are mended with the refrain, a note the hero
   hums: a few to a journey, given back at spires, bells, pylons and with lost notes.
 - The people of the Vale: masked, robed figures who stand as grey statues until their spire
-  is tuned, then wake and ask for something. Sixteen side quests, eight trials (wave rings,
+  is tuned, then wake and ask for something. Eighteen side quests, eight trials (wave rings,
   timed runs through gates of light, and one won by striking bolts back), seventy lost notes.
 - Growth: each spire teaches an ability (resonance pulse, running cut, echo step, and more),
   and gifts and the luthier's bench raise life, breath and the blade's edge.
