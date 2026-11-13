@@ -83,6 +83,8 @@ export class Director {
       this.index = i;
       this.puppet.move.x = this.puppet.move.y = 0; this.puppet.held.clear(); this.puppet.pressed.clear();
       this._atk = 0; this._flag = {};
+      // A ride along a string ends with its shot.
+      if (this.game.strings?.ride) { this.game.strings.ride = null; this.game.strings.speed = 0; this.game.player.invulnerable = 0; }
       shot.setup?.(this);
       this.pipe.taa.reset = true;
     }
@@ -99,6 +101,8 @@ export class Director {
     const vLen = Math.hypot(vc[0] - va[0], vc[1] - va[1]), vStart = 25;      // metres along the deck where the run begins
     const vdir = [Math.sin(vyaw), Math.cos(vyaw)];
     const br = this.sites.bridge;
+    // Where the Colossus stands in the Choir, and the way from the spire out past it.
+    const col = [156, -4], cl = Math.hypot(col[0] - choir.x, col[1] - choir.z), cu = [(col[0] - choir.x) / cl, (col[1] - choir.z) / cl];
     return [
       { // 1. Dawn: the Cantor at the lookout, the Lattice ahead.
         dur: 6.5,
@@ -196,7 +200,74 @@ export class Director {
             [lerp(br.from[0], br.to[0], 0.6), lerp(br.from[1], br.to[1], 0.6) + 6, lerp(br.from[2], br.to[2], 0.6)], 42);
         },
       },
-      { // 8. The valley at day's end: the longest look at the whole of it.
+      { // 8. The Choir: what keeps it gets to its feet.
+        dur: 4.5,
+        setup: (d) => {
+          const g = d.game;
+          g.cineSetup({ tuned: ['petal', 'cantor'], player: [col[0] + cu[0] * 14, choir.base + 0.2, col[1] + cu[1] * 14, Math.atan2(-cu[0], -cu[1])] });
+          g.enemies.list = g.enemies.list.filter((x) => x.group !== 'choir' || x.kind === 'colossus');
+        },
+        update: (d, t, k) => {
+          const g = d.game, p = g.player.pos, e = g.enemies.list.find((x) => x.kind === 'colossus');
+          d.walkTo(col[0] + cu[0] * 10, col[1] + cu[1] * 10, { stop: 0.6 });
+          if (t > 0.4 && !d._flag.woke && e) { d._flag.woke = true; e.state = 'rise'; e.t = 0; }
+          if (e && e.state === 'chase') { e.t = 0; e.vel.set(0, 0, 0); e.pos.copy(e.home); }
+          // Low behind his shoulder, looking up at it as it stands.
+          const pos = [p.x + cu[0] * (4.4 - 0.9 * k) + cu[1] * 1.9, p.y + 0.7 + 0.3 * k, p.z + cu[1] * (4.4 - 0.9 * k) - cu[0] * 1.9];
+          d.cam(pos, [col[0], choir.base + 2.4 + 2.6 * k, col[1]], lerp(40, 35, k), [Math.hypot(pos[0] - col[0], pos[2] - col[1]), 55]);
+        },
+      },
+      { // 9. The Colossus.
+        dur: 6,
+        setup: (d) => {
+          const g = d.game;
+          g.cineSetup({ tuned: ['petal', 'cantor'], player: [col[0] + cu[0] * 8, choir.base + 0.2, col[1] + cu[1] * 8, Math.atan2(-cu[0], -cu[1])] });
+          g.enemies.list = g.enemies.list.filter((x) => x.group !== 'choir' || x.kind === 'colossus');
+          for (const x of g.enemies.list) if (x.kind === 'colossus') { x.state = 'chase'; x.assembled = 1; x.snap = true; }
+          d.focus.set(col[0] + cu[0] * 4, choir.base + 2, col[1] + cu[1] * 4);
+        },
+        update: (d, t, k, dt) => {
+          const p = d.game.player, e = d.fight(dt);
+          const c = e ? p.pos.clone().lerp(e.pos, 0.55) : p.pos.clone();
+          d.focus.lerp(new THREE.Vector3(c.x, choir.base + 2, c.z), Math.min(1, 3 * dt));
+          // A wide, low circle, so the size of the thing is plain, the spire behind it.
+          const a = Math.atan2(cu[1], cu[0]) - 0.75 + 1.5 * k, r = 11.5 - 1.5 * Math.sin(k * Math.PI);
+          d.cam([d.focus.x + Math.cos(a) * r, d.focus.y - 0.9 + 0.8 * k, d.focus.z + Math.sin(a) * r], [d.focus.x, d.focus.y + 0.5, d.focus.z], 40, [r, 35]);
+        },
+      },
+      { // 10. Along a string of light to the Lantern Court.
+        dur: 5.5,
+        setup: (d) => {
+          const g = d.game, S = g.strings, n = S.nodes.choir, o = S.nodes.east;
+          g.cineSetup({ tuned: ['petal', 'cantor', 'choir'], player: [n.x + 1.2, n.y + 0.1, n.z, Math.atan2(o.x - n.x, o.z - n.z)] });
+          // Taken up a fifth of the way along, where the string runs fastest.
+          if (S.rideTo('east')) { const r = S.ride; r.t = r.dur * 0.2; r.s = ((0.2 - 0.05) / 0.9) * r.total; }
+        },
+        update: (d, t, k, dt) => {
+          // The film carries him along itself: the strings do not run their rides in it.
+          const S = d.game.strings; if (S.ride) S._ride(dt);
+          const p = d.game.player, f = [Math.sin(p.yaw), Math.cos(p.yaw)], e = ease(k);
+          // Beside him at first, then falling back until the whole string is ahead.
+          const back = lerp(4.5, 8.5, e), out = lerp(4.2, 1.6, e);
+          d.cam([p.pos.x - f[0] * back + f[1] * out, p.pos.y + 2.2 + 1.0 * k, p.pos.z - f[1] * back - f[0] * out], [p.pos.x + f[0] * 16, p.pos.y + 1.4, p.pos.z + f[1] * 16], 48);
+        },
+      },
+      // 11-13. The Vale with every spire singing, crossed from the west to the far shore.
+      ...[
+        [6, [-640, 286, -40], [-420, 240, -150], [-372, 196, -392], [66, 176, -498]],
+        [6, [-160, 250, 120], [80, 230, 60], [150, 110, -15], [578, 150, -437]],
+        [7, [260, 300, 200], [420, 360, 120], [900, 160, 500], [2750, 330, 1480]],
+      ].map(([dur, a0, a1, b0, b1]) => ({
+        dur,
+        setup: (d) => d.game.cineSetup({ tuned: ['petal', 'cantor', 'choir'], player: [terrace[0] + 15.5, terrace[1] + 0.05, terrace[2] - 1.5, Math.PI / 2] }),
+        update: (d, t, k) => {
+          const e = k * (0.35 + 0.65 * (k * (2 - k)));          // away at speed, settling as the leg ends
+          const a = mix3(a0, a1, e), b = mix3(b0, b1, e);
+          a[1] = Math.max(a[1], H(a[0], a[2]) + 12);
+          d.cam(a, b, 50);
+        },
+      })),
+      { // 14. The valley at day's end: the longest look at the whole of it.
         dur: 4.5,
         setup: (d) => d.game.cineSetup({ tuned: ['petal', 'cantor', 'choir'], player: [terrace[0] + 15.5, terrace[1] + 0.05, terrace[2] - 1.5, Math.PI / 2] }),
         update: (d, t, k) => {

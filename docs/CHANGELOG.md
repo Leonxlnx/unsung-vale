@@ -80,6 +80,12 @@ The Vale
 - People stroll, say a word in passing, call out during an echo, and each has something to
   say when the whole Vale sings. Birds over the spires, butterflies in the meadows.
 
+The film
+
+- Eighty seconds now, from forty-five: the Colossus of the Choir getting to its feet and
+  the fight with it, a ride along a string of light to the Lantern Court, and three
+  flights over the Vale with every spire singing, before the last look from the terrace.
+
 The interface
 
 - A Guide tab that keeps what the hint cards say. The journal lists every kind of Mute

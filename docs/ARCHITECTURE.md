@@ -275,7 +275,7 @@ the opaque scene at the far plane with the depth test on, so it is only shaded w
   heavy ones), never repeat the same variation twice running, can be delayed to land on the
   cut, and feed a convolution reverb (`ir/space.ogg`, a recorded stone court) through their
   own send. `audio.hold()` plays a sustained tone for as long as something is held.
-- `cine/director.js`: the 45 s film as a list of shots (`setup`, `update`), driving the hero
+- `cine/director.js`: the 80 s film as a list of shots (`setup`, `update`), driving the hero
   through `input.puppet` and the story state through `game.cineSetup()`.
   Each shot can pass a lens to `d.cam()`: focus distance and blur.
   `cine/output.js`: depth of field (a gather blur per sub-frame), sub-frame accumulation

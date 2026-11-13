@@ -11,6 +11,8 @@ param(
   [int]$H = 2160,
   [int]$Fps = 60,
   [int]$Port = 5194,
+  [int]$Sub = 3,
+  [int]$Seconds = 80,
   [switch]$Now
 )
 $ErrorActionPreference = "Continue"
@@ -63,7 +65,7 @@ try {
   Log "rendering ${W}x${H} at $Fps fps to $outAbs"
   # The render resumes where it stopped: try again a few times if a part fails.
   for ($try = 1; $try -le 6; $try++) {
-    $r = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "node tools/render-film.mjs --w $W --h $H --fps $Fps --url http://localhost:$Port --out `"$outAbs`" >> `"$outDir\render.log`" 2>&1" -WorkingDirectory $snap -WindowStyle Hidden -Wait -PassThru
+    $r = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "node tools/render-film.mjs --w $W --h $H --fps $Fps --sub $Sub --seconds $Seconds --url http://localhost:$Port --out `"$outAbs`" >> `"$outDir\render.log`" 2>&1" -WorkingDirectory $snap -WindowStyle Hidden -Wait -PassThru
     if ((Test-Path "$outAbs-hdr10.mp4") -and (Test-Path "$outAbs-sdr.mp4")) { Log "DONE after $try run(s): $outAbs-hdr10.mp4 and -sdr.mp4"; break }
     Log "run $try ended without the finished film (exit $($r.ExitCode)); trying again in 30 s"
     Start-Sleep -Seconds 30

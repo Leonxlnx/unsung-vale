@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const arg = (name, def) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : def; };
-const W = arg('w', '3840'), H = arg('h', '2160'), FPS = Number(arg('fps', 60)), TOTAL = Number(arg('seconds', 45)), SEG = Number(arg('segment', 5));
+const W = arg('w', '3840'), H = arg('h', '2160'), FPS = Number(arg('fps', 60)), TOTAL = Number(arg('seconds', 80)), SEG = Number(arg('segment', 5));
 const OUT = arg('out', 'renders/unsung-vale'), SUB = arg('sub', '3'), THREADS = arg('threads', '6'), ONLY = arg('only', '');
 const URL_BASE = arg('url', 'http://localhost:5184');       // the built game: npm run build && npm run preview
 const dir = path.join(path.dirname(OUT), 'parts');
