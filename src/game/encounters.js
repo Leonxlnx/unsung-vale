@@ -12,10 +12,10 @@ const ELITE = {
 // Per court: a list of waves, each a list of [kind, count, elite?].
 export const WAVES = {
   east: [[['thrall', 3], ['hound', 2]], [['lancer', 2], ['warden', 1], ['hound', 2]], [['thrall', 1, 'lantern'], ['thrall', 2]]],
-  south3: [[['hound', 3], ['seeker', 2]], [['chorister', 2], ['thrall', 2], ['seeker', 2]], [['hound', 1, 'stalker'], ['hound', 3], ['lancer', 1]]],
-  aurel: [[['warden', 2], ['lancer', 2], ['seeker', 2]], [['brute', 1], ['thrall', 3], ['hound', 2], ['toller', 1]], [['warden', 1, 'gilded'], ['chorister', 1], ['thrall', 2, 'veteran']]],
-  south1: [[['hound', 3], ['lancer', 1], ['toller', 1], ['seeker', 3]], [['brute', 1], ['warden', 1], ['chorister', 1], ['thrall', 2]], [['chorister', 1, 'cantor'], ['hound', 4], ['thrall', 2, 'veteran']]],
-  crown: [[['thrall', 3, 'veteran'], ['hound', 2], ['lancer', 1], ['seeker', 3]], [['brute', 1], ['warden', 1], ['chorister', 1], ['toller', 2], ['seeker', 4]], [['sovereign', 1]]],
+  south3: [[['hound', 3], ['seeker', 2]], [['chorister', 2], ['thrall', 1], ['shade', 1], ['seeker', 2]], [['hound', 1, 'stalker'], ['hound', 3], ['lancer', 1]]],
+  aurel: [[['warden', 2], ['lancer', 1], ['shade', 1], ['seeker', 2]], [['brute', 1], ['thrall', 3], ['hound', 2], ['toller', 1]], [['warden', 1, 'gilded'], ['chorister', 1], ['thrall', 2, 'veteran']]],
+  south1: [[['hound', 3], ['lancer', 1], ['toller', 1], ['seeker', 3]], [['brute', 1], ['warden', 1], ['chorister', 1], ['shade', 2]], [['chorister', 1, 'cantor'], ['hound', 4], ['thrall', 2, 'veteran']]],
+  crown: [[['thrall', 2, 'veteran'], ['shade', 2], ['hound', 2], ['lancer', 1], ['seeker', 3]], [['brute', 1], ['warden', 1], ['chorister', 1], ['toller', 2], ['seeker', 4]], [['sovereign', 1]]],
 };
 
 // Packs in the wilds: [x, z, [[kind, count, elite?], ...]]. They guard nothing but give
@@ -35,7 +35,7 @@ const ORDINAL = ['', 'Second wave', 'Last wave'];
 // its spire and the Mute that held it come back for three waves, harder than they were. It
 // is practice and it is paid in resonance; the further the court, the harder and the richer.
 const echoWaves = (tier) => [
-  [['thrall', 3 + (tier > 3 ? 1 : 0)], ['hound', 2], ['seeker', tier > 1 ? 2 : 0]],
+  [['thrall', 3], ['shade', tier > 3 ? 2 : tier > 1 ? 1 : 0], ['hound', 2], ['seeker', tier > 1 ? 2 : 0]],
   [['lancer', 2], ['warden', 1 + (tier > 4 ? 1 : 0)], ['chorister', 1], ['toller', tier > 0 ? 1 : 0], ['hound', tier > 2 ? 2 : 0]],
   [['brute', 1 + (tier > 5 ? 1 : 0)], ['chorister', tier > 3 ? 2 : 1], ['thrall', 3], ['seeker', 2 + (tier > 4 ? 2 : 0)]],
 ];

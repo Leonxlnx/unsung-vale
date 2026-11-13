@@ -916,6 +916,12 @@ export class Game {
       for (const [dl, r] of [[0, 16], [0.25, 24]]) this.vfx.wave(q.x, q.y + 0.1, q.z, { r0: 1, r1: r, life: 1.1, strength: 1.4, width: 0.07, color: [2.4, 1.15, 4.6], delay: dl });
       this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: 1, r1: 12, life: 0.7, strength: 1.5, width: 0.1, color: [2.4, 1.15, 4.6] });
     }
+    if (e.type === 'blink') {
+      const c = e.pos;
+      this.particles.burst(c.x, c.y, c.z, 22, { speed: e.arrive ? 5 : 3, life: 0.45, size: 0.06, color: [3.0, 1.5, 6.0], gravity: e.arrive ? 2 : -3, drag: 1.6 });
+      this.vfx.wave(c.x, c.y, c.z, { kind: 1, r0: e.arrive ? 1.8 : 0.3, r1: e.arrive ? 0.3 : 1.8, life: 0.3, strength: 1.0, width: 0.09, color: [2.6, 1.3, 5.2] });
+      if (e.arrive && !this._blinkHint && !this.cine) { this._blinkHint = true; this.emit('hint', { title: 'The Shade', text: 'It lets go of its shape and takes it up again at your back. When it vanishes, roll.' }); }
+    }
     if (e.type === 'toll') {
       const q = e.ring, life = (q.max - q.r) / q.speed;
       this.vfx.wave(q.x, q.y + 0.07, q.z, { r0: q.r, r1: q.max, life, linear: true, rise: true, strength: 2.4, width: 0.045, color: [2.8, 1.4, 5.6] });

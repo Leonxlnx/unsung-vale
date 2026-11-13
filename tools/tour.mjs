@@ -226,6 +226,19 @@ if (want('chime')) {
   await ev(() => { const g = window.__game, c = g.chimes.list[0]; for (const v of [0, 1, 2]) g.chimes._ring(c, c.bells.find((b) => b.voice === v)); });
   await sleep(900); await shot('chime_done');
 }
+if (want('shade')) {
+  // A Shade: standing, gone, and back again behind the hero.
+  await ev(() => {
+    const g = window.__game, p = g.player; window.__dbg.ui(true); window.__tour.clear('shade');
+    window.__tour.tp(-512, 210.5, -66, 1.57, -0.2, 8.5);
+    const e = g.enemies.spawn('shade', p.pos.x + 7, p.pos.z + 0.5, 'shade', null, p.pos.y);
+    e.state = 'chase'; e.assembled = 1; e.t = -0.6; e.yaw = -1.57; e.blinkCd = 0;
+  });
+  await sleep(550); await shot('shade_stands');
+  await sleep(480); await shot('shade_gone');
+  await sleep(330); await shot('shade_behind');
+  await ev(() => window.__tour.clear('shade'));
+}
 if (want('toll')) {
   // A Toller and the ring of its toll running out along the ground.
   await ev(() => {

@@ -124,6 +124,9 @@ const BRUTE = [
   S(0, 0.95, 0, 0, -1, 0, 0.7, 0.6), S(-0.3, 0.5, 0, -0.15, -1, 0, 0.9, 0.34, 'tail'), S(0.3, 0.5, 0, 0.15, -1, 0, 0.9, 0.34, 'tail'),
   S(-0.3, 2.5, -0.5, -0.3, 1, -0.6, 0.6, 0.2, 'spine'), S(0.3, 2.5, -0.5, 0.3, 1, -0.6, 0.6, 0.2, 'spine'), S(0, 2.7, -0.45, 0, 1, -0.5, 0.75, 0.22, 'spine'),
 ];
+// Shade: a thrall drawn thin. It does not come at him the long way round: it lets go of its
+// shape, and takes it up again at his back.
+const SHADE = THRALL.filter((s) => s.tag !== 'mote').map((s) => S(s.p.x * 0.82, s.p.y * 1.08, s.p.z * 0.82, s.d.x, s.d.y, s.d.z, s.len * 1.2, s.th * 0.66, s.tag));
 // Toller: a bell of long shards hung mouth-down from a knot. It keeps its distance, and when
 // it tolls a ring runs out along the ground from under it: jump it, or roll through it.
 const TOLLER = [
@@ -155,6 +158,7 @@ function derive(base, m) {
 }
 
 export const KINDS = {
+  shade:     { slots: SHADE, hp: 55, speed: 3.9, reach: 2.3, windup: 0.52, strike: 0.2, recover: 0.95, damage: 15, poise: 26, radius: 0.5, sight: 28, hover: 0.3, core: 1.45, blink: true, xp: 14, name: 'Mute Shade' },
   toller:    { slots: TOLLER, hp: 110, speed: 1.7, reach: 13, windup: 1.15, strike: 0.2, recover: 1.9, damage: 13, poise: 60, radius: 0.8, sight: 32, hover: 0.45, core: 1.9, ranged: true, toll: true, xp: 22, name: 'Mute Toller' },
   seeker:    { slots: SEEKER, hp: 20, speed: 7.6, reach: 1.7, windup: 0.5, strike: 0.1, recover: 0.4, damage: 20, poise: 8, radius: 0.4, sight: 34, hover: 0.25, core: 1.3, burst: true, xp: 7, name: 'Mute Seeker' },
   brute:     { slots: BRUTE, hp: 230, speed: 2.9, reach: 3.2, windup: 1.0, strike: 0.26, recover: 1.2, damage: 30, poise: 110, radius: 0.95, sight: 28, hover: 0.25, core: 1.7, slam: true, xp: 40, name: 'Mute Brute' },
@@ -228,6 +232,7 @@ export class Enemies {
   // Applies a hit. Returns true if it connected.
   hit(e, dmg, from, heavy = false) {
     if (!e.alive || e.state === 'dormant') return false;
+    if (e.fade > 0.6) return false;
     if (e.def.shield && e.state !== 'stagger') {
       // In front of the wall of shards a light blow only rings on it; a heavy one cracks it.
       const dx = from.x - e.pos.x, dz = from.z - e.pos.z, l = Math.hypot(dx, dz) || 1;
@@ -277,6 +282,8 @@ export class Enemies {
         e.shelled = this.list.some((o) => o !== e && o.alive && o.group === e.group);
         if (e.shelled) { const c = e.center, an = time * 2.4, rr = d.radius + 0.7; for (let k = 0; k < 3; k++) P.spawn(c.x + Math.cos(an + k * 2.094) * rr, c.y + 0.5 * Math.sin(time * 1.7 + k), c.z + Math.sin(an + k * 2.094) * rr, { life: 0.4, size: 0.12, color: [3.0, 1.6, 6.0], alpha: 0.9 }); }
       }
+      if (e.blinkCd > 0) e.blinkCd -= dt;
+      if (e.state !== 'blink' && e.fade > 0) e.fade = Math.max(0, e.fade - dt * 4);
       if (e.wardCd > 0) e.wardCd -= dt;
       if (e.rushCd > 0) e.rushCd -= dt;
       if (e.ward > 0) {
@@ -328,6 +335,9 @@ export class Enemies {
           } else {
             if (d.burst) {
               if (dist > d.reach) wantSpeed = d.speed; else { e.state = 'windup'; e.t = 0; this.events.push({ type: 'charge', enemy: e }); }
+            } else
+            if (d.blink && dist > 3.5 && dist < 16 && !(e.blinkCd > 0) && e.t > 0.4 && !this.film) {
+              e.state = 'blink'; e.t = 0; e.blinkCd = 4.5 + e.seed * 2.5; this.events.push({ type: 'blink', enemy: e, pos: e.center.clone() });
             } else
             if (d.slam && !d.boss && dist > 7 && dist < 17 && !(e.rushCd > 0) && e.t > 0.5) {
               e.state = 'windup'; e.t = 0; e.attackKind = 5; e.rushCd = 7 + e.seed * 3; this.events.push({ type: 'charge', enemy: e }); this.events.push({ type: 'rushMark', enemy: e });
@@ -418,6 +428,22 @@ export class Enemies {
             if (e.kind === 'thrall' && this.haste > 1.05 && !e.again && e.alive && dist < d.reach + 1.5) { e.again = true; e.state = 'windup'; e.t = d.windup * 0.45; this.events.push({ type: 'charge', enemy: e }); }
             else if (e.kind === 'lancer' && (this.haste > 1.3 || e.tint > 0 || e.ghost) && !e.again && e.alive) { e.again = true; e.state = 'windup'; e.t = d.windup * 0.62; }
             else { e.state = 'recover'; e.t = 0; e.slamFx = false; e.again = false; if (e.attackKind === 5) e.attackKind = 0; }
+          }
+        } else if (e.state === 'blink') {
+          // It lets go of its shape; a breath later it has it again behind him, already raising its arm.
+          e.fade = Math.min(1, e.t / 0.3); e.vel.set(0, 0, 0);
+          if (e.t >= 0.5) {
+            const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
+            let ok = false;
+            for (const [bx, bz] of [[-fx, -fz], [-fz, fx], [fz, -fx], [fx, fz]]) {
+              const tx = player.pos.x + bx * 2.4, tz = player.pos.z + bz * 2.4, fl = W.floorBelow(tx, player.pos.y + 1.5, tz, 4);
+              if (Math.abs(fl - player.pos.y) > 1.1) continue;
+              if (W.raycast(_v.set(player.pos.x, player.pos.y + 1.0, player.pos.z), _v2.set(bx, 0, bz), 2.4) < 2.3) continue;
+              e.pos.set(tx, fl, tz); ok = true; break;
+            }
+            e.yaw = Math.atan2(player.pos.x - e.pos.x, player.pos.z - e.pos.z); e.snap = true;
+            this.events.push({ type: 'blink', enemy: e, pos: e.center.clone(), arrive: true });
+            if (ok) { e.state = 'windup'; e.t = 0; e.attackKind = 0; this.events.push({ type: 'charge', enemy: e }); } else { e.state = 'chase'; e.t = 0; }
           }
         } else if (e.state === 'recover') {
           if (e.t >= d.recover * (1 - 0.16 * e.phase) / this.haste) { e.state = 'chase'; e.t = 0; }
@@ -572,7 +598,7 @@ export class Enemies {
         _m.compose(sh.pos, sh.quat, _s.set(s.th * es, s.len * es, s.th * es));
         M.setMatrixAt(n, _m);
         G[n * 3] = e.state === 'dormant' ? 0 : e.glow + (e.state === 'rise' ? 0.6 : 0) + 0.25 * e.tint;
-        G[n * 3 + 1] = e.state === 'dead' ? Math.max(0, (e.t - 1.6) / 1.5) : 0;
+        G[n * 3 + 1] = e.state === 'dead' ? Math.max(0, (e.t - 1.6) / 1.5) : (e.fade ?? 0) * 0.96;
         G[n * 3 + 2] = e.tint + 2 * (e.ghost ?? 0);
         n++;
       }
