@@ -8,7 +8,7 @@ export const PRESETS = {
   ultra:  { renderScale: 1.0, shadows: true, volumetrics: true, reflections: true, cover: 1.0, clouds: 2, cloudRes: 2048, shadowRate: 1, softShadows: 2 },
 };
 
-const DEFAULTS = { preset: 'medium', ...PRESETS.medium, targetFps: 50, fov: 60, sensitivity: 1, invertY: false, master: 0.8, music: 0.55, sfx: 0.85, showFps: false, challenge: 'standard', shake: 1, flashes: true };
+const DEFAULTS = { preset: 'medium', ...PRESETS.medium, targetFps: 50, fov: 60, sensitivity: 1, invertY: false, master: 0.8, music: 0.55, sfx: 0.85, showFps: false, challenge: 'standard', shake: 1, flashes: true, sprintToggle: false };
 
 export class Settings {
   constructor(renderer) {
@@ -59,5 +59,6 @@ export function applySettings(settings, { pipe, game, cover, audio, gloss, gover
   game.flashScale = (v.flashes ?? true) ? 1 : 0.2;
   game.input.sensitivity = v.sensitivity;
   game.input.invertY = v.invertY;
+  game.input.sprintToggle = !!v.sprintToggle;
   audio?.setVolumes(v.master, v.music, v.sfx);
 }

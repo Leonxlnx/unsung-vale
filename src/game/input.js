@@ -100,6 +100,11 @@ export class Input {
       });
       if (pad.buttons[6]?.value > 0.5) this.held.add('sprint');
     }
+    if (this.sprintToggle) {
+      if (this.pressed.has('sprint')) this._sprintOn = !this._sprintOn;
+      if (!mx && !my) this._sprintOn = false;                 // standing still ends it
+      if (this._sprintOn) this.held.add('sprint'); else this.held.delete('sprint');
+    }
     const l = Math.hypot(mx, my);
     if (l > 1) { mx /= l; my /= l; }
     this.move.x = mx; this.move.y = my;
