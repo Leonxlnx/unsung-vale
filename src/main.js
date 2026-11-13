@@ -461,6 +461,10 @@ window.__dbg = {
       if (b.sideT > 0) { pu.move.x = b.sideDir; pu.move.y = 0.15; }
       return there;
     };
+    // An errand off the road is only taken where the ground between here and there does not
+    // fall away. The bot walks in straight lines, and would step off a mesa, or off the bridge
+    // of light, toward something that stands on the far side of a drop.
+    const open = (x, z) => { for (let k = 1; k < 8; k++) { const u = k / 8; if (g.world.floorBelow(p.pos.x + (x - p.pos.x) * u, p.pos.y + 2.5, p.pos.z + (z - p.pos.z) * u, 34) < p.pos.y - 30) return false; } return true; };
     while (b.t < until && b.stuck < 14) {
       pu.pressed.clear(); pu.held.clear(); pu.move.x = pu.move.y = 0;
       b.sideT -= dt;
@@ -476,11 +480,11 @@ window.__dbg = {
       else {
         b.dead = false;
         const tr = side ? g.tracker() : null;
-        const trial = side && !foe && !g.trials.run ? g.trials.list.find((t) => !t.done && !b.failed?.includes(t.def.id) && Math.hypot(t.x - p.pos.x, t.z - p.pos.z) < 300) : null;
+        const trial = side && !foe && !g.trials.run ? g.trials.list.find((t) => !t.done && !b.failed?.includes(t.def.id) && Math.hypot(t.x - p.pos.x, t.z - p.pos.z) < 300 && open(t.x, t.z)) : null;
         // Someone awake nearby with something new to say, or a side quest close at hand.
-        const who = side && !foe ? g.people.list.find((n) => n.awake && n.k >= 0.9 && !(b.skip?.get(n.def.id) > b.t) && Math.hypot(n.x - p.pos.x, n.z - p.pos.z) < 70 && (!g.metPeople?.includes(n.def.id) || Q.active.some((q) => q.giver === n.def.id && Q.state[q.id].s === 'ready'))) : null;
-        const near = tr?.mark && Math.hypot(tr.mark.x - p.pos.x, tr.mark.z - p.pos.z) < 330 ? tr.mark : null;
-        const relic = side && !foe ? g.reliquaries.list.find((r) => g.reliquaries.known(r) && !(b.skip?.get(r.group) > b.t) && Math.hypot(r.x - p.pos.x, r.z - p.pos.z) < 220) : null;
+        const who = side && !foe ? g.people.list.find((n) => n.awake && n.k >= 0.9 && !(b.skip?.get(n.def.id) > b.t) && Math.hypot(n.x - p.pos.x, n.z - p.pos.z) < 70 && open(n.x, n.z) && (!g.metPeople?.includes(n.def.id) || Q.active.some((q) => q.giver === n.def.id && Q.state[q.id].s === 'ready'))) : null;
+        const near = tr?.mark && Math.hypot(tr.mark.x - p.pos.x, tr.mark.z - p.pos.z) < 330 && open(tr.mark.x, tr.mark.z) ? tr.mark : null;
+        const relic = side && !foe ? g.reliquaries.list.find((r) => g.reliquaries.known(r) && !(b.skip?.get(r.group) > b.t) && Math.hypot(r.x - p.pos.x, r.z - p.pos.z) < 220 && open(r.x, r.z)) : null;
         if (g.people.talk) { mode = 'talk'; b.talkT += dt; if (b.talkT > 3.2) { b.talkT = 0; pu.pressed.add('interact'); } }         // a reader's pace
         else if (T.active) { mode = 'tune'; if (T.phase === 'beats' && T.ring && Math.abs(T.bt - T.period) < 0.04) pu.pressed.add('interact'); }
         else if (p.state === 'ride') mode = 'ride';

@@ -432,7 +432,8 @@ export class Enemies {
         } else if (e.state === 'blink') {
           // It lets go of its shape; a breath later it has it again behind him, already raising its arm.
           e.fade = Math.min(1, e.t / 0.3); e.vel.set(0, 0, 0);
-          if (e.t >= 0.5) {
+          if (e.t >= 0.5 && dist > 24) { e.fade = 0; e.state = 'return'; e.t = 0; }
+          else if (e.t >= 0.5) {
             const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
             let ok = false;
             for (const [bx, bz] of [[-fx, -fz], [-fz, fx], [fz, -fx], [fx, fz]]) {

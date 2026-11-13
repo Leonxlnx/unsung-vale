@@ -217,9 +217,9 @@ export class Game {
     // A sprinting footfall kicks up a little of whatever is underfoot.
     this.on((type, d) => { if (type === 'player' && d.type === 'step' && d.sprint && !this.cine) this._dust(3, 1.2, 2.2); });
     this.people = new People(this, pipe);
-    this.quests = new Quests(this, pipe);
     this.trials = new Trials(this, pipe);
     this.geodes = new Geodes(this, pipe);
+    this.quests = new Quests(this, pipe);
     this._skills(); this._charms();
     this.respawnAtCheckpoint();
     this._refreshObjective();
@@ -316,7 +316,7 @@ export class Game {
   unstuck() {
     if (this.state !== 'playing' || this.tuning.active || this.people.talk || this.strings.ride) return;
     this.emit('fade', { on: true });
-    setTimeout(() => { if (this.trials.run) this.trials._end(false); this.respawnAtCheckpoint(); this.hero?.cloth?.reset(); this.emit('fade', { on: false }); }, 650);
+    setTimeout(() => { if (this.trials.run) this.trials._end(false); this.encounters._endEcho(false); this.respawnAtCheckpoint(); this.hero?.cloth?.reset(); this.emit('fade', { on: false }); }, 650);
   }
 
   // A screen over the game (the map, the luthier's bench): the world waits behind it.
@@ -412,7 +412,7 @@ export class Game {
 
   save() {
     if (this.cine) return;        // the film must never overwrite a player's progress
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, outro: !!this.outroSeen, elites: this.elitesDown ?? [], charms: this.charmsFound ?? [], worn: this.charmsWorn ?? [], slain: this.slain ?? {}, echoes: this.echoes ?? [], cape: this.cape ?? 'red', falls: this.falls ?? 0, chimes: this.chimesDone ?? [], geodes: this.geodesBroken ?? [], time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ tuned: this.spires.filter((s) => s.tuned).map((s) => s.id), checkpoint: this.checkpoint, ended: this.ended, intro: !!this.introSeen, said: this.storySaid ?? [], notes: this.notesTaken ?? [], xp: this.xp, wild: this.wildDone, up: this.player.up, bought: this.bought, quests: this.quests?.dump() ?? this.questSave ?? {}, met: this.metPeople ?? [], map: !!this.hasMap, seen: this.seenPlaces ?? [], trials: this.trialsDone ?? [], bells: this.bellsRung ?? {}, outro: !!this.outroSeen, elites: this.elitesDown ?? [], charms: this.charmsFound ?? [], worn: this.charmsWorn ?? [], slain: this.slain ?? {}, echoes: this.echoes ?? [], cape: this.cape ?? 'red', falls: this.falls ?? 0, chimes: this.chimesDone ?? [], geodes: this.geodesBroken ?? [], waves: this.encounters?.reached ?? {}, time: Math.round(this.playTime ?? 0) })); } catch { /* storage may be unavailable */ }
   }
   load() {
     this.checkpoint = { ...this.sites.spawn };
@@ -422,7 +422,7 @@ export class Game {
       for (const s of this.spires) if (d.tuned?.includes(s.id)) { s.tuned = true; s.power = 1; s.zoneR = 0; s.zone.w = 0; s.crystal.material.uniforms.uPower.value = 1; s.beam.material.uniforms.uPower.value = 1; }
       if (d.checkpoint) this.checkpoint = d.checkpoint;
       this.xp = d.xp ?? 0; this.wildDone = d.wild ?? []; this.bought = d.bought ?? 0;
-      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {}; this.outroSeen = !!d.outro; this.elitesDown = d.elites ?? []; this.charmsFound = d.charms ?? []; this.charmsWorn = d.worn ?? []; this.slain = d.slain ?? {}; this.echoes = d.echoes ?? []; this.cape = d.cape ?? 'red'; this.falls = d.falls ?? 0; this.chimesDone = d.chimes ?? []; this.geodesBroken = d.geodes ?? [];
+      Object.assign(this.player.up, d.up ?? {}); this.questSave = d.quests ?? {}; this.metPeople = d.met ?? []; this.hasMap = !!d.map; this.seenPlaces = d.seen ?? []; this.trialsDone = d.trials ?? []; this.playTime = d.time ?? 0; this.bellsRung = d.bells ?? {}; this.outroSeen = !!d.outro; this.elitesDown = d.elites ?? []; this.charmsFound = d.charms ?? []; this.charmsWorn = d.worn ?? []; this.slain = d.slain ?? {}; this.echoes = d.echoes ?? []; this.cape = d.cape ?? 'red'; this.falls = d.falls ?? 0; this.chimesDone = d.chimes ?? []; this.geodesBroken = d.geodes ?? []; if (this.encounters) this.encounters.reached = d.waves ?? {};
       this.ended = !!d.ended; this.introSeen = !!d.intro || !!d.tuned?.length; this.storySaid = d.said ?? []; this.notesTaken = d.notes ?? [];
       if (this.spires[1].tuned) { this.bridgeOpen = true; this.bridgeProgress = 1; }
       // A journey that ended when the Vale had three spires goes on now that it has eight.
@@ -487,6 +487,14 @@ export class Game {
     this.finisher = null; this.riposteT = 0; this._ripUntil = 0;
     if (this._deadFade) { this._deadFade = false; this.emit('fade', { on: false }); }
     if (this.people?.talk) { this.people.talk = null; this.player.invulnerable = 0; this.emit('dialogue', { phase: 'close' }); }
+    this.encounters?._endEcho(false);
+    if (this.trials?.run) this.trials._end(false);
+    const tu = this.tuning;
+    if (tu?.active && tu.phase !== 'finale' && tu.phase !== 'return') {
+      if (!tu.s.tuned) { tu.s.tuning = 0; tu.s.power = 0; }
+      tu.active = false; this.player.invulnerable = 0; this.emit('tuning', { phase: 'end' });
+    }
+    if (this.strings?.ride) { this.strings.ride = null; this.strings.speed = 0; this.player.invulnerable = 0; if (this.player.state === 'ride') this.player.setState('move'); }
   }
   toHome() { this._dropMoment(); this.state = 'home'; this.input.enabled = false; this.input.unlockPointer(); this.emit('state', { state: 'home' }); }
 
@@ -616,6 +624,7 @@ export class Game {
       this.hero?.cloth?.reset();
       this._deadFade = false; this.emit('fade', { on: false });
       this.emit('respawn');
+      this.save();
     }
   }
 
@@ -1003,7 +1012,7 @@ export class Game {
       if (!this.cine) {
         const nm = Math.max(3, Math.min(16, Math.round((en.def.xp ?? 10) / 5)));
         for (let k = 0; k < nm; k++) { const a = Math.random() * 6.283, up = 2 + Math.random() * 5, sp = 2 + Math.random() * 4; (this.motes ??= []).push({ x: c.x, y: c.y + Math.random() * 0.6, z: c.z, vx: Math.cos(a) * sp, vy: up, vz: Math.sin(a) * sp, t: -Math.random() * 0.25, first: k === 0 }); }
-        if (en.elite && en.def.name && !(this.elitesDown ??= []).includes(en.def.name)) this.elitesDown.push(en.def.name);
+        if (en.elite && en.affix && en.def.name && !(this.elitesDown ??= []).includes(en.def.name)) this.elitesDown.push(en.def.name);
         const gain = Math.round((en.def.xp ?? 10) * (this.player.charms?.has('gilt') ? 1.17 : 1));
         this.xp += gain; this.emit('xp', { amount: gain, total: this.xp });
         (this.slain ??= {})[en.kind] = (this.slain[en.kind] ?? 0) + 1;

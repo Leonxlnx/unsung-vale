@@ -18,6 +18,14 @@ Fixed
   with no life left and the screen could stay black. The dead open no menus now.
 - Leaving for the title in the middle of a fight no longer carries a half-finished blow or
   conversation into the next session.
+- A court's fight now resumes at the wave it had reached after leaving the game as well,
+  not only after a fall.
+- Leaving for the title in the middle of an echo, a trial, a tuning or a string ride ends
+  it. Before, Continue could finish a ride from the safe place, or tune a spire from afar.
+- Returning to the last safe place ends an echo, which could otherwise be fought again
+  and again with a mended hero.
+- The champion of the Crown's trial no longer counts as one of Odo's four names.
+- Song-crystals keep their places whatever quests are under way. A fall is counted at once.
 - Gold let into a floor turned olive in shade, where it mirrored the blue of the sky, and
   looked like grass coming through the paving. Gilding keeps its own hue now.
 

@@ -234,8 +234,11 @@ the opaque scene at the far plane with the depth test on, so it is only shaded w
   falling strike. `game.riposteT`: the window after a perfect dodge.
 - Echoes (`encounters.startEcho`, `_echo`, `game.echoes`): after the ending a court replays
   three harder waves at its spire; their constructs are drawn pale (`mods.ghost`, a +2 on
-  the tint channel). `encounters.reached` keeps the wave a court had reached, so a death
-  there resumes at that wave.
+  the tint channel). `encounters.reached` keeps the wave a court had reached and is saved (`waves`),
+  so the fight resumes at that wave after a death and after leaving the game.
+- `game._dropMoment()` runs on the way to the title and ends whatever was under way: a last
+  note, a conversation, an echo, a trial, a tuning not yet won, a string ride. "Return to
+  the last safe place" ends a trial and an echo too.
 - Trials have three kinds: `fight`, `run` and `return` (bolts struck back, counted from the
   `returned` enemy event).
 - `DYES` in game.js: cape colours with the test that earns each; `game.cape`.
