@@ -44,6 +44,10 @@ Fixed
   arrival. A blow taken while swimming no longer sinks him.
 - A string sets him down on the level of its pylon even where the far side is the edge
   of the mesa.
+- A construct that followed him down a slope it cannot climb, or into the lake, no longer
+  stays there out of reach and holds its court shut: it is back at its post in a moment.
+- What a giant calls up stands on the giant's floor. Waking at a safe place gives a breath
+  before anything standing there can strike.
 - Gold let into a floor turned olive in shade, where it mirrored the blue of the sky, and
   looked like grass coming through the paving. Gilding keeps its own hue now.
 

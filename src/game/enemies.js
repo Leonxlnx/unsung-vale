@@ -315,7 +315,7 @@ export class Enemies {
         let wantSpeed = 0, dirSign = 1;
         if (e.state === 'chase') {
           faceP();
-          if (!playerAlive || e.pos.distanceTo(e.home) > 70) { e.state = 'return'; }
+          if (!playerAlive || e.pos.distanceTo(e.home) > 70) { e.state = 'return'; e.bestHd = undefined; e.stuckT = 0; }
           else if (d.ranged) {
             // Lancers keep their distance and back off when crowded.
             if (dist < 7) { wantSpeed = d.speed; dirSign = -1; } else if (dist > 14) wantSpeed = d.speed;
@@ -357,7 +357,9 @@ export class Enemies {
           }
         } else if (e.state === 'return') {
           const h = _v.copy(e.home).sub(e.pos); h.y = 0; const hd = h.length();
-          if (hd < 1.5) { e.state = 'chase'; e.t = 0; } else { toP.copy(h.multiplyScalar(1 / hd)); wantSpeed = d.speed; e.yaw = Math.atan2(toP.x, toP.z); }
+          if (hd < (e.bestHd ?? 1e9) - 0.5) { e.bestHd = hd; e.stuckT = 0; } else e.stuckT = (e.stuckT ?? 0) + dt;
+          if (e.stuckT > 6) { e.pos.copy(e.home); e.vel.set(0, 0, 0); e.snap = true; e.state = 'chase'; e.t = 0; e.stuckT = 0; }
+          else if (hd < 1.5) { e.state = 'chase'; e.t = 0; } else { toP.copy(h.multiplyScalar(1 / hd)); wantSpeed = d.speed; e.yaw = Math.atan2(toP.x, toP.z); }
           if (playerAlive && dist < d.sight * 0.5 && e.pos.distanceTo(e.home) < 40) e.state = 'chase';
         } else if (e.state === 'windup') {
           if (e.t < d.windup * 0.75 && e.attackKind !== 5) faceP();
@@ -432,7 +434,7 @@ export class Enemies {
         } else if (e.state === 'blink') {
           // It lets go of its shape; a breath later it has it again behind him, already raising its arm.
           e.fade = Math.min(1, e.t / 0.3); e.vel.set(0, 0, 0);
-          if (e.t >= 0.5 && dist > 24) { e.fade = 0; e.state = 'return'; e.t = 0; }
+          if (e.t >= 0.5 && dist > 24) { e.fade = 0; e.state = 'return'; e.t = 0; e.bestHd = undefined; e.stuckT = 0; }
           else if (e.t >= 0.5) {
             const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
             let ok = false;

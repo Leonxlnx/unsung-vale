@@ -438,6 +438,7 @@ export class Game {
     if (this.player.lockTarget) { this.player.lockTarget = null; this.emit('lock', { target: null }); }
     this.world.stream(s.x, s.z, 6);
     this.player.spawn(s.x, s.y, s.z, s.yaw ?? 0);
+    if (!this.cine) this.player.invulnerable = 2;
     this.rig.snap(this.player);
     this.rig.yaw = s.yaw ?? 0;
   }
@@ -987,7 +988,8 @@ export class Game {
     if (e.type === 'summon') {
       const q = e.enemy.pos, n = 1 + e.phase;
       for (let i = 0; i < n; i++) {
-        const a = e.enemy.yaw + Math.PI + (i - (n - 1) / 2) * 0.9, x = q.x + Math.sin(a) * 6, z = q.z + Math.cos(a) * 6;
+        const a = e.enemy.yaw + Math.PI + (i - (n - 1) / 2) * 0.9; let x = q.x + Math.sin(a) * 6, z = q.z + Math.cos(a) * 6;
+        if (Math.abs(this.world.floorBelow(x, q.y + 1.5, z, 4) - q.y) > 1.2) { x = q.x; z = q.z; }
         const add = this.enemies.spawn(e.enemy.kind === 'sovereign' && i === 0 ? 'thrall' : 'hound', x, z, e.enemy.group, e.enemy.kind === 'sovereign' ? { scale: 1.12, hp: 1.4, dmg: 1.15, tint: 0.6 } : null, q.y);
         add.state = 'rise'; add.t = 0;
         this.vfx.wave(add.pos.x, add.pos.y + 0.08, add.pos.z, { r0: 3, r1: 0.4, life: 0.8, strength: 0.9, width: 0.08, color: [2.4, 1.15, 4.6] });
