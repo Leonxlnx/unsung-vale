@@ -72,6 +72,8 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const PASSING = ['Evening.', 'It sings. Listen.', 'Mind the edge.', 'There you are.', 'Still in one piece, I see.', 'You hum when you walk. Did you know?', 'Good light for it.', 'Go well.', 'Do not let me keep you.', 'Fine evening for mending a valley.'];
 const PASSING_LATE = ['I had forgotten how the air sounds.', 'They talk of you at every court.', 'Listen to that. Three, four voices now.', 'The strings are humming again. You can feel it in your teeth.'];
 const PASSING_SMALL = ['Hello!', 'Is that sword heavy?', 'I counted the lights again.', 'Watch this. No, wait. Watch.', 'Are you going to the Crown?'];
+// Called out by whoever is watching while their court remembers its silence.
+const CHEER = ['Behind you!', 'That is the way!', 'Do not let it settle!', 'Again! Again!', 'Mind the big one!', 'We are with you!', 'Sing it down!'];
 const HURT = ['You are bleeding light. Sit a moment.', 'Hum the note. Go on.', 'That looks worse than it is, I hope.'];
 
 export class People {
@@ -224,7 +226,7 @@ export class People {
       // Turn to whoever comes near, and back to their own business when left alone.
       const toP = Math.atan2(p.pos.x - n.x, p.pos.z - n.z), close = k > 0.9 && dist < 7;
       if (n.b && n.k >= 1) {
-        const near = dist < 4.6 || talking;
+        const near = dist < 4.6 || talking || g.encounters?.echo?.id === n.def.site;
         if (n.moving && !near) {
           const dx = n.to[0] - n.x, dz = n.to[1] - n.z, dd = Math.hypot(dx, dz), sp = (n.def.h < 0.8 ? 1.45 : 0.82) * dt;
           if (dd < 0.12) { n.moving = false; n.wt = 5 + Math.random() * 10; n.home = n.to === n.b ? n.yawB : n.yawA; }
@@ -249,17 +251,18 @@ export class People {
       n.root.updateMatrixWorld(true);
     }
     // One passing word at a time, from whoever is nearest and has not spoken lately.
-    if (playing && !this.talk && !g.tuning.active && !p.inCombat) {
+    const echo = g.encounters?.echo ?? null;
+    if (playing && !this.talk && !g.tuning.active && (!p.inCombat || echo)) {
       this.barkT = (this.barkT ?? 6) - dt;
       if (this.bark && (this.bark.t -= dt) <= 0) { g.emit('bark', { off: true }); this.bark = null; }
       if (this.barkT <= 0 && !this.bark) {
         this.barkT = 2;
-        let best = null, bd = 6.5;
-        for (const n of this.list) { if (!n.awake || n.k < 1 || (n.said ?? 0) > g.time) continue; const d = Math.hypot(p.pos.x - n.x, p.pos.z - n.z); if (d < bd && d > 1.6 && Math.abs(p.pos.y - n.y) < 2) { bd = d; best = n; } }
+        let best = null, bd = echo ? 26 : 6.5;
+        for (const n of this.list) { if (!n.awake || n.k < 1 || (n.said ?? 0) > g.time || (echo && n.def.site !== echo.id)) continue; const d = Math.hypot(p.pos.x - n.x, p.pos.z - n.z); if (d < bd && d > 1.6 && Math.abs(p.pos.y - n.y) < 2) { bd = d; best = n; } }
         if (best) {
-          const sung = g.spires.filter((q) => q.tuned).length, pool = p.health < p.healthMax * 0.45 ? HURT : best.def.h < 0.8 ? PASSING_SMALL : sung >= 3 ? [...PASSING, ...PASSING_LATE] : PASSING;
+          const sung = g.spires.filter((q) => q.tuned).length, pool = echo ? CHEER : p.health < p.healthMax * 0.45 ? HURT : best.def.h < 0.8 ? PASSING_SMALL : sung >= 3 ? [...PASSING, ...PASSING_LATE] : PASSING;
           const text = pool[Math.floor(Math.random() * pool.length)];
-          best.said = g.time + 55 + Math.random() * 40; this.barkT = 16 + Math.random() * 14;
+          best.said = g.time + (echo ? 9 : 55 + Math.random() * 40); this.barkT = echo ? 4 + Math.random() * 3 : 16 + Math.random() * 14;
           this.bark = { n: best, t: 3.6 }; g.emit('bark', { n: best, text });
         }
       }

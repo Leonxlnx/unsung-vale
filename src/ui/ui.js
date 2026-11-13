@@ -616,7 +616,7 @@ export class UI {
   }
   _renderEnding() {
     const g = this.game;
-    this.el.stats.innerHTML = `<dl><dt>Time in the Vale</dt><dd>${this._time(g.playTime ?? 0)}</dd><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Quests done</dt><dd>${g.quests.doneCount} / ${QUESTS.length}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Reliquaries opened</dt><dd>${g.reliquaries.openCount} / ${g.reliquaries.list.length}</dd><dt>Times fallen</dt><dd>${g.falls ?? 0}</dd></dl>`;
+    this.el.stats.innerHTML = `<dl><dt>Time in the Vale</dt><dd>${this._time(g.playTime ?? 0)}</dd><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Quests done</dt><dd>${g.quests.doneCount} / ${QUESTS.length}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Reliquaries opened</dt><dd>${g.reliquaries.openCount} / ${g.reliquaries.list.length}</dd><dt>Times fallen</dt><dd>${g.falls ?? 0}</dd><dt>Of all there is to do</dt><dd>${g.completion}%</dd></dl>`;
   }
 
   // --- settings panel ---

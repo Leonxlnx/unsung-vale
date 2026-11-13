@@ -62,6 +62,7 @@ export function connectAudio(audio, game, ui, falls) {
       else { audio.sfx('shatter_big', { volume: 0.9, spread: 0 }); audio.sfx('slam', { volume: 0.8, pitch: 0.8, spread: 0 }); audio.sfx(k('trial_begin', 'spire_tune'), { volume: 0.5, pitch: 0.75, spread: 0, wet: 0.6 }); }
     }
     if (type === 'geode') { audio.sfx('shatter', { volume: 0.45, pitch: 1.5, spread: 0 }); audio.sfx(k('crystal', 'pickup'), { volume: 0.5, pitch: 1.2 + Math.random() * 0.3, spread: 0, wet: 0.4 }); }
+    if (type === 'bark' && !d.off) audio.sfx(k('talk', 'ui_hover'), { volume: 0.2, pitch: d.n?.def.h < 0.8 ? 1.45 : 0.95 + Math.random() * 0.2, spread: 0 });
     if (type === 'chime') {
       if (d.phase === 'ring') { audio.sfx(k('crystal', 'pickup'), { volume: d.wrong ? 0.35 : 0.6, pitch: d.pitch, spread: 0, wet: 0.5 }); if (d.wrong) audio.sfx(k('block', 'hurt'), { volume: 0.22, pitch: 0.6, spread: 0 }); }
       if (d.phase === 'done') { [0.75, 1.0, 1.335, 1.5].forEach((pt, i) => setTimeout(() => audio.sfx(k('crystal', 'pickup'), { volume: 0.5, pitch: pt, spread: 0, wet: 0.6 }), 350 + i * 150)); audio.sfx(k('quest_done', 'upgrade'), { volume: 0.5, spread: 0, wet: 0.4 }); }
