@@ -34,7 +34,9 @@ const VETERAN = { scale: 1.16, hp: 1.7, dmg: 1.2, tint: 0.6 };
 
 // The most level dry spot within a few paces that no tree or wall already stands on.
 export function settle(W, x0, z0, reach = 12) {
-  const C = W.caps;
+  // Only the trunks that stand near enough to matter are looked at for each spot.
+  const C = W.caps, near = [], span = reach + 4;
+  for (let i = 0; i < C.length; i += 7) if (Math.abs(C[i] - x0) < span && Math.abs(C[i + 2] - z0) < span) near.push(C[i], C[i + 2], C[i + 6]);
   let best = [x0, z0], bs = 1e9;
   for (let dx = -reach; dx <= reach; dx += 2) for (let dz = -reach; dz <= reach; dz += 2) {
     const x = x0 + dx, z = z0 + dz, h = W.groundHeight(x, z);
@@ -45,7 +47,7 @@ export function settle(W, x0, z0, reach = 12) {
     let lo = h, hi = h;
     for (let k = 0; k < 8; k++) for (const r of [1.6, 3.2]) { const q = W.groundHeight(x + Math.cos(k * 0.785) * r, z + Math.sin(k * 0.785) * r); lo = Math.min(lo, q); hi = Math.max(hi, q); }
     let tree = 1e9;
-    for (let i = 0; i < C.length; i += 7) { const d = Math.hypot(C[i] - x, C[i + 2] - z) - C[i + 6]; if (d < tree) tree = d; }
+    for (let i = 0; i < near.length; i += 3) { const d = Math.hypot(near[i] - x, near[i + 1] - z) - near[i + 2]; if (d < tree) tree = d; }
     if (tree < 2.6) continue;
     const score = (hi - lo) + Math.hypot(dx, dz) * 0.012;
     if (score < bs) { bs = score; best = [x, z]; }
