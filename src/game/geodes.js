@@ -81,7 +81,7 @@ export class Geodes {
     g.hitStop = Math.max(g.hitStop, 0.04);
     g.emit('geode', { xp, refrain, count: this.brokenCount, total: this.list.length });
     g.emit('xp', { amount: xp, total: g.xp });
-    if (this.brokenCount % 4 === 0) g.save();
+    g.save();
   }
 
   update(dt, playing) {

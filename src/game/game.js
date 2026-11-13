@@ -453,6 +453,7 @@ export class Game {
   // Puts the world into a chosen story state. Used by the cinematic director so each shot
   // starts from known conditions; never called during normal play.
   cineSetup({ tuned = [], player = null, bridge = null } = {}) {
+    this.player.charms = new Set(); this.enemies.anvil = false;      // the film's hero wears nothing from a save
     { const was = this.cine; this.cine = true; this._skills(); this.cine = was; }      // the film's hero knows it all
     for (const s of this.spires) {
       const on = tuned.includes(s.id) || s.index > 2;
@@ -576,6 +577,7 @@ export class Game {
     p.events.length = 0;
     this._spireLogic(dt);
     if (!busy) this._finisher(dt);
+    if (!this.cine) this.encounters._echo(dt);          // after the spire has had its say about the prompt
     this.strings.update(dt, !this.cine && !busy);
     this.quests.update(dt, !this.cine && !busy);
     this.trials.update(dt, !this.cine && !busy);
@@ -922,7 +924,7 @@ export class Game {
     if (e.type === 'wake' && e.enemy.affix && !this.cine) this.emit('hint', { title: e.enemy.def.name, text: { mark: 'Where it strikes, the ground remembers. Do not stand where you stood.', split: 'When it falls, what held it together comes for you.', shell: 'Nothing bites on it while any of its own still stand.', hymn: 'It keeps two of its own under ward at once. Break the singer first.' }[e.enemy.affix] });
     if (e.type === 'split') {
       const q = e.enemy;
-      for (let k = 0; k < 3; k++) { const a = k * 2.094 + 0.5, s = this.enemies.spawn('seeker', q.pos.x + Math.cos(a) * 1.6, q.pos.z + Math.sin(a) * 1.6, q.group, null, q.pos.y); s.state = 'rise'; s.t = 0.5; }
+      for (let k = 0; k < 3; k++) { const a = k * 2.094 + 0.5; let sx = q.pos.x + Math.cos(a) * 1.6, sz = q.pos.z + Math.sin(a) * 1.6; if (Math.abs(this.world.floorBelow(sx, q.pos.y + 1.5, sz, 4) - q.pos.y) > 1.2) { sx = q.pos.x; sz = q.pos.z; } const s = this.enemies.spawn('seeker', sx, sz, q.group, null, q.pos.y); s.state = 'rise'; s.t = 0.5; }
       this.vfx.wave(q.pos.x, q.pos.y + 0.1, q.pos.z, { r0: 0.4, r1: 5, life: 0.6, strength: 1.1, width: 0.07, color: [2.4, 1.15, 4.6] });
     }
     if (e.type === 'wake' && (e.enemy.def.boss || e.enemy.elite)) { this.boss = e.enemy; this.emit('boss', { enemy: e.enemy }); this.regard = { e: e.enemy, t: e.enemy.def.boss ? 2.4 : 1.2 }; }

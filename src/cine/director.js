@@ -44,7 +44,7 @@ export class Director {
     g.bakeGround?.(false);
     this.time = 0; this.index = -1;
   }
-  end() { const g = this.game; g.cine = false; g.input.puppet = null; g.bakeGround?.(true); g.cineSetup({ tuned: [] }); g.load(); g.toHome(); }
+  end() { const g = this.game; g.cine = false; g.input.puppet = null; g.bakeGround?.(true); g.cineSetup({ tuned: [] }); g.load(); g._charms?.(); g.toHome(); }
 
   // Steers the hero toward a point by setting the movement stick; the camera yaw used for
   // movement is fixed to the travel direction so "forward" means "toward the goal".

@@ -125,7 +125,7 @@ export class Encounters {
   _echo(dt) {
     const g = this.g, p = g.player, e = this.echo;
     if (e) {
-      if (p.state === 'dead' || Math.hypot(p.pos.x - e.s.x, p.pos.z - e.s.z) > 75) return this._endEcho(false);
+      if (g.state !== 'playing' || p.state === 'dead' || Math.hypot(p.pos.x - e.s.x, p.pos.z - e.s.z) > 75) return this._endEcho(false);
       if (g.enemies.aliveIn(e.group) > 0) { e.wait = 0; return; }
       if ((e.wait += dt) < 1.6) return;
       e.wait = 0;
@@ -135,7 +135,7 @@ export class Encounters {
       return;
     }
     // Asked for at the spire of a court that sings, once every spire does.
-    if (!g.ended || g.prompt || g.tuning.active || g.people.talk || p.state !== 'move' || !p.grounded || g.state !== 'playing') return;
+    if (!g.ended || !g.outroSeen || g.prompt || g.tuning.active || g.people.talk || p.state !== 'move' || !p.grounded || g.state !== 'playing') return;
     for (const s of g.spires) {
       if (!s.tuned || Math.hypot(p.pos.x - s.x, p.pos.z - s.z) > 5.2 || Math.abs(p.pos.y - s.base) > 4) continue;
       if (g.enemies.list.some((q) => q.alive && q.state !== 'dormant' && q.pos.distanceTo(p.pos) < 30)) return;
@@ -148,7 +148,6 @@ export class Encounters {
 
   update(dt) {
     const g = this.g, p = g.player;
-    this._echo(dt);
     for (const [id, waves] of Object.entries(WAVES)) {
       const i = this.wave[id];
       if (i === undefined || i >= waves.length - 1 || g.enemies.aliveIn(id) > 0) continue;

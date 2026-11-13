@@ -235,7 +235,7 @@ export class People {
         // Nobody walks through anybody: he is eased out of the way of whoever he stands in.
         if (dist < 0.62 && dist > 1e-3 && !talking) g.pushHero(((p.pos.x - n.x) / dist) * (0.62 - dist), ((p.pos.z - n.z) / dist) * (0.62 - dist));
         n.gait = (n.gait ?? 0) + ((n.moving && !near ? 1 : 0) - (n.gait ?? 0)) * Math.min(1, dt * 4);
-      }
+      } else if (n.b && dist < 0.62 && dist > 1e-3) g.pushHero(((p.pos.x - n.x) / dist) * (0.62 - dist), ((p.pos.z - n.z) / dist) * (0.62 - dist));
       n.yaw += wrap((close ? toP : n.moving ? n.walkYaw : n.home) - n.yaw) * Math.min(1, dt * (talking ? 5 : n.moving && !close ? 4 : 1.6)) * k;
       n.headYaw += ((k > 0.9 && dist < 14 ? Math.max(-0.9, Math.min(0.9, wrap(toP - n.yaw))) : 0.25 * Math.sin(n.t * 0.3)) - n.headYaw) * Math.min(1, dt * 4);
       n.gesture += ((talking && this.talk.phase !== 'out' ? 1 : 0) - n.gesture) * Math.min(1, dt * 5);

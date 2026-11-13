@@ -334,7 +334,7 @@ export class Enemies {
             else { const tx = -toP.z * s, tz = toP.x * s; toP.set(tx * 0.9 + toP.x * inw, 0, tz * 0.9 + toP.z * inw).normalize(); wantSpeed = d.speed * 0.8; }
           } else {
             if (d.burst) {
-              if (dist > d.reach) wantSpeed = d.speed; else { e.state = 'windup'; e.t = 0; this.events.push({ type: 'charge', enemy: e }); }
+              if (dist > d.reach && !((e.life = (e.life ?? 0) + dt) > 20)) wantSpeed = d.speed; else { e.state = 'windup'; e.t = 0; this.events.push({ type: 'charge', enemy: e }); }
             } else
             if (d.blink && dist > 3.5 && dist < 16 && !(e.blinkCd > 0) && e.t > 0.4 && !this.film) {
               e.state = 'blink'; e.t = 0; e.blinkCd = 4.5 + e.seed * 2.5; this.events.push({ type: 'blink', enemy: e, pos: e.center.clone() });
@@ -360,7 +360,7 @@ export class Enemies {
           if (hd < 1.5) { e.state = 'chase'; e.t = 0; } else { toP.copy(h.multiplyScalar(1 / hd)); wantSpeed = d.speed; e.yaw = Math.atan2(toP.x, toP.z); }
           if (playerAlive && dist < d.sight * 0.5 && e.pos.distanceTo(e.home) < 40) e.state = 'chase';
         } else if (e.state === 'windup') {
-          if (e.t < d.windup * 0.75) faceP();
+          if (e.t < d.windup * 0.75 && e.attackKind !== 5) faceP();
           if (e.t >= d.windup / (0.5 + 0.5 * this.haste)) { e.state = 'strike'; e.t = 0; e.didHit = false; this.events.push({ type: 'attack', enemy: e });
             if (e.affix === 'mark') { const b = { x: player.pos.x, z: player.pos.z, t: 1.15, r: 2.8, dmg: Math.round(d.damage * 0.8), y: W.floorBelow(player.pos.x, player.pos.y + 1.5, player.pos.z, 6) }; this.blasts.push(b); this.events.push({ type: 'blastMark', blast: b, enemy: e }); } }
         } else if (e.state === 'strike') {
@@ -500,7 +500,7 @@ export class Enemies {
       P.spawn(p.pos.x, p.pos.y, p.pos.z, { life: 0.22, size: 0.3, color: [2.2, 1.0, 4.2], alpha: 0.8 });
       // Met by a swing in its active moment, it is sent back at whoever stands nearest its
       // new line: the hero's answer to a lancer.
-      if (!p.back && player.attackActive && Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z) < 2.3 && Math.abs(p.pos.y - player.pos.y - 1.1) < 1.6) {
+      if (!p.back && !this.film && player.attackActive && Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z) < 2.3 && Math.abs(p.pos.y - player.pos.y - 1.1) < 1.6) {
         let best = null, bd = 1e9;
         for (const e of this.list) { if (!e.alive || e.state === 'dormant') continue; const dd = e.pos.distanceTo(p.pos); if (dd < bd && dd < 40) { bd = dd; best = e; } }
         const aim = best ? best.center.sub(p.pos).normalize() : p.vel.clone().normalize().negate();
