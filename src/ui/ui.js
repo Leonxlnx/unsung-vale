@@ -17,6 +17,35 @@ const h = (html) => { const t = document.createElement('template'); t.innerHTML 
 const cap = (s) => s.replace(/^the /, 'The ');
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
+// The guide: what the cards say in passing, kept where it can be read again.
+const GUIDE = [
+  ['The blade', [
+    ['Combo and heavy', 'Left mouse strikes, three cuts to a combo. Right mouse is the heavy blow: slower, and it cracks a warden\'s guard.'],
+    ['Falling strike', 'Strike in the air and he turns and comes down blade first. The higher the fall, the harder it lands.'],
+    ['Cadence', 'Blows landed without one taken build cadence in four steps. Each step puts more weight in the blade; one hit taken and it is lost.'],
+    ['Riposte', 'A blow slipped at the last instant leaves an opening. Strike at once and the cut lands far harder.'],
+    ['Struck back', 'A bolt met with the blade goes back at whoever stands nearest its line.'],
+    ['The last note', 'A named Mute or a giant that is nearly spent can be ended at a stroke. Stand near and press E.'],
+  ]],
+  ['Staying alive', [
+    ['The refrain', 'R hums the note you carry and it mends you. A few to a journey; they return at spires, bells, pylons and with lost notes.'],
+    ['Dodge roll', 'Ctrl or C. For a moment in the middle of it nothing can touch you.'],
+    ['Wards', 'A chorister throws a ward over one of its own. Break the singer and the ward goes with it.'],
+    ['The toll', 'A Toller sends a ring out along the ground. Jump it, or roll through it as it reaches you.'],
+    ['The rush', 'A brute that cannot reach you draws a line on the ground and comes down it. Step off the line.'],
+    ['Falling in a court', 'A court remembers the wave you reached. You come back to it, not to the beginning.'],
+  ]],
+  ['The Vale', [
+    ['Spires', 'Clear a court, then strike its spire\'s notes: press E as each ring of light closes on the shaft.'],
+    ['Strings of light', 'From any pylon the map can send you along the strings to a court that already sings.'],
+    ['Bells', 'Each court beyond the water sleeps until its three bells have been rung, out on its mesa.'],
+    ['Reliquaries and charms', 'One casket on every mesa, off the paths. What it held is worn from the Hero screen, two at a time.'],
+    ['Chimes', 'Three small bells to a set. Strike them from the lowest voice to the highest.'],
+    ['Song-crystals', 'Clusters of amber in the meadows. A cut breaks one open for what it held.'],
+    ['Echoes', 'Once the Vale sings, a court will call its guard back at its spire: three harder waves, paid in resonance.'],
+    ['Photo mode', 'H holds the world still and frees the camera. Click saves the picture.'],
+  ]],
+];
 // What the journal has to say about each kind of Mute once one has been brought down.
 const MUTE = [
   ['thrall', 'Thrall', 'The rank and file. It cuts once and, given the chance, again.'],
@@ -97,11 +126,12 @@ export class UI {
         <div class="tabbody"></div><button class="back" data-act="back">Back</button></div></div>
       <div id="credits" class="screen side"><div class="panel wide"><h2>Credits</h2><div class="rule"><i></i></div><div class="credits"></div><button class="back" data-act="back">Back</button></div></div>
       <div id="journey" class="screen">
-        <div class="head">${EMBLEM}<div class="tabs"><button data-jtab="map">Map</button><button data-jtab="journal">Journal</button><button data-jtab="hero">Hero</button></div><button class="close" data-act="close">Close</button></div>
+        <div class="head">${EMBLEM}<div class="tabs"><button data-jtab="map">Map</button><button data-jtab="journal">Journal</button><button data-jtab="hero">Hero</button><button data-jtab="guide">Guide</button></div><button class="close" data-act="close">Close</button></div>
         <div class="jbody">
           <div class="pane map"><div class="chart"><canvas class="land"></canvas><canvas class="over"></canvas><div class="tip"></div></div><div class="legend"></div></div>
           <div class="pane journal"></div>
           <div class="pane hero"></div>
+          <div class="pane guide"></div>
         </div>
       </div>
       <div id="ending" class="screen"><div>${EMBLEM}<h2>The Vale sings again</h2><div class="rule"><i></i></div><p>Every spire is tuned.</p><div class="stats"></div><p class="after">The Vale stays open. At its spire every court will wake an echo of its silence for you to answer, and there are notes, trials and reliquaries still out on the mesas.</p>
@@ -379,6 +409,7 @@ export class UI {
       // Places come onto the map as they are seen.
       const seen = (g.seenPlaces ??= []);
       for (const tl of g.trials.list) if (!seen.includes(tl.def.id) && Math.hypot(tl.x - p.pos.x, tl.z - p.pos.z) < 110) seen.push(tl.def.id);
+      for (const c of g.chimes.list) if (!seen.includes('chime:' + c.id) && Math.hypot(c.x - p.pos.x, c.z - p.pos.z) < 70) seen.push('chime:' + c.id);
     } else if (this._tr?.count && g.trials.run) el.questCount.textContent = g.tracker()?.count ?? '';
 
     this._marker(el.marker, el.markerText, g.marker, g.marker?.way ? 6 : 14);
@@ -438,6 +469,7 @@ export class UI {
     if (tab === 'map') { this._bakeMap(); this._renderLegend(); }
     if (tab === 'journal') this._renderJournal();
     if (tab === 'hero') this._renderHero();
+    if (tab === 'guide') this.root.querySelector('#journey .pane.guide').innerHTML = GUIDE.map(([head, rows]) => `<div class="col"><h3>${head}</h3>${rows.map(([t, x]) => `<div class="sk on guide"><i></i><div><b>${t}</b><span>${x}</span></div></div>`).join('')}</div>`).join('');
   }
 
   // The land from above, drawn once in the inks of an old chart: dark water, pale mesa
@@ -510,6 +542,8 @@ export class UI {
     for (const r of g.reliquaries.list) { if (!g.reliquaries.known(r)) continue; const [x, y] = this._xy(r.x, r.z); ctx.strokeStyle = gold; ctx.lineWidth = 1.3; ctx.strokeRect(x - 2.6, y - 2.6, 5.2, 5.2); }
     // Trials that have been seen.
     for (const tl of g.trials.list) { if (!(g.seenPlaces ?? []).includes(tl.def.id) && !tl.done) continue; const [x, y] = this._xy(tl.x, tl.z); ctx.strokeStyle = tl.done ? 'rgba(231,194,125,0.45)' : gold; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(x, y, 4, 0, 6.283); ctx.stroke(); }
+    // Chime sets that have been seen: three dots, gold once they have been set right.
+    for (const c of g.chimes.list) { if (!c.done && !(g.seenPlaces ?? []).includes('chime:' + c.id)) continue; const [x, y] = this._xy(c.x, c.z); ctx.fillStyle = c.done ? gold : 'rgba(255,255,255,0.75)'; for (const dx of [-3.2, 0, 3.2]) { ctx.beginPath(); ctx.arc(x + dx, y, 1.15, 0, 6.283); ctx.fill(); } }
     // People who are awake.
     for (const n of g.people.list) { if (!n.awake) continue; const [x, y] = this._xy(n.x, n.z); ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.arc(x, y, 1.7, 0, 6.283); ctx.fill(); }
     // Courts.
@@ -543,7 +577,7 @@ export class UI {
     const g = this.game, at = g.strings.at(), tuned = g.spires.filter((s) => s.tuned).length;
     this.el.legend.innerHTML = `<h3>${tuned} of ${g.spires.length} voices</h3>
       <p>${at ? 'You stand at a pylon. Choose a court the strings reach to ride there.' : 'Strings of light can be ridden from the pylon at each court.'}</p>
-      <ul><li><i class="d on"></i>A court that sings</li><li><i class="d"></i>A silent court</li><li><i class="l"></i>A string of light</li><li><i class="o"></i>A trial ring</li><li><i class="b"></i>A bell</li><li><i class="r"></i>A reliquary</li><li><i class="p"></i>Someone awake</li></ul>
+      <ul><li><i class="d on"></i>A court that sings</li><li><i class="d"></i>A silent court</li><li><i class="l"></i>A string of light</li><li><i class="o"></i>A trial ring</li><li><i class="b"></i>A bell</li><li><i class="r"></i>A reliquary</li><li><i class="c"></i>A set of chimes</li><li><i class="p"></i>Someone awake</li></ul>
       <dl><dt>Lost notes</dt><dd>${g.notes.count} / ${g.notes.total}</dd><dt>Trials won</dt><dd>${g.trials.doneCount} / ${g.trials.list.length}</dd><dt>Quests done</dt><dd>${g.quests.doneCount} / ${QUESTS.length}</dd></dl>`;
   }
   _renderJournal() {

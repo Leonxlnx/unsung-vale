@@ -206,6 +206,11 @@ if (want('tuning')) {
   await sleep(3200); await shot('finale');
   await sleep(6500); await shot('woken');
 }
+if (want('guide')) {
+  await ev(() => { window.__dbg.ui(true); window.__tour.tp(-512, 210.5, -66, 1.57, -0.12, 5.5); });
+  await sleep(500); await page.keyboard.press('KeyJ'); await sleep(700); await ev(() => document.querySelector('[data-jtab="guide"]').click()); await sleep(600); await shot('guide');
+  await page.keyboard.press('Escape'); await sleep(600); await page.mouse.click(W / 2, H / 2); await sleep(300);
+}
 if (want('geode')) {
   // A cluster of song-crystals in the meadow, whole and then broken open.
   await ev(() => { const g = window.__game, c = g.geodes.list[1] ?? g.geodes.list[0]; window.__dbg.ui(true); g.enemies.list.length = 0; for (let k = 0; k < 6; k++) g.world.stream(c.x, c.z, 8); window.__tour.tp(c.x - 1.5, c.y + 0.1, c.z, 1.57, -0.3, 3.6); });

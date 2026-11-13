@@ -359,6 +359,8 @@ input[type='range']::-moz-range-thumb { width: 11px; height: 11px; background: v
 #journey .pane.hero .col:first-child { flex: 1.2; }
 @media (max-width: 1180px) { #journey .pane.hero { flex-wrap: wrap; overflow: auto; } #journey .pane.hero .col { flex: 1 1 320px; overflow: visible; } }
 #journey p.more { font-size: 14px; color: var(--ink-3); margin: 12px 0 0; }
+#journey .legend .c::before { content: ''; position: absolute; left: 2px; top: 7px; width: 2.6px; height: 2.6px; border-radius: 50%; background: var(--ink-2); box-shadow: 4.6px 0 0 var(--ink-2), 9.2px 0 0 var(--ink-2); }
+#journey .sk.guide b { font-size: 15.5px; } #journey .sk.guide { padding: 9px 0; } #journey .sk.guide i { background: none; box-shadow: inset 0 0 0 1px var(--gold); }
 #journey .legend .r::before { content: ''; position: absolute; inset: 5px; box-shadow: inset 0 0 0 1.3px var(--gold); }
 #journey .sk { display: grid; grid-template-columns: 16px 1fr; gap: 14px; padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
 #journey .sk i { width: 7px; height: 7px; margin: 8px 0 0 3px; box-shadow: inset 0 0 0 1px var(--ink-3); transform: rotate(45deg); }
