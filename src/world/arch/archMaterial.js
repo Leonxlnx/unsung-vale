@@ -294,6 +294,9 @@ void main() {
   float vis = sunVisibility(vWorld + N * 0.12 + uSunDir * 0.12);
   vec3 col = shadeSurface(alb, rough, metal, Ns, V, vis, ao, 0.0);
   col += alb * (1.0 - metal) * lampLight(vWorld, Ns) * ao;
+  // Gilding in shade mirrors the blue of the sky and comes out olive, which on a floor reads
+  // as grass showing through the paving. It keeps its own hue at the brightness it had.
+  if (m == 2) col = mix(col, luma(col) * vec3(1.45, 1.0, 0.42), 0.6);
   if (uLattice.w > 0.001) {
     // The Lattice answers every spire that sings: its gilding burns and its stone takes the glow.
     float on = (1.0 - smoothstep(1950.0, 2250.0, distance(vWorld, uLattice.xyz))) * uLattice.w;

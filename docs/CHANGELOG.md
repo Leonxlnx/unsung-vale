@@ -18,6 +18,8 @@ Fixed
   with no life left and the screen could stay black. The dead open no menus now.
 - Leaving for the title in the middle of a fight no longer carries a half-finished blow or
   conversation into the next session.
+- Gold let into a floor turned olive in shade, where it mirrored the blue of the sky, and
+  looked like grass coming through the paving. Gilding keeps its own hue now.
 
 The Mute
 
