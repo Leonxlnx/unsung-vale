@@ -14,6 +14,10 @@ Fixed
   above all) moved him with no regard for stone, and beside a pier that could leave him
   inside it. Every such push is now short and stops at a wall.
 - Falling in a court no longer sends its fight back to the first wave.
+- The map could be opened, and a string ridden, by a hero who had just fallen; he arrived
+  with no life left and the screen could stay black. The dead open no menus now.
+- Leaving for the title in the middle of a fight no longer carries a half-finished blow or
+  conversation into the next session.
 
 The Mute
 
