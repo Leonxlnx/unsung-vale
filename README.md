@@ -33,6 +33,8 @@ Stills from the in-game cinematic (draft render).
 
 Play, as captured by `tools/tour.mjs`.
 
+What changed lately is in [docs/CHANGELOG.md](docs/CHANGELOG.md).
+
 ## Run it
 
 ```bash
